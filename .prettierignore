@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.lock
+package-lock.json
+pnpm-lock.yaml
+.env
+.env.local
+.env.production
+.env.test
+.DS_Store
+.vscode/
+.idea/ 
