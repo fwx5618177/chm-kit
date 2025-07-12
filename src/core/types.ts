@@ -2,6 +2,8 @@
  * CHM 文件格式相关类型定义
  */
 
+import type { LogLevel, Logger } from '../logger/types';
+
 export interface ITSFHeader {
   signature: string; // 'ITSF'
   version: number;
@@ -185,15 +187,6 @@ export interface CHMInfo {
   totalSize: number;
   compressedSize: number;
   filesCount: number;
-}
-
-export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
-
-export interface Logger {
-  error(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  debug(message: string, ...args: any[]): void;
 }
 
 export interface CHMOptions {

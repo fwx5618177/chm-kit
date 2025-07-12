@@ -9,9 +9,7 @@ const program = new Command();
 
 program
   .name('chmkit')
-  .description(
-    'A TypeScript library for reading, parsing, and compressing .chm files',
-  )
+  .description('用于读取、解析和压缩 .chm 文件的 TypeScript 库')
   .version('1.0.0');
 
 // 添加子命令

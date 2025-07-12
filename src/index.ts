@@ -1,10 +1,3 @@
-/**
- * chmkit - A TypeScript library for reading, parsing, and compressing .chm files
- * @version 1.0.0
- * @author Your Name
- * @license MIT
- */
-
 // 导出核心类型定义
 export * from './core/types';
 

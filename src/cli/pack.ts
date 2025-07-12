@@ -2,18 +2,19 @@ import { Command } from 'commander';
 import { promises as fs } from 'fs';
 import { join, extname, basename } from 'path';
 import type { PackOptions } from '../core/types';
+import { logger } from '../logger/logger';
 
 /**
  * 打包目录为 CHM 文件的命令
  */
 export const packCommand = new Command('pack')
-  .description('Pack a directory into a CHM file')
-  .argument('<input>', 'Input directory path')
-  .option('-o, --output <file>', 'Output CHM file path', './output.chm')
-  .option('-t, --title <title>', 'CHM file title')
-  .option('-d, --default-topic <file>', 'Default topic file')
-  .option('-c, --compression', 'Enable compression', true)
-  .option('-v, --verbose', 'Enable verbose output', false)
+  .description('将目录打包为 CHM 文件')
+  .argument('<input>', '输入目录路径')
+  .option('-o, --output <file>', '输出 CHM 文件路径', './output.chm')
+  .option('-t, --title <title>', 'CHM 文件标题')
+  .option('-d, --default-topic <file>', '默认主题文件')
+  .option('-c, --compression', '启用压缩', true)
+  .option('-v, --verbose', '启用详细输出', false)
   .action(async (input: string, options: any) => {
     try {
       const packOptions: PackOptions = {
@@ -28,10 +29,10 @@ export const packCommand = new Command('pack')
       await packCHM(packOptions);
 
       if (options.verbose) {
-        console.log(`✅ Successfully created CHM file: ${options.output}`);
+        logger.success(`✅ 成功创建 CHM 文件: ${options.output}`);
       }
     } catch (error) {
-      console.error('❌ Error packing CHM file:', error);
+      logger.error('❌ Error packing CHM file:', error);
       process.exit(1);
     }
   });
@@ -45,23 +46,21 @@ async function packCHM(options: PackOptions): Promise<void> {
   try {
     const stats = await fs.stat(options.inputDir);
     if (!stats.isDirectory()) {
-      throw new Error(`Input path is not a directory: ${options.inputDir}`);
+      throw new Error(`输入路径不是目录: ${options.inputDir}`);
     }
   } catch {
-    throw new Error(`Input directory not found: ${options.inputDir}`);
+    throw new Error(`输入目录未找到: ${options.inputDir}`);
   }
 
   if (options.verbose) {
-    console.log(`📁 Packing directory: ${options.inputDir}`);
-    console.log(`📦 Output CHM file: ${options.outputPath}`);
-    console.log(
-      `🗜️  Compression: ${options.compression ? 'Enabled' : 'Disabled'}`,
-    );
+    logger.info(`📁 正在打包目录: ${options.inputDir}`);
+    logger.info(`📦 输出 CHM 文件: ${options.outputPath}`);
+    logger.info(`🗜️  压缩: ${options.compression ? '已启用' : '已禁用'}`);
     if (options.title) {
-      console.log(`📖 Title: ${options.title}`);
+      logger.info(`📖 标题: ${options.title}`);
     }
     if (options.defaultTopic) {
-      console.log(`🏠 Default topic: ${options.defaultTopic}`);
+      logger.info(`🏠 默认主题: ${options.defaultTopic}`);
     }
   }
 
@@ -69,7 +68,7 @@ async function packCHM(options: PackOptions): Promise<void> {
   const files = await scanDirectory(options.inputDir);
 
   if (options.verbose) {
-    console.log(`📄 Found ${files.length} files to pack`);
+    logger.info(`📄 找到 ${files.length} 个待打包文件`);
   }
 
   // 生成 TOC 和索引文件
@@ -78,36 +77,36 @@ async function packCHM(options: PackOptions): Promise<void> {
 
   // TODO: 实现实际的 CHM 打包逻辑
   // 这里需要使用 encoder 模块中的 CHM 编码器
-  console.log('⚠️  CHM packing logic not yet implemented');
-  console.log('This is a placeholder for the actual packing implementation');
+  logger.warn('⚠️  CHM 打包逻辑尚未实现');
+  logger.info('这是实际打包实现的占位符');
 
   // 示例：创建一个示例 CHM 文件（实际上是文本文件）
-  const manifestContent = `# CHM Package Manifest
+  const manifestContent = `# CHM 包清单
 
-This is a placeholder CHM file created by chmkit.
+这是由 chmkit 创建的 CHM 文件占位符。
 
-## Package Information
-- Input directory: ${options.inputDir}
-- Output file: ${options.outputPath}
-- Title: ${options.title || 'Untitled'}
-- Default topic: ${options.defaultTopic || 'index.html'}
-- Compression: ${options.compression ? 'Enabled' : 'Disabled'}
-- Created: ${new Date().toISOString()}
+## 包信息
+- 输入目录: ${options.inputDir}
+- 输出文件: ${options.outputPath}
+- 标题: ${options.title || '无标题'}
+- 默认主题: ${options.defaultTopic || 'index.html'}
+- 压缩: ${options.compression ? '已启用' : '已禁用'}
+- 创建时间: ${new Date().toISOString()}
 
-## Files (${files.length} total)
+## 文件 (共 ${files.length} 个)
 ${files.map(file => `- ${file}`).join('\n')}
 
-## TODO
-- Implement CHM file format writing
-- Implement LZX compression
-- Implement ITSF/ITSP/LZXC header writing
-- Implement directory structure encoding
+## 待办事项
+- 实现 CHM 文件格式写入
+- 实现 LZX 压缩
+- 实现 ITSF/ITSP/LZXC 头部写入
+- 实现目录结构编码
 `;
 
   await fs.writeFile(options.outputPath, manifestContent);
 
   if (options.verbose) {
-    console.log('📦 Created CHM manifest file');
+    logger.info('📦 已创建 CHM 清单文件');
   }
 }
 
@@ -184,7 +183,7 @@ ${htmlFiles
   await fs.writeFile(tocPath, tocContent);
 
   if (verbose) {
-    console.log('📋 Generated Table of Contents (TOC)');
+    logger.info('📋 已生成目录 (TOC)');
   }
 }
 
@@ -226,6 +225,6 @@ ${htmlFiles
   await fs.writeFile(indexPath, indexContent);
 
   if (verbose) {
-    console.log('📑 Generated Index file');
+    logger.info('📑 已生成索引文件');
   }
 }

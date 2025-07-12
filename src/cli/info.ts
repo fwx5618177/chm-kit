@@ -1,26 +1,27 @@
 import { Command } from 'commander';
 import { promises as fs } from 'fs';
 import { extname, basename } from 'path';
+import { logger } from '../logger/logger';
 
 /**
  * 显示 CHM 文件信息的命令
  */
 export const infoCommand = new Command('info')
-  .description('Display information about a CHM file')
-  .argument('<input>', 'Input CHM file path')
-  .option('-v, --verbose', 'Enable verbose output', false)
-  .option('-j, --json', 'Output information as JSON', false)
+  .description('显示 CHM 文件信息')
+  .argument('<input>', 'CHM 文件路径')
+  .option('-v, --verbose', '启用详细输出', false)
+  .option('-j, --json', '以 JSON 格式输出信息', false)
   .action(async (input: string, options: any) => {
     try {
       const info = await getCHMInfo(input, options.verbose || false);
 
       if (options.json) {
-        console.log(JSON.stringify(info, null, 2));
+        logger.info(JSON.stringify(info, null, 2));
       } else {
         displayInfo(info);
       }
     } catch (error) {
-      console.error('❌ Error reading CHM file:', error);
+      logger.error('❌ Error reading CHM file:', error);
       process.exit(1);
     }
   });
@@ -64,36 +65,36 @@ async function getCHMInfo(
   try {
     stats = await fs.stat(filePath);
   } catch {
-    throw new Error(`File not found: ${filePath}`);
+    throw new Error(`文件未找到: ${filePath}`);
   }
 
   if (!stats.isFile()) {
-    throw new Error(`Not a file: ${filePath}`);
+    throw new Error(`不是文件: ${filePath}`);
   }
 
   // 检查文件扩展名
   const ext = extname(filePath).toLowerCase();
   if (ext !== '.chm') {
-    console.warn(`⚠️  File extension is not .chm: ${ext}`);
+    logger.warn(`⚠️  文件扩展名不是 .chm: ${ext}`);
   }
 
   if (verbose) {
-    console.log(`📄 Analyzing CHM file: ${filePath}`);
+    logger.info(`📄 正在分析 CHM 文件: ${filePath}`);
   }
 
   // TODO: 实现实际的 CHM 文件分析逻辑
   // 这里需要使用 core 模块中的 CHM 解析器
-  console.log('⚠️  CHM analysis logic not yet implemented');
-  console.log('This is a placeholder for the actual analysis implementation');
+  logger.warn('⚠️  CHM 分析逻辑尚未实现');
+  logger.info('这是实际分析实现的占位符');
 
   // 示例信息（实际应该从 CHM 文件中解析）
   const info: CHMFileInfo = {
     file: filePath,
     size: stats.size,
     format: 'Microsoft Compiled HTML Help',
-    title: 'Sample CHM File',
-    author: 'Unknown',
-    subject: 'Help Documentation',
+    title: '示例 CHM 文件',
+    author: '未知',
+    subject: '帮助文档',
     created: stats.birthtime.toISOString(),
     modified: stats.mtime.toISOString(),
     filesCount: 42, // 示例数据
@@ -103,7 +104,7 @@ async function getCHMInfo(
     defaultTopic: 'index.html',
     hasTOC: true,
     hasIndex: true,
-    language: 'en-US',
+    language: 'zh-CN',
     version: '1.0',
     files: [
       'index.html',
@@ -123,70 +124,66 @@ async function getCHMInfo(
  * @param info CHM 文件信息
  */
 function displayInfo(info: CHMFileInfo): void {
-  console.log(`\n📋 CHM File Information\n`);
+  logger.info(`\n📋 CHM 文件信息\n`);
 
-  console.log(`📄 File: ${info.file}`);
-  console.log(`📦 Format: ${info.format}`);
-  console.log(`💾 Size: ${formatBytes(info.size)}`);
+  logger.info(`📄 文件: ${info.file}`);
+  logger.info(`📦 格式: ${info.format}`);
+  logger.info(`💾 大小: ${formatBytes(info.size)}`);
 
   if (info.title) {
-    console.log(`📖 Title: ${info.title}`);
+    logger.info(`📖 标题: ${info.title}`);
   }
 
   if (info.author) {
-    console.log(`👤 Author: ${info.author}`);
+    logger.info(`👤 作者: ${info.author}`);
   }
 
   if (info.subject) {
-    console.log(`📝 Subject: ${info.subject}`);
+    logger.info(`📝 主题: ${info.subject}`);
   }
 
   if (info.language) {
-    console.log(`🌐 Language: ${info.language}`);
+    logger.info(`🌐 语言: ${info.language}`);
   }
 
   if (info.version) {
-    console.log(`🏷️  Version: ${info.version}`);
+    logger.info(`🏷️  版本: ${info.version}`);
   }
 
   if (info.created) {
-    console.log(`📅 Created: ${new Date(info.created).toLocaleString()}`);
+    logger.info(`📅 创建时间: ${new Date(info.created).toLocaleString()}`);
   }
 
   if (info.modified) {
-    console.log(`📅 Modified: ${new Date(info.modified).toLocaleString()}`);
+    logger.info(`📅 修改时间: ${new Date(info.modified).toLocaleString()}`);
   }
 
   if (info.defaultTopic) {
-    console.log(`🏠 Default Topic: ${info.defaultTopic}`);
+    logger.info(`🏠 默认主题: ${info.defaultTopic}`);
   }
 
-  console.log(`\n📊 Content Information\n`);
+  logger.info(`\n📊 内容信息\n`);
 
-  console.log(`📁 Files: ${info.filesCount}`);
-  console.log(`🗜️  Compressed Size: ${formatBytes(info.compressedSize)}`);
-  console.log(`📏 Uncompressed Size: ${formatBytes(info.uncompressedSize)}`);
-  console.log(
-    `📈 Compression Ratio: ${(info.compressionRatio * 100).toFixed(1)}%`,
-  );
+  logger.info(`📁 文件数: ${info.filesCount}`);
+  logger.info(`🗜️  压缩大小: ${formatBytes(info.compressedSize)}`);
+  logger.info(`📏 未压缩大小: ${formatBytes(info.uncompressedSize)}`);
+  logger.info(`📈 压缩率: ${(info.compressionRatio * 100).toFixed(1)}%`);
 
-  console.log(`📋 Table of Contents: ${info.hasTOC ? '✅' : '❌'}`);
-  console.log(`📑 Index: ${info.hasIndex ? '✅' : '❌'}`);
+  logger.info(`📋 目录: ${info.hasTOC ? '✅' : '❌'}`);
+  logger.info(`📑 索引: ${info.hasIndex ? '✅' : '❌'}`);
 
   if (info.files && info.files.length > 0) {
-    console.log(`\n📄 Files (showing first 10):\n`);
+    logger.info(`\n📄 文件列表 (显示前 10 个):\n`);
     info.files.slice(0, 10).forEach(file => {
-      console.log(`  • ${file}`);
+      logger.info(`  • ${file}`);
     });
 
     if (info.files.length > 10) {
-      console.log(`  ... and ${info.files.length - 10} more files`);
+      logger.info(`  ... 还有 ${info.files.length - 10} 个文件`);
     }
   }
 
-  console.log(
-    `\n💡 Use 'chmkit extract ${basename(info.file)}' to extract contents`,
-  );
+  logger.info(`\n💡 使用 'chmkit extract ${basename(info.file)}' 提取内容`);
 }
 
 /**
@@ -196,11 +193,11 @@ function displayInfo(info: CHMFileInfo): void {
  * @returns 格式化的字符串
  */
 function formatBytes(bytes: number, decimals: number = 2): string {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return '0 字节';
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const sizes = ['字节', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
