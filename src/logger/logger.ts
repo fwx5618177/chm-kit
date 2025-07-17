@@ -1,6 +1,6 @@
-import chalk from 'chalk';
 import type { Logger } from './types';
 import { formatTimestamp } from '@/utils/formatTimestamp';
+import type { ChalkInstance } from 'chalk';
 
 /**
  * Logger 工具类
@@ -9,6 +9,18 @@ import { formatTimestamp } from '@/utils/formatTimestamp';
  */
 export class CHMLogger implements Logger {
   private static instance: CHMLogger;
+  private chalk: ChalkInstance | undefined;
+
+  constructor() {
+    this.initChalk();
+  }
+
+  /**
+   * 动态导入 chalk 模块
+   */
+  private async initChalk(): Promise<void> {
+    this.chalk = (await import('chalk')).default;
+  }
 
   public static getInstance(): CHMLogger {
     if (!CHMLogger.instance) {
@@ -41,11 +53,31 @@ export class CHMLogger implements Logger {
   }
 
   /**
+   * 获取彩色文本，如果 chalk 未加载则返回原始文本
+   */
+  private getColoredText(
+    text: string,
+    colorFn: (text: string) => string,
+  ): string {
+    if (!this.chalk) {
+      return text;
+    }
+    try {
+      return colorFn(text);
+    } catch (error) {
+      return text;
+    }
+  }
+
+  /**
    * 详细日志 - 用于调试信息，灰色背景，白色文字
    */
   verbose(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('VERBOSE', message, ...args);
-    const styledMessage = chalk.white.bgGray(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.white?.bgGray(text) || text,
+    );
     console.debug(styledMessage);
   }
 
@@ -54,7 +86,10 @@ export class CHMLogger implements Logger {
    */
   info(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('INFO', message, ...args);
-    const styledMessage = chalk.white.bgBlue(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.white?.bgBlue(text) || text,
+    );
     console.info(styledMessage);
   }
 
@@ -63,7 +98,10 @@ export class CHMLogger implements Logger {
    */
   warn(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('WARN', message, ...args);
-    const styledMessage = chalk.black.bgYellow(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.black?.bgYellow(text) || text,
+    );
     console.warn(styledMessage);
   }
 
@@ -72,7 +110,10 @@ export class CHMLogger implements Logger {
    */
   error(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('ERROR', message, ...args);
-    const styledMessage = chalk.white.bgRed(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.white?.bgRed(text) || text,
+    );
     console.error(styledMessage);
   }
 
@@ -81,7 +122,10 @@ export class CHMLogger implements Logger {
    */
   success(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('SUCCESS', message, ...args);
-    const styledMessage = chalk.white.bgGreen(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.white?.bgGreen(text) || text,
+    );
     console.log(styledMessage);
   }
 
@@ -90,7 +134,10 @@ export class CHMLogger implements Logger {
    */
   debug(message: string, ...args: unknown[]): void {
     const formattedMessage = this.formatMessage('DEBUG', message, ...args);
-    const styledMessage = chalk.white.bgMagenta(formattedMessage);
+    const styledMessage = this.getColoredText(
+      formattedMessage,
+      text => this.chalk?.white?.bgMagenta(text) || text,
+    );
     console.debug(styledMessage);
   }
 

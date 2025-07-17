@@ -1,0 +1,13 @@
+[OPTIONS]
+Compiled file=test.chm
+Contents file=toc.hhc
+Index file=index.hhk
+Default topic=index.html
+Language=0x804 Chinese (China)
+Title=CHM 测试文件
+
+[FILES]
+index.html
+style.css
+
+[INFOTYPES]

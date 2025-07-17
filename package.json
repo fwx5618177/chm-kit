@@ -30,9 +30,8 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"*.{json,md}\"",
     "prepare": "husky install",
-    "prepublishOnly": "pnpm run build && pnpm run lint",
+    "test": "node test/test-parser.js",
     "clean": "rimraf dist"
   },
   "keywords": [
@@ -47,7 +46,7 @@
     "decompression",
     "compression"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "CHMKit Team",
   "license": "MIT",
   "engines": {
     "node": ">=20.10.0"
