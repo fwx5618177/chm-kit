@@ -1,8 +1,9 @@
 import { Command } from 'commander';
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { dirname } from 'path';
 import type { ExtractOptions } from '../core/types';
 import { logger } from '../logger/logger';
+import { CHMKit } from '../index';
 
 /**
  * 提取 CHM 文件内容的命令
@@ -16,18 +17,21 @@ export const extractCommand = new Command('extract')
   .option('-v, --verbose', '启用详细输出', false)
   .action(async (input: string, options: any) => {
     try {
-      const extractOptions: ExtractOptions = {
-        outputDir: options.output,
-        preserveStructure: options.preserveStructure,
+      const extractOptions: Partial<ExtractOptions> = {
         verbose: options.verbose,
         ...(options.filter && { filter: createFilterFunction(options.filter) }),
       };
-
-      await extractCHM(input, extractOptions);
-
-      if (options.verbose) {
-        logger.success(`✅ 成功提取 CHM 文件到: ${options.output}`);
+      const result = await CHMKit.extract(
+        input,
+        options.output,
+        extractOptions,
+      );
+      if (result.errors.length > 0) {
+        logger.warn(`部分文件提取失败: ${result.errors.join(', ')}`);
       }
+      logger.success(
+        `✅ 成功提取 ${result.files.length} 个文件到: ${options.output}`,
+      );
     } catch (error) {
       logger.error('❌ Error extracting CHM file:', error);
       process.exit(1);
@@ -46,63 +50,6 @@ function createFilterFunction(pattern: string): (fileName: string) => boolean {
   );
 
   return (fileName: string) => regex.test(fileName);
-}
-
-/**
- * 提取 CHM 文件内容
- * @param inputPath 输入 CHM 文件路径
- * @param options 提取选项
- */
-async function extractCHM(
-  inputPath: string,
-  options: ExtractOptions,
-): Promise<void> {
-  // 检查输入文件是否存在
-  try {
-    await fs.access(inputPath);
-  } catch {
-    throw new Error(`输入文件未找到: ${inputPath}`);
-  }
-
-  // 创建输出目录
-  await fs.mkdir(options.outputDir, { recursive: true });
-
-  if (options.verbose) {
-    logger.info(`📁 正在提取 CHM 文件: ${inputPath}`);
-    logger.info(`📁 输出目录: ${options.outputDir}`);
-  }
-
-  // TODO: 实现实际的 CHM 提取逻辑
-  // 这里需要使用 core 模块中的 CHM 解析器
-  logger.warn('⚠️  CHM 提取逻辑尚未实现');
-  logger.info('这是实际提取实现的占位符');
-
-  // 示例：创建一个示例文件
-  const exampleContent = `# CHM 提取结果
-
-这是 CHM 提取过程的占位符输出。
-
-- 输入文件: ${inputPath}
-- 输出目录: ${options.outputDir}
-- 保留结构: ${options.preserveStructure}
-- 过滤器: ${options.filter ? '是' : '否'}
-- 详细输出: ${options.verbose}
-
-## 待办事项
-- 实现 CHM 文件解析
-- 实现 LZX 解压缩
-- 实现文件提取
-- 实现目录结构保留
-`;
-
-  await fs.writeFile(
-    join(options.outputDir, 'extraction-info.md'),
-    exampleContent,
-  );
-
-  if (options.verbose) {
-    logger.info('📄 已创建 extraction-info.md');
-  }
 }
 
 /**
