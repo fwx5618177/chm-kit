@@ -1,4 +1,9 @@
-import type { LZXBlock, LZXCHeader, HuffmanDecoder } from '../types';
+import type {
+  LZXBlock,
+  LZXCHeader,
+  HuffmanDecoder,
+  HuffmanTree,
+} from '../types';
 import type { BitReader } from '../../utils/bit-reader';
 import { SlidingWindow } from './sliding-window';
 import { ResetTableProcessor } from './reset-table';
@@ -273,7 +278,7 @@ export class LZXDecoder {
    */
   private readTreeLengths(
     reader: BitReader,
-    _pretree: any,
+    _pretree: HuffmanTree | null,
     count: number,
   ): number[] {
     const lengths: number[] = [];
@@ -317,7 +322,7 @@ export class LZXDecoder {
    * @param tree 霍夫曼树
    * @returns 解码的符号
    */
-  private decodeSymbol(reader: BitReader, tree: any): number {
+  private decodeSymbol(reader: BitReader, tree: HuffmanTree | null): number {
     // 简化的霍夫曼解码实现
     // 实际实现需要遍历霍夫曼树
     void tree; // 防止 linter 警告，将来会使用此参数

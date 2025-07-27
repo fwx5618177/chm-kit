@@ -1,12 +1,12 @@
 import { Command } from 'commander';
-import type { PackOptions } from '../core/types';
-import { logger } from '../logger/logger';
-import { CHMKit } from '../index';
+import type { PackOptions, PackCommandOptions } from '../../core/types';
+import { logger } from '../../logger/logger';
+import { CHMKit } from '../../chm-kit';
 
 /**
  * 打包目录为 CHM 文件的命令
  */
-export const packCommand = new Command('pack')
+export const pack = new Command('pack')
   .description('将目录打包为 CHM 文件')
   .argument('<input>', '输入目录路径')
   .option('-o, --output <file>', '输出 CHM 文件路径', './output.chm')
@@ -14,7 +14,7 @@ export const packCommand = new Command('pack')
   .option('-d, --default-topic <file>', '默认主题文件')
   .option('-c, --compression', '启用压缩', true)
   .option('-v, --verbose', '启用详细输出', false)
-  .action(async (input: string, options: any) => {
+  .action(async (input: string, options: PackCommandOptions) => {
     try {
       const packOptions: PackOptions = {
         inputDir: input,

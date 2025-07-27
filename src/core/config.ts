@@ -118,7 +118,7 @@ export const defaultFullConfig: CHMKitConfig = {
 /**
  * 深度合并两个对象
  */
-function deepMerge<T extends Record<string, any>>(
+function deepMerge<T extends Record<string, unknown>>(
   target: T,
   source: Partial<T>,
 ): T {
@@ -137,10 +137,10 @@ function deepMerge<T extends Record<string, any>>(
         targetValue !== null &&
         !Array.isArray(targetValue)
       ) {
-        result[key] = deepMerge(targetValue, sourceValue) as T[Extract<
-          keyof T,
-          string
-        >];
+        result[key] = deepMerge(
+          targetValue as Record<string, unknown>,
+          sourceValue as Record<string, unknown>,
+        ) as T[Extract<keyof T, string>];
       } else {
         result[key] = sourceValue as T[Extract<keyof T, string>];
       }
@@ -153,7 +153,7 @@ function deepMerge<T extends Record<string, any>>(
 /**
  * 验证配置对象
  */
-function validateConfig(config: any): config is CHMKitConfig {
+function validateConfig(config: unknown): config is CHMKitConfig {
   if (typeof config !== 'object' || config === null) {
     return false;
   }
@@ -170,7 +170,7 @@ function validateConfig(config: any): config is CHMKitConfig {
   for (const key in config) {
     if (!validKeys.includes(key)) {
       console.warn(`Warning: Unknown config key '${key}' will be ignored`);
-      delete config[key];
+      delete (config as Record<string, unknown>)[key];
     }
   }
 
@@ -236,7 +236,10 @@ export function loadConfig(options: ConfigLoadOptions = {}): CHMKitConfig {
   }
 
   // 合并用户配置和默认配置
-  const mergedConfig = deepMerge(defaultFullConfig, userConfig);
+  const mergedConfig = deepMerge(
+    defaultFullConfig as Record<string, unknown>,
+    userConfig as Record<string, unknown>,
+  ) as CHMKitConfig;
 
   return mergedConfig;
 }

@@ -189,6 +189,44 @@ export interface CHMInfo {
   filesCount: number;
 }
 
+/**
+ * CHM 文件基本信息（用于 info 命令）
+ */
+export interface CHMBasicInfo {
+  header: {
+    itsf: string;
+    itsp: string;
+    lzxc: string;
+  };
+  statistics: string;
+  fileCount: number;
+  totalSize: number;
+  compressionRatio: number;
+}
+
+/**
+ * CLI 命令选项接口
+ */
+export interface ExtractCommandOptions {
+  output: string;
+  filter?: string;
+  preserveStructure: boolean;
+  verbose: boolean;
+}
+
+export interface PackCommandOptions {
+  output: string;
+  title?: string;
+  defaultTopic?: string;
+  compression: boolean;
+  verbose: boolean;
+}
+
+export interface InfoCommandOptions {
+  verbose: boolean;
+  json: boolean;
+}
+
 export interface CHMOptions {
   logLevel?: LogLevel;
   logger?: Logger;

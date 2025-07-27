@@ -1,4 +1,4 @@
-import type { ParsedCHM, CHMHeader, CHMDirectory } from './types';
+import type { ParsedCHM, CHMHeader, CHMDirectory, ITSPHeader } from './types';
 import type { BitReader } from '../utils/bit-reader';
 import { ITSFHeaderParser } from './headers/itsf-header';
 import { ITSPHeaderParser } from './headers/itsp-header';
@@ -112,7 +112,10 @@ export class CHMParser {
    * @param itspHeader ITSP 头部信息
    * @returns 目录结构
    */
-  private parseDirectory(reader: BitReader, itspHeader: any): CHMDirectory {
+  private parseDirectory(
+    reader: BitReader,
+    itspHeader: ITSPHeader,
+  ): CHMDirectory {
     const directory = DirectoryParser.parse(reader, itspHeader);
 
     // 验证目录结构
