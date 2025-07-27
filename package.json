@@ -31,7 +31,8 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
     "prepare": "husky install",
-    "test": "node test/test-parser.js",
+    "test": "tsx test/**/*.test.ts",
+    "test:watch": "tsx --watch test/**/*.test.ts",
     "clean": "rimraf dist"
   },
   "keywords": [
@@ -66,7 +67,8 @@
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
     "tsx": "^4.5.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "uvu": "^0.5.6"
   },
   "dependencies": {
     "chalk": "^5.4.1",
