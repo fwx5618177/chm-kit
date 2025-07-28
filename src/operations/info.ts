@@ -1,8 +1,8 @@
-import { FileReconstructor } from '../core/file-reconstructor';
+import { CHMFileManager } from '../core/files/file-manager';
 import { ITSFHeaderParser } from '../core/headers/itsf-header';
 import { ITSPHeaderParser } from '../core/headers/itsp-header';
 import { LZXCHeaderParser } from '../core/headers/lzxc-header';
-import { CHMParser } from '../core/chm-parser';
+import { CHMStatisticsGenerator } from '../core/parser/statistics-generator';
 import { ParserOperations } from './parser';
 
 /**
@@ -29,9 +29,9 @@ export class InfoOperations {
       // 解析 CHM 文件
       const parsedCHM = await ParserOperations.parse(filePath);
 
-      // 创建文件重组器获取统计信息
-      const reconstructor = new FileReconstructor(parsedCHM);
-      const fileList = reconstructor.getFileList();
+      // 创建文件管理器获取统计信息
+      const fileManager = new CHMFileManager(parsedCHM);
+      const fileList = fileManager.getFileList();
 
       // 计算总大小
       let totalSize = 0;
@@ -51,7 +51,7 @@ export class InfoOperations {
           itsp: ITSPHeaderParser.getSummary(parsedCHM.header.itsp),
           lzxc: LZXCHeaderParser.getSummary(parsedCHM.header.lzxc),
         },
-        statistics: CHMParser.getStatistics(parsedCHM),
+        statistics: CHMStatisticsGenerator.getStatistics(parsedCHM),
         fileCount: fileList.length,
         totalSize,
         compressionRatio,

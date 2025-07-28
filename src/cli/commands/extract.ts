@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import type { ExtractOptions, ExtractCommandOptions } from '@/core/types';
-import { logger } from '@/logger/logger';
-import { CHMKit } from '@/index';
-import { createFilterFunction } from '@/utils/filter';
+import type { ExtractOptions, ExtractCommandOptions } from '../../core/types';
+import { logger } from '../../logger/logger';
+import { CHMKit } from '../../index';
+import { createFilterFunction } from '../../utils/helpers';
 
 /**
  * 提取 CHM 文件内容的命令
@@ -18,7 +18,9 @@ export const extract = new Command('extract')
     try {
       const extractOptions: Partial<ExtractOptions> = {
         verbose: options.verbose,
-        ...(options.filter && { filter: createFilterFunction(options.filter) }),
+        ...(options.filter && {
+          filter: createFilterFunction([options.filter]),
+        }),
       };
       const result = await CHMKit.extract(
         input,

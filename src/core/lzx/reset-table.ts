@@ -1,5 +1,5 @@
 import type { ResetTable, ResetTableEntry } from '../types';
-import type { BitReader } from '../../utils/bit-reader';
+import type { BitReader } from '../../utils/io/bit-reader';
 
 /**
  * 重置表处理器

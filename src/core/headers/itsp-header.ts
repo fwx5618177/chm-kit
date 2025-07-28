@@ -1,5 +1,5 @@
 import type { ITSPHeader } from '../types';
-import type { BitReader } from '../../utils/bit-reader';
+import type { BitReader } from '../../utils/io/bit-reader';
 
 /**
  * ITSP 头部解析器

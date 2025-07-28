@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import type { InfoCommandOptions } from '@/core/types';
+import type { InfoCommandOptions } from '../../core/types';
 import { logger } from '../../logger/logger';
 import { CHMKit } from '../../chm-kit';
-import { displayInfo } from '@/utils/display';
+import { displayInfo } from '../../utils/helpers';
 
 /**
  * 显示 CHM 文件信息的命令

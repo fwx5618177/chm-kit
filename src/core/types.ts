@@ -106,6 +106,8 @@ export interface PackOptions {
   defaultTopic?: string;
   compression?: boolean;
   verbose?: boolean;
+  validateBeforeWrite?: boolean;
+  verifyAfterWrite?: boolean;
 }
 
 export interface HuffmanTree {

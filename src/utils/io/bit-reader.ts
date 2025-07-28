@@ -1,4 +1,4 @@
-import type { BitReader as IBitReader } from '../core/types';
+import type { BitReader as IBitReader } from '../../core/types';
 
 /**
  * BitReader 类用于位级数据读取
@@ -100,59 +100,6 @@ export class BitReader implements IBitReader {
    */
   public hasMore(): boolean {
     return this.position < this.buffer.length;
-  }
-
-  /**
-   * 读取字节对齐的数据
-   * @param bytes 要读取的字节数
-   * @returns 读取的 Buffer
-   */
-  public readBytes(bytes: number): Buffer {
-    this.align();
-
-    if (this.position + bytes > this.buffer.length) {
-      throw new Error('Not enough data to read');
-    }
-
-    const result = this.buffer.slice(this.position, this.position + bytes);
-    this.position += bytes;
-    return result;
-  }
-
-  /**
-   * 读取 little-endian 整数
-   * @param bytes 字节数 (1, 2, 4, 8)
-   * @returns 读取的整数
-   */
-  public readInt(bytes: number): number {
-    const data = this.readBytes(bytes);
-
-    switch (bytes) {
-      case 1:
-        return data.readUInt8(0);
-      case 2:
-        return data.readUInt16LE(0);
-      case 4:
-        return data.readUInt32LE(0);
-      case 8:
-        return Number(data.readBigUInt64LE(0));
-      default:
-        throw new Error('Invalid byte count: must be 1, 2, 4, or 8');
-    }
-  }
-
-  /**
-   * 读取字符串
-   * @param length 字符串长度
-   * @param encoding 编码格式
-   * @returns 读取的字符串
-   */
-  public readString(
-    length: number,
-    encoding: 'utf8' | 'ascii' | 'base64' = 'utf8',
-  ): string {
-    const data = this.readBytes(length);
-    return data.toString(encoding);
   }
 
   /**

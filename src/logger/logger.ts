@@ -1,5 +1,5 @@
 import type { Logger } from './types';
-import { formatTimestamp } from '../utils/formatTimestamp';
+import { formatTimestamp } from '../utils/helpers';
 import type { ChalkInstance } from 'chalk';
 
 /**

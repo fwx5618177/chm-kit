@@ -4,10 +4,10 @@ import type {
   HuffmanDecoder,
   HuffmanTree,
 } from '../types';
-import type { BitReader } from '../../utils/bit-reader';
+import type { BitReader } from '../../utils/io/bit-reader';
 import { SlidingWindow } from './sliding-window';
 import { ResetTableProcessor } from './reset-table';
-import { Huffman } from '../../utils/huffman';
+import { Huffman } from '../../utils/compression/huffman';
 
 /**
  * LZX 块类型常量

@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
-import { BitReader } from '../utils/bit-reader';
-import { FileReconstructor } from '../core/file-reconstructor';
+import { BitReader } from '../utils/io/bit-reader';
+import { FileReconstructor } from '../core/files/file-reconstructor';
+import { CHMFileManager } from '../core/files/file-manager';
 import { ParserOperations } from './parser';
 import type { ExtractOptions } from '../core/types';
 
@@ -24,13 +25,14 @@ export class ExtractorOperations {
       // 解析 CHM 文件
       const parsedCHM = await ParserOperations.parse(filePath);
 
-      // 创建文件重组器
+      // 创建文件重组器和管理器
       const fileBuffer = readFileSync(filePath);
       const reader = new BitReader(fileBuffer);
       const reconstructor = new FileReconstructor(parsedCHM);
+      const fileManager = new CHMFileManager(parsedCHM);
 
       // 获取文件列表
-      let fileList = reconstructor.getFileList();
+      let fileList = fileManager.getFileList();
 
       // 应用过滤器
       if (options.filter) {

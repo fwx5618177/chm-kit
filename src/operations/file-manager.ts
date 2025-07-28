@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
-import { BitReader } from '../utils/bit-reader';
-import { FileReconstructor } from '../core/file-reconstructor';
+import { BitReader } from '../utils/io/bit-reader';
+import { FileReconstructor } from '../core/files/file-reconstructor';
+import { CHMFileManager } from '../core/files/file-manager';
 import { ParserOperations } from './parser';
 
 /**
@@ -38,8 +39,8 @@ export class FileManagerOperations {
   static async exists(chmPath: string, filePath: string): Promise<boolean> {
     try {
       const parsedCHM = await ParserOperations.parse(chmPath);
-      const reconstructor = new FileReconstructor(parsedCHM);
-      return reconstructor.fileExists(filePath);
+      const fileManager = new CHMFileManager(parsedCHM);
+      return fileManager.fileExists(filePath);
     } catch (error) {
       return false;
     }
@@ -53,8 +54,8 @@ export class FileManagerOperations {
   static async listFiles(chmPath: string): Promise<string[]> {
     try {
       const parsedCHM = await ParserOperations.parse(chmPath);
-      const reconstructor = new FileReconstructor(parsedCHM);
-      return reconstructor.getFileList();
+      const fileManager = new CHMFileManager(parsedCHM);
+      return fileManager.getFileList();
     } catch (error) {
       throw new Error(
         `列出文件失败: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
-import { BitReader } from '../utils/bit-reader';
-import { CHMParser } from '../core/chm-parser';
+import { BitReader } from '../utils/io/bit-reader';
+import { CHMParserFactory } from '../core/parser/parser-factory';
+import { CHMParserValidator } from '../core/parser/parser-validator';
 import type { ParsedCHM } from '../core/types';
 
 /**
@@ -19,11 +20,11 @@ export class ParserOperations {
       const reader = new BitReader(fileBuffer);
 
       // 创建解析器并解析
-      const parser = CHMParser.create();
+      const parser = CHMParserFactory.create();
       const parsedCHM = parser.parse(reader);
 
       // 验证解析结果
-      if (!CHMParser.validate(parsedCHM)) {
+      if (!CHMParserValidator.validate(parsedCHM)) {
         throw new Error('CHM 文件解析验证失败');
       }
 

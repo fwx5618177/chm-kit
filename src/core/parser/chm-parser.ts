@@ -1,10 +1,10 @@
-import type { ParsedCHM, CHMHeader, CHMDirectory, ITSPHeader } from './types';
-import type { BitReader } from '../utils/bit-reader';
-import { ITSFHeaderParser } from './headers/itsf-header';
-import { ITSPHeaderParser } from './headers/itsp-header';
-import { LZXCHeaderParser } from './headers/lzxc-header';
-import { DirectoryParser } from './directory/directory-parser';
-import { ResetTableProcessor } from './lzx/reset-table';
+import type { ParsedCHM, CHMHeader, CHMDirectory, ITSPHeader } from '../types';
+import type { BitReader } from '../../utils/io/bit-reader';
+import { ITSFHeaderParser } from '../headers/itsf-header';
+import { ITSPHeaderParser } from '../headers/itsp-header';
+import { LZXCHeaderParser } from '../headers/lzxc-header';
+import { DirectoryParser } from '../directory/directory-parser';
+import { ResetTableProcessor } from '../lzx/reset-table';
 
 /**
  * CHM 文件主解析器
@@ -161,76 +161,6 @@ export class CHMParser {
   }
 
   /**
-   * 验证解析结果的完整性
-   * @param parsedCHM 解析后的 CHM 结构
-   * @returns 验证结果
-   */
-  static validate(parsedCHM: ParsedCHM): boolean {
-    // 验证头部
-    if (!ITSFHeaderParser.validate(parsedCHM.header.itsf)) {
-      return false;
-    }
-
-    if (!ITSPHeaderParser.validate(parsedCHM.header.itsp)) {
-      return false;
-    }
-
-    if (!LZXCHeaderParser.validate(parsedCHM.header.lzxc)) {
-      return false;
-    }
-
-    // 验证目录
-    if (!DirectoryParser.validate(parsedCHM.directory)) {
-      return false;
-    }
-
-    // 验证偏移
-    if (parsedCHM.contentOffset <= 0) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * 获取解析统计信息
-   * @param parsedCHM 解析后的 CHM 结构
-   * @returns 统计信息字符串
-   */
-  static getStatistics(parsedCHM: ParsedCHM): string {
-    const itsfSummary = ITSFHeaderParser.getSummary(parsedCHM.header.itsf);
-    const itspSummary = ITSPHeaderParser.getSummary(parsedCHM.header.itsp);
-    const lzxcSummary = LZXCHeaderParser.getSummary(parsedCHM.header.lzxc);
-    const directorySummary = DirectoryParser.getSummary(parsedCHM.directory);
-
-    return [
-      '=== CHM 文件解析统计 ===',
-      '',
-      '--- ITSF 头部信息 ---',
-      itsfSummary,
-      '',
-      '--- ITSP 头部信息 ---',
-      itspSummary,
-      '',
-      '--- LZXC 头部信息 ---',
-      lzxcSummary,
-      '',
-      '--- 目录信息 ---',
-      directorySummary,
-      '',
-      `内容偏移: 0x${parsedCHM.contentOffset.toString(16)}`,
-    ].join('\n');
-  }
-
-  /**
-   * 创建解析器实例的工厂方法
-   * @returns 新的解析器实例
-   */
-  static create(): CHMParser {
-    return new CHMParser();
-  }
-
-  /**
    * 快速解析（仅解析头部和目录，跳过重置表）
    * @param reader 位读取器
    * @returns 简化的解析结果
@@ -253,16 +183,5 @@ export class CHMParser {
    */
   reset(): void {
     this.resetTableProcessor.reset();
-  }
-
-  /**
-   * 获取解析器状态信息
-   * @returns 状态信息字符串
-   */
-  getStatus(): string {
-    return [
-      '=== CHM 解析器状态 ===',
-      `重置表处理器状态: ${this.resetTableProcessor.validate() ? '正常' : '未初始化'}`,
-    ].join('\n');
   }
 }

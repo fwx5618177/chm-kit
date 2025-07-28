@@ -2,13 +2,13 @@
 export * from './core/types';
 
 // 导出工具类
-export { BitReader } from './utils/bit-reader';
-export { Huffman } from './utils/huffman';
+export { BitReader } from './utils/io/bit-reader';
+export { Huffman } from './utils/compression/huffman';
 
 // 导出核心功能
-export { CHMParser } from './core/chm-parser';
+export { CHMParser } from './core/parser/chm-parser';
 export { LZXDecoder } from './core/lzx/lzx-decoder';
-export { FileReconstructor } from './core/file-reconstructor';
+export { FileReconstructor } from './core/files/file-reconstructor';
 
 // 导出头部解析器
 export { ITSFHeaderParser } from './core/headers/itsf-header';
@@ -22,7 +22,7 @@ export { ResetTableProcessor } from './core/lzx/reset-table';
 
 // 导出编码器功能
 export { CHMEncoder } from './encoder/chm-encoder';
-export { TOCBuilder } from './encoder/toc-builder';
+export { TOCBuilder } from './encoder/builders/toc-builder';
 export { LZXEncoder } from './encoder/lzx-encoder';
 
 // 导出操作模块

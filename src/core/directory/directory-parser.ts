@@ -1,5 +1,5 @@
 import type { DirectoryEntry, CHMDirectory, ITSPHeader } from '../types';
-import type { BitReader } from '../../utils/bit-reader';
+import type { BitReader } from '../../utils/io/bit-reader';
 
 /**
  * 目录条目类型

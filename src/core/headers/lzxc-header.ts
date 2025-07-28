@@ -1,5 +1,5 @@
 import type { LZXCHeader } from '../types';
-import type { BitReader } from '../../utils/bit-reader';
+import type { BitReader } from '../../utils/io/bit-reader';
 
 /**
  * LZXC 头部解析器

@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { extname, basename, join } from 'path';
-import type { TOCEntry, IndexEntry } from '../core/types';
+import type { TOCEntry, IndexEntry } from '../../core/types';
 
 /**
  * TOC (Table of Contents) 构建器
