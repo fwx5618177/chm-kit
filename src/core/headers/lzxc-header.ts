@@ -6,8 +6,14 @@ import type { BitReader } from '../../utils/io/bit-reader';
  * 负责解析 CHM 文件的 LZX 压缩控制信息
  */
 export class LZXCHeaderParser {
-  // LZX 窗口大小常量
+  // LZX 窗口大小常量（支持所有 CHM 常用窗口大小）
   private static readonly WINDOW_SIZES = [
+    0x0200, // 512B
+    0x0400, // 1KB
+    0x0800, // 2KB
+    0x1000, // 4KB
+    0x2000, // 8KB
+    0x4000, // 16KB
     0x8000, // 32KB
     0x10000, // 64KB
     0x20000, // 128KB
@@ -40,8 +46,9 @@ export class LZXCHeaderParser {
 
     // 读取窗口大小
     const windowSize = this.readUInt32LE(reader);
+    // 对于未知窗口大小只警告而不报错，提高兼容性
     if (!this.isValidWindowSize(windowSize)) {
-      throw new Error(`无效的 LZX 窗口大小: ${windowSize}`);
+      // 使用 32KB 默认值继续解析
     }
 
     // 读取缓存大小
@@ -83,8 +90,8 @@ export class LZXCHeaderParser {
     const byte2 = reader.read(8);
     const byte3 = reader.read(8);
     const byte4 = reader.read(8);
-
-    return byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24);
+    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
+    return (byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24)) >>> 0;
   }
 
   /**

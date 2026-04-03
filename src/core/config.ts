@@ -10,6 +10,7 @@ import type {
   CHMKitConfig,
   ConfigLoadOptions,
 } from './types';
+import { logger } from '../logger/logger';
 
 /**
  * 默认 CHMKit 配置
@@ -169,7 +170,7 @@ function validateConfig(config: unknown): config is CHMKitConfig {
   ];
   for (const key in config) {
     if (!validKeys.includes(key)) {
-      console.warn(`Warning: Unknown config key '${key}' will be ignored`);
+      logger.warn(`Unknown config key '${key}' will be ignored`);
       delete (config as Record<string, unknown>)[key];
     }
   }
@@ -205,13 +206,13 @@ function loadConfigFromFile(configPath: string): CHMKitConfig | null {
     const config = JSON.parse(configContent);
 
     if (!validateConfig(config)) {
-      console.error(`Invalid config file: ${configPath}`);
+      logger.error(`Invalid config file: ${configPath}`);
       return null;
     }
 
     return config;
   } catch (error) {
-    console.error(`Failed to load config file: ${configPath}`, error);
+    logger.error(`Failed to load config file: ${configPath}`, error);
     return null;
   }
 }
@@ -231,7 +232,7 @@ export function loadConfig(options: ConfigLoadOptions = {}): CHMKitConfig {
 
   if (!userConfig) {
     // 配置文件加载失败，使用默认配置
-    console.warn('Failed to load config file, using default configuration');
+    logger.warn('Failed to load config file, using default configuration');
     return defaultFullConfig;
   }
 

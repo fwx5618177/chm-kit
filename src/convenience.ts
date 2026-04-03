@@ -41,6 +41,16 @@ export const chm = {
   listFiles: CHMKit.listFiles,
 
   /**
+   * 读取文本文件内容
+   */
+  readText: CHMKit.readText,
+
+  /**
+   * 读取 HTML 文件内容
+   */
+  readHTML: CHMKit.readHTML,
+
+  /**
    * 版本信息
    */
   version: VERSION,

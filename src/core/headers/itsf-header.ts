@@ -20,7 +20,7 @@ export class ITSFHeaderParser {
 
     // 读取版本号（小端序）
     const version = this.readUInt32LE(reader);
-    if (version !== 3) {
+    if (version !== 3 && version !== 2) {
       throw new Error(`不支持的 ITSF 版本: ${version}`);
     }
 
@@ -37,19 +37,61 @@ export class ITSFHeaderParser {
       unknown1: this.readUInt32LE(reader),
       timestamp: this.readUInt32LE(reader),
       languageId: this.readUInt32LE(reader),
-      unknown2: this.readUInt32LE(reader),
-      unknown3: this.readUInt32LE(reader),
-      directoryOffset: this.readUInt32LE(reader),
-      directoryLength: this.readUInt32LE(reader),
-      unknown4: this.readUInt32LE(reader),
+      // 跳过两个 16 字节 GUID（0x18-0x27 和 0x28-0x37）
+      unknown2: (() => {
+        for (let i = 0; i < 32; i++) reader.read(8); // skip GUID0 + GUID1
+        // sect0_offset uint64 LE: 取低 32 位（0x38-0x3B）
+        const lo = this.readUInt32LE(reader);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8); // skip high 4 bytes
+        return lo;
+      })(),
+      unknown3: (() => {
+        // sect0_length uint64 LE: 取低 32 位（0x40-0x43）
+        const lo = this.readUInt32LE(reader);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8); // skip high 4 bytes
+        return lo;
+      })(),
+      // dir_offset uint64 LE: 取低 32 位（0x48-0x4B）
+      directoryOffset: (() => {
+        const lo = this.readUInt32LE(reader);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8); // skip high 4 bytes
+        return lo;
+      })(),
+      // dir_len uint64 LE: 取低 32 位（0x50-0x53）
+      directoryLength: (() => {
+        const lo = this.readUInt32LE(reader);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8); // skip high 4 bytes
+        return lo;
+      })(),
+      // content_offset uint64 LE: 取低 32 位（0x58-0x5B）— version 2 没有此字段
+      unknown4: (() => {
+        if (version !== 3) return 0;
+        const lo = this.readUInt32LE(reader);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8);
+        reader.read(8); // skip high 4 bytes
+        return lo;
+      })(),
     };
 
-    // 跳过剩余的头部字节以对齐到头部结束位置
-    const bytesRead = 4 + 4 * 10; // signature + 10 * 4-byte fields = 44 bytes
-    const remainingBytes = headerLength - bytesRead;
-    for (let i = 0; i < remainingBytes; i++) {
-      reader.read(8); // 跳过剩余字节
-    }
+    // 计算已消费字节数，跳过尾部填充
+    // sig(4)+5fields(20)+GUIDs(32)+5pairs×8(40)+unknown4_lo(4)+unknown4_hi(4) = 4+20+32+40+8 = 104
+    // 但 headerLength 通常为 96，所以对于较旧格式（无 content_offset 字段）需特殊处理
+    // 这里采用保守策略：用 setPosition 直接跳到 directoryOffset
+    // （不需要再手动 skip 剩余字节，由 CHMParser.parse() 通过 setPosition 定位）
 
     return result;
   }
@@ -77,8 +119,8 @@ export class ITSFHeaderParser {
     const byte2 = reader.read(8);
     const byte3 = reader.read(8);
     const byte4 = reader.read(8);
-
-    return byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24);
+    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
+    return (byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24)) >>> 0;
   }
 
   /**
@@ -91,11 +133,13 @@ export class ITSFHeaderParser {
       return false;
     }
 
-    if (header.version !== 3) {
+    if (header.version !== 3 && header.version !== 2) {
       return false;
     }
 
-    if (header.headerLength < 96) {
+    // version 3 最小 96 字节，version 2 最小 88 字节（无 content_offset 字段）
+    const minHeaderLength = header.version === 3 ? 96 : 88;
+    if (header.headerLength < minHeaderLength) {
       return false;
     }
 

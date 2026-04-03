@@ -119,7 +119,7 @@ export class BitReader implements IBitReader {
    * @param bit 位位置
    */
   public setPosition(byte: number, bit: number = 0): void {
-    if (byte < 0 || byte >= this.buffer.length) {
+    if (byte < 0 || byte > this.buffer.length) {
       throw new Error('Invalid byte position');
     }
     if (bit < 0 || bit >= 8) {

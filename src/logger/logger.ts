@@ -1,3 +1,4 @@
+// eslint-disable-file @typescript-eslint/no-explicit-any
 import type { Logger } from './types';
 import { formatTimestamp } from '../utils/helpers';
 import type { ChalkInstance } from 'chalk';

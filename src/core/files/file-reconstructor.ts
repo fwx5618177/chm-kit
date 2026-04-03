@@ -1,7 +1,8 @@
-import type { DirectoryEntry, CHMFile, ParsedCHM } from '../types';
+import type { DirectoryEntry, CHMFile, ParsedCHM, ResetTable } from '../types';
 import type { BitReader } from '../../utils/io/bit-reader';
 import { LZXDecoder } from '../lzx/lzx-decoder';
 import { CHMFileManager } from './file-manager';
+import { logger } from '../../logger/logger';
 
 /**
  * 文件重组器
@@ -61,7 +62,7 @@ export class FileReconstructor {
         result.set(fileName, file);
       } catch (error) {
         // 记录错误但继续处理其他文件
-        console.error(`重组文件失败 ${fileName}:`, error);
+        logger.error(`重组文件失败 ${fileName}:`, error);
       }
     }
 
@@ -85,50 +86,99 @@ export class FileReconstructor {
    * @returns 文件数据
    */
   private readFileData(entry: DirectoryEntry, reader: BitReader): Buffer {
-    // 定位到文件偏移位置
-    this.seekToOffset(reader, entry.offset);
-
     if (entry.isCompressed) {
+      // section 1 压缩文件：readCompressedData 内部自行定位到正确的压缩块
       return this.readCompressedData(entry, reader);
     } else {
+      // section 0 未压缩文件：基址为 itsf.unknown2（sect0Offset）
+      const sect0Base = this.parsedCHM.header.itsf.unknown2;
+      const absoluteOffset = sect0Base + entry.offset;
+      reader.setPosition(absoluteOffset, 0);
       return this.readUncompressedData(entry, reader);
     }
   }
 
   /**
-   * 定位到指定偏移位置
-   * @param reader 位读取器
-   * @param offset 目标偏移
-   */
-  private seekToOffset(reader: BitReader, offset: number): void {
-    // 计算相对于内容起始位置的偏移
-    const absoluteOffset = this.parsedCHM.contentOffset + offset;
-
-    // 简化实现：假设 reader 支持跳转
-    // 实际实现可能需要重新创建 reader 或使用不同的定位方法
-    if (reader.position !== absoluteOffset) {
-      const skipBytes = absoluteOffset - reader.position;
-      if (skipBytes > 0) {
-        for (let i = 0; i < skipBytes; i++) {
-          reader.read(8);
-        }
-      }
-    }
-  }
-
-  /**
    * 读取压缩数据
+   * 对于 section 1 压缩文件，entry.offset 是未压缩流中的字节偏移。
+   * 需要通过重置表找到对应的压缩块起始位置，然后解压并截取。
+   * 若文件跨越多个重置区间，则对每个区间独立解码（每次重置解码器状态）。
    * @param entry 文件条目
    * @param reader 位读取器
    * @returns 解压后的数据
    */
   private readCompressedData(entry: DirectoryEntry, reader: BitReader): Buffer {
-    if (!entry.uncompressedLength) {
+    // 对于 section 1，length 字段本身就是未压缩大小
+    const uncompressedLength = entry.uncompressedLength ?? entry.length;
+    if (!uncompressedLength) {
       throw new Error('压缩文件缺少未压缩长度信息');
     }
 
-    // 使用 LZX 解码器解压数据
-    return this.lzxDecoder.decode(reader, entry.uncompressedLength);
+    const resetTable = this.parsedCHM.resetTable;
+    const blockSize = resetTable.blockSize > 0 ? resetTable.blockSize : 0x8000;
+
+    const startBlock = Math.floor(entry.offset / blockSize);
+    const endBlock = Math.floor(
+      (entry.offset + uncompressedLength - 1) / blockSize,
+    );
+    const offsetWithinBlock = entry.offset - startBlock * blockSize;
+
+    if (startBlock === endBlock) {
+      // 快速路径：文件完全在一个重置区间内
+      const compressedStart = this.getCompressedBlockOffset(
+        startBlock,
+        resetTable,
+      );
+      reader.setPosition(this.parsedCHM.contentOffset + compressedStart, 0);
+      const decoded = this.lzxDecoder.decode(
+        reader,
+        offsetWithinBlock + uncompressedLength,
+      );
+      return decoded.subarray(
+        offsetWithinBlock,
+        offsetWithinBlock + uncompressedLength,
+      );
+    }
+
+    // 文件跨越多个重置区间：逐区间独立解码（每次调用 decode() 时内部自动重置状态）
+    const chunks: Buffer[] = [];
+    for (let blk = startBlock; blk <= endBlock; blk++) {
+      const compressedStart = this.getCompressedBlockOffset(blk, resetTable);
+      reader.setPosition(this.parsedCHM.contentOffset + compressedStart, 0);
+
+      // 每个区间解码的未压缩字节数：
+      // - 非最后区间：完整的 blockSize 字节
+      // - 最后区间：只需解码到文件末尾所在的字节数
+      const bytesToDecode =
+        blk === endBlock
+          ? entry.offset + uncompressedLength - blk * blockSize
+          : blockSize;
+
+      chunks.push(this.lzxDecoder.decode(reader, bytesToDecode));
+    }
+
+    // 合并所有区间的解码数据，截取目标文件部分
+    const allDecoded = Buffer.concat(chunks);
+    return allDecoded.subarray(
+      offsetWithinBlock,
+      offsetWithinBlock + uncompressedLength,
+    );
+  }
+
+  /**
+   * 获取指定重置区间在压缩流中的起始偏移
+   * @param blockIndex 区间索引
+   * @param resetTable 重置表
+   * @returns 压缩流偏移（相对于 contentOffset）
+   */
+  private getCompressedBlockOffset(
+    blockIndex: number,
+    resetTable: ResetTable,
+  ): number {
+    if (resetTable.entries.length > blockIndex) {
+      return resetTable.entries[blockIndex]!.compressedLength;
+    }
+    return 0;
   }
 
   /**

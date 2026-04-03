@@ -1,8 +1,10 @@
-import { readFileSync } from 'fs';
+import { readFileSync, promises as fs } from 'fs';
+import { join, dirname } from 'path';
 import { BitReader } from '../utils/io/bit-reader';
 import { FileReconstructor } from '../core/files/file-reconstructor';
 import { CHMFileManager } from '../core/files/file-manager';
 import { ParserOperations } from './parser';
+import { logger } from '../logger/logger';
 import type { ExtractOptions } from '../core/types';
 
 /**
@@ -12,13 +14,13 @@ export class ExtractorOperations {
   /**
    * 提取 CHM 文件内容
    * @param filePath CHM 文件路径
-   * @param _outputDir 输出目录
+   * @param outputDir 输出目录
    * @param options 提取选项
    * @returns 提取结果
    */
   static async extract(
     filePath: string,
-    _outputDir: string, // 将来会使用
+    outputDir: string,
     options: Partial<ExtractOptions> = {},
   ): Promise<{ files: string[]; totalFiles: number; errors: string[] }> {
     try {
@@ -39,6 +41,9 @@ export class ExtractorOperations {
         fileList = fileList.filter(options.filter);
       }
 
+      // 确保输出目录存在
+      await fs.mkdir(outputDir, { recursive: true });
+
       const extractedFiles: string[] = [];
       const errors: string[] = [];
 
@@ -47,19 +52,28 @@ export class ExtractorOperations {
         try {
           const file = reconstructor.reconstructFile(fileName, reader);
 
-          // 这里应该写入文件到 outputDir
-          // 简化实现：仅记录成功提取的文件
+          // 构建输出路径
+          const outputPath = options.preserveStructure
+            ? join(outputDir, fileName)
+            : join(outputDir, fileName.replace(/^\/+/, ''));
+
+          // 确保父目录存在
+          await fs.mkdir(dirname(outputPath), { recursive: true });
+
+          // 写入文件到磁盘
+          await fs.writeFile(outputPath, file.data);
+
           extractedFiles.push(fileName);
 
           if (options.verbose) {
-            console.log(`已提取: ${fileName} (${file.data.length} 字节)`);
+            logger.info(`已提取: ${fileName} (${file.data.length} 字节)`);
           }
         } catch (error) {
           const errorMsg = `提取文件 ${fileName} 失败: ${error instanceof Error ? error.message : String(error)}`;
           errors.push(errorMsg);
 
           if (options.verbose) {
-            console.error(errorMsg);
+            logger.error(errorMsg);
           }
         }
       }

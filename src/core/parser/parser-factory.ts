@@ -1,4 +1,5 @@
 import { CHMParser } from './chm-parser';
+import { logger } from '../../logger/logger';
 
 /**
  * CHM 解析器工厂
@@ -24,9 +25,7 @@ export class CHMParserFactory {
   }): CHMParser {
     const parser = new CHMParser();
 
-    // 未来可以根据 options 进行配置
-    // 当前保持简单实现
-    console.log('Creating parser with options:', options);
+    logger.debug('Creating parser with options:', options);
 
     return parser;
   }
@@ -36,8 +35,6 @@ export class CHMParserFactory {
    * @returns 轻量级解析器实例
    */
   static createLightweight(): CHMParser {
-    // 未来可以创建专门的轻量级解析器
-    // 当前返回标准解析器
     return new CHMParser();
   }
 }

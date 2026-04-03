@@ -33,8 +33,8 @@ export class CHMParserValidator {
       return false;
     }
 
-    // 验证偏移
-    if (parsedCHM.contentOffset <= 0) {
+    // 验证偏移（contentOffset == 0 在 version 2 格式中是合法的）
+    if (parsedCHM.contentOffset < 0) {
       return false;
     }
 
@@ -69,6 +69,6 @@ export class CHMParserValidator {
    * @returns 偏移验证结果
    */
   static validateContentOffset(parsedCHM: ParsedCHM): boolean {
-    return parsedCHM.contentOffset > 0;
+    return parsedCHM.contentOffset >= 0;
   }
 }

@@ -144,6 +144,7 @@ export interface BitReader {
   skip(bits: number): void;
   align(): void;
   hasMore(): boolean;
+  setPosition(byte: number, bit?: number): void;
 }
 
 export interface CompressionStats {

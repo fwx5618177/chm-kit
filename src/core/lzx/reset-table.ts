@@ -14,37 +14,49 @@ export class ResetTableProcessor {
    * @returns 解析后的重置表
    */
   parseResetTable(reader: BitReader): ResetTable {
-    // 读取版本号
-    const version = reader.read(32);
+    // 读取版本号（LE uint32）
+    const version = this.readUInt32LE(reader);
     if (version !== 2) {
       throw new Error(`不支持的重置表版本: ${version}`);
     }
 
     // 读取块数量
-    const blockCount = reader.read(32);
-    if (blockCount <= 0) {
+    const blockCount = this.readUInt32LE(reader);
+    if (blockCount === 0) {
       throw new Error(`无效的块数量: ${blockCount}`);
     }
 
-    // 读取条目大小
-    const entrySize = reader.read(32);
+    // 读取条目大小（应为 8）
+    const entrySize = this.readUInt32LE(reader);
     if (entrySize !== 8) {
       throw new Error(`无效的条目大小: ${entrySize}`);
     }
 
     // 读取表偏移
-    const tableOffset = reader.read(32);
+    const tableOffset = this.readUInt32LE(reader);
 
-    // 读取未压缩长度
-    const uncompressedLength = reader.read(32);
+    // 读取未压缩长度（uint64 LE，取低32位）
+    const uncompressedLength = this.readUInt32LE(reader);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8); // skip high 4 bytes
 
-    // 读取压缩长度
-    const compressedLength = reader.read(32);
+    // 读取压缩长度（uint64 LE，取低32位）
+    const compressedLength = this.readUInt32LE(reader);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8); // skip high 4 bytes
 
     // 读取块大小
-    const blockSize = reader.read(32);
+    const blockSize = this.readUInt32LE(reader);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8);
+    reader.read(8); // skip high 4 bytes
 
-    // 解析重置表条目
+    // 解析重置表条目（每条 8 字节：uint64 累计偏移）
     const entries = this.parseResetTableEntries(reader, blockCount);
 
     this.resetTable = {
@@ -62,6 +74,18 @@ export class ResetTableProcessor {
   }
 
   /**
+   * 读取 32 位小端序无符号整数
+   */
+  private readUInt32LE(reader: BitReader): number {
+    const b0 = reader.read(8);
+    const b1 = reader.read(8);
+    const b2 = reader.read(8);
+    const b3 = reader.read(8);
+    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
+    return (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
+  }
+
+  /**
    * 解析重置表条目
    * @param reader 位读取器
    * @param blockCount 块数量
@@ -74,13 +98,14 @@ export class ResetTableProcessor {
     const entries: ResetTableEntry[] = [];
 
     for (let i = 0; i < blockCount; i++) {
-      const compressedLength = reader.read(32);
-      const uncompressedLength = reader.read(32);
-
-      entries.push({
-        compressedLength,
-        uncompressedLength,
-      });
+      // 每个条目是一个 uint64 LE 累计压缩偏移，取低 32 位
+      const compressedLength = this.readUInt32LE(reader);
+      reader.read(8);
+      reader.read(8);
+      reader.read(8);
+      reader.read(8); // skip high 4 bytes
+      // uncompressedLength 可通过 blockSize * i 推导，这里存储为 0 作为兼容占位
+      entries.push({ compressedLength, uncompressedLength: 0 });
     }
 
     return entries;
@@ -181,7 +206,7 @@ export class ResetTableProcessor {
       return false;
     }
 
-    if (this.resetTable.blockCount <= 0) {
+    if (this.resetTable.blockCount === 0) {
       return false;
     }
 

@@ -62,4 +62,35 @@ export class FileManagerOperations {
       );
     }
   }
+
+  /**
+   * 读取 CHM 文件中的单个文件并返回文本
+   * @param chmPath CHM 文件路径
+   * @param filePath 文件路径
+   * @param encoding 字符编码方式（默认 utf-8）
+   * @returns 文本内容
+   */
+  static async readText(
+    chmPath: string,
+    filePath: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): Promise<string> {
+    const buffer = await FileManagerOperations.readFile(chmPath, filePath);
+    return buffer.toString(encoding);
+  }
+
+  /**
+   * 读取 CHM 文件中的 HTML 文件内容
+   * @param chmPath CHM 文件路径
+   * @param filePath HTML 文件路径
+   * @returns HTML 内容字符串
+   */
+  static async readHTML(chmPath: string, filePath: string): Promise<string> {
+    const buffer = await FileManagerOperations.readFile(chmPath, filePath);
+    // 尝试从 BOM 检测编码，默认使用 utf-8
+    if (buffer[0] === 0xff && buffer[1] === 0xfe) {
+      return buffer.toString('utf16le');
+    }
+    return buffer.toString('utf-8');
+  }
 }

@@ -31,7 +31,7 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
     "prepare": "husky install",
-    "test": "tsx test/**/*.test.ts",
+    "test": "find test -name '*.test.ts' -exec tsx {} +",
     "test:watch": "tsx --watch test/**/*.test.ts",
     "clean": "rimraf dist"
   },

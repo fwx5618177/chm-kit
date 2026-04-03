@@ -96,4 +96,29 @@ export class CHMKit {
   static async listFiles(chmPath: string): Promise<string[]> {
     return FileManagerOperations.listFiles(chmPath);
   }
+
+  /**
+   * 读取 CHM 文件中的文本文件
+   * @param chmPath CHM 文件路径
+   * @param filePath 文件路径
+   * @param encoding 字符编码（默认 utf-8）
+   * @returns 文本内容
+   */
+  static async readText(
+    chmPath: string,
+    filePath: string,
+    encoding: BufferEncoding = 'utf-8',
+  ): Promise<string> {
+    return FileManagerOperations.readText(chmPath, filePath, encoding);
+  }
+
+  /**
+   * 读取 CHM 文件中的 HTML 文件
+   * @param chmPath CHM 文件路径
+   * @param filePath HTML 文件路径
+   * @returns HTML 内容字符串
+   */
+  static async readHTML(chmPath: string, filePath: string): Promise<string> {
+    return FileManagerOperations.readHTML(chmPath, filePath);
+  }
 }

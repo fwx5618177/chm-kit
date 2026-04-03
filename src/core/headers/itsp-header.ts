@@ -77,8 +77,8 @@ export class ITSPHeaderParser {
     const byte2 = reader.read(8);
     const byte3 = reader.read(8);
     const byte4 = reader.read(8);
-
-    return byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24);
+    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
+    return (byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24)) >>> 0;
   }
 
   /**

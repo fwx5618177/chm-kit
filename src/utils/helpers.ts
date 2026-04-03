@@ -141,5 +141,5 @@ export function createFilterFunction(
  * @param info 信息对象
  */
 export function displayInfo(info: unknown): void {
-  console.log(JSON.stringify(info, null, 2));
+  process.stdout.write(`${JSON.stringify(info, null, 2)}\n`);
 }
