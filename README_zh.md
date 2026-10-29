@@ -279,7 +279,7 @@ Vitest 原生 JSON 报告写入 `test-results/vitest.json`，包含本次选择�
 
 通过数、跳过数和失败信息以实际命令输出及新生成的报告为准，不在此写死测试数量或宣称百分百兼容；历史验证结果与当前 runner 结果必须分开。真实 PyCHM fixture 很小且只有单帧，不能单独证明真实多帧/多 reset 或 ITSF v2 文件的兼容性。
 
-[CI](.github/workflows/ci.yml) 的目标矩阵为 **Ubuntu、macOS、Windows** 上的 Node 20.19/22/24，以及独立 Ubuntu **Chromium/Firefox/WebKit 三浏览器矩阵**。workflow 命令和报告上传须同步到上述原生入口与路径，浏览器矩阵通过 `--project` 选择引擎。定义了 workflow 不代表托管 CI 已运行通过；**Windows/Linux 验证仍待 CI 执行**。CI 仅有仓库读取权限，不自动发布 npm，也不部署。
+[CI](.github/workflows/ci.yml) 的目标矩阵为 **Ubuntu、macOS、Windows** 上的 Node 20.19/22/24，以及独立 Ubuntu **Chromium/Firefox/WebKit 三浏览器矩阵**。workflow 命令和报告上传须同步到上述原生入口与路径，浏览器矩阵通过 `--project` 选择引擎。定义了 workflow 不代表通过证据；[修订 `0274c2c` 的托管运行](https://github.com/fwx5618177/chm-kit/actions/runs/40927079982) 已通过全部 12 个矩阵任务，记录见 [VALIDATION.md](VALIDATION.md)。后续提交需检查各自 CI 状态。CI 仅有仓库读取权限，不自动发布 npm，也不部署。
 
 ## 许可证
 

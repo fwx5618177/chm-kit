@@ -8,7 +8,7 @@ CHMKit 是 TypeScript CHM 读写库，提供 Node CJS/ESM API、`chmkit` / `chm`
 
 已实现标准 ITSF v2/v3、PMGL、LZXC ControlData/reset table，真实 LZX VERBATIM/ALIGNED/stored 解码（含跨帧/reset、E8），以及 VERBATIM LZ77 + 固定 Huffman 树编码和 stored fallback。自适应树、ALIGNED 编码、Electron IPC、Worker helper、自适应预载属于未来增强，不是待填的基础解码实现。
 
-不要声称兼容全部 CHM、百分百边界覆盖、数学穷尽边界或已达到最优压缩率。真实 PyCHM fixture 小且单帧；其覆盖范围不能替代多帧、多 reset、ITSF v2 等独立真实语料。本次修订未发布到 npm，registry 版本不一定包含这些变更；不要据此断言从未发布过 npm。Windows/Linux 运行结果待托管 CI 验证。
+不要声称兼容全部 CHM、百分百边界覆盖、数学穷尽边界或已达到最优压缩率。真实 PyCHM fixture 小且单帧；其覆盖范围不能替代多帧、多 reset、ITSF v2 等独立真实语料。本次修订未发布到 npm，registry 版本不一定包含这些变更；不要据此断言从未发布过 npm。修订 `0274c2c` 已通过 Windows/Linux/macOS 与三浏览器完整托管 CI，证据见 `VALIDATION.md`；后续提交需检查各自运行结果。
 
 ## 环境与命令
 

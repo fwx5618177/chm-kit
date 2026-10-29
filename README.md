@@ -284,7 +284,7 @@ Vitest writes its native JSON report to `test-results/vitest.json` for the proje
 
 Inspect actual command output and freshly generated reports for counts, skips and failures; no fixed test count or blanket compatibility percentage is claimed here. Keep historical validation results separate from current runner results. The real PyCHM sample is small and single-frame: it does not by itself establish real-world multi-frame/reset or ITSF v2 coverage.
 
-[CI](.github/workflows/ci.yml) targets Node 20.19/22/24 on **Ubuntu, macOS and Windows**, plus a separate Ubuntu **Chromium/Firefox/WebKit matrix**. Workflow commands and report uploads must follow the native entry points and paths above; matrix browser jobs select their engine with `--project`. A workflow definition is not a claim that hosted runs have already passed. **Windows/Linux validation is pending CI execution.** CI has read-only repository permissions and does not publish to npm or deploy anything.
+[CI](.github/workflows/ci.yml) targets Node 20.19/22/24 on **Ubuntu, macOS and Windows**, plus a separate Ubuntu **Chromium/Firefox/WebKit matrix**. Workflow commands and report uploads must follow the native entry points and paths above; matrix browser jobs select their engine with `--project`. A workflow definition alone is not validation evidence. [The hosted run for `0274c2c`](https://github.com/fwx5618177/chm-kit/actions/runs/40927079982) passed all 12 matrix jobs; see [VALIDATION.md](VALIDATION.md) for the recorded results. Check each subsequent commit's own CI status. CI has read-only repository permissions and does not publish to npm or deploy anything.
 
 ## License
 

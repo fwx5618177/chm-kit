@@ -81,7 +81,7 @@
 这些项目仍需真实验证或证据，不应与可选增强混为一谈：
 
 - [x] CI 已同步到 `pnpm test`、`pnpm test:browser --project=chromium` 等原生入口及 `test-results/` 报告路径。
-- [ ] 在 GitHub 托管 CI 实际执行完整矩阵，记录 Windows/Linux 结果并修复平台特定失败；已定义 workflow 不等于已通过。
+- [x] [GitHub 托管 CI](https://github.com/fwx5618177/chm-kit/actions/runs/40927079982) 已在修订 `0274c2c` 实际通过完整 12 任务矩阵；Windows/Linux 平台特定失败已修复，9 个 Node 任务均无失败/跳过。后续提交仍须检查各自 CI 结果。
 - [x] 本轮在实际 Node 20.10.0 下通过已安装包验收并记录结果，与开发构建基线 20.19+ 分开；后续修订需重新验证。
 - [ ] 扩充独立来源的正常 CHM 语料：真实 ITSF v2、多帧、多 reset、不同窗口、编码和生产工具组合。
 - [ ] 引入更多畸形输入语料、差分检查与有界 fuzzing；不把小样例或合成案例当作全格式证明。
