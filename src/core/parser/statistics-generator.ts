@@ -2,7 +2,8 @@ import type { ParsedCHM } from '../types';
 import { ITSFHeaderParser } from '../headers/itsf-header';
 import { ITSPHeaderParser } from '../headers/itsp-header';
 import { LZXCHeaderParser } from '../headers/lzxc-header';
-import { DirectoryParser } from '../directory/directory-parser';
+import { CHMFileStatistics } from '../files/file-statistics';
+import { CHMFileManager } from '../files/file-manager';
 
 /**
  * CHM 统计信息生成器
@@ -17,8 +18,8 @@ export class CHMStatisticsGenerator {
   static getStatistics(parsedCHM: ParsedCHM): string {
     const itsfSummary = ITSFHeaderParser.getSummary(parsedCHM.header.itsf);
     const itspSummary = ITSPHeaderParser.getSummary(parsedCHM.header.itsp);
-    const lzxcSummary = LZXCHeaderParser.getSummary(parsedCHM.header.lzxc);
-    const directorySummary = DirectoryParser.getSummary(parsedCHM.directory);
+    const lzxcSummary = this.getCompressionSummary(parsedCHM);
+    const directorySummary = new CHMFileStatistics(parsedCHM).getStatistics();
 
     return [
       '=== CHM 文件解析统计 ===',
@@ -47,7 +48,7 @@ export class CHMStatisticsGenerator {
   static getHeaderStatistics(parsedCHM: ParsedCHM): string {
     const itsfSummary = ITSFHeaderParser.getSummary(parsedCHM.header.itsf);
     const itspSummary = ITSPHeaderParser.getSummary(parsedCHM.header.itsp);
-    const lzxcSummary = LZXCHeaderParser.getSummary(parsedCHM.header.lzxc);
+    const lzxcSummary = this.getCompressionSummary(parsedCHM);
 
     return [
       '=== CHM 头部统计 ===',
@@ -69,9 +70,15 @@ export class CHMStatisticsGenerator {
    * @returns 目录统计信息
    */
   static getDirectoryStatistics(parsedCHM: ParsedCHM): string {
-    const directorySummary = DirectoryParser.getSummary(parsedCHM.directory);
+    const directorySummary = new CHMFileStatistics(parsedCHM).getStatistics();
 
     return ['=== CHM 目录统计 ===', '', directorySummary].join('\n');
+  }
+
+  private static getCompressionSummary(parsedCHM: ParsedCHM): string {
+    return parsedCHM.header.lzxc.signature
+      ? LZXCHeaderParser.getSummary(parsedCHM.header.lzxc)
+      : '无压缩（仅 section 0）';
   }
 
   /**
@@ -81,9 +88,9 @@ export class CHMStatisticsGenerator {
    */
   static getBriefStatistics(parsedCHM: ParsedCHM): string {
     return [
-      `文件总数: ${parsedCHM.directory.entries?.size || 0}`,
+      `文件总数: ${new CHMFileManager(parsedCHM).getUserFileList().length}`,
       `内容偏移: 0x${parsedCHM.contentOffset.toString(16)}`,
-      `压缩方法: ${parsedCHM.header.lzxc.signature}`,
+      `压缩方法: ${parsedCHM.header.lzxc.signature || '无（section 0）'}`,
     ].join(' | ');
   }
 }

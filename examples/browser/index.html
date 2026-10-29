@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' data:; frame-src blob:; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'"
+    />
+    <title>CHMKit · 浏览器阅读器</title>
+    <style>
+      :root {
+        font:
+          15px/1.6 system-ui,
+          sans-serif;
+        color: #dce7f4;
+        background: #0b1220;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid #33485e;
+        background: #152438;
+        color: #e3edf8;
+        border-radius: 8px;
+        padding: 8px 14px;
+      }
+      button:hover {
+        background: #263e56;
+      }
+      button.primary {
+        background: #57ddb4;
+        border-color: #57ddb4;
+        color: #082c25;
+        font-weight: 650;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      header {
+        padding: 24px 32px;
+        border-bottom: 1px solid #253247;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 23px;
+        margin: 0;
+      }
+      header p {
+        color: #93a7bd;
+        margin: 0;
+        font-size: 13px;
+      }
+      .brand {
+        margin-right: auto;
+      }
+      .pill {
+        font-size: 12px;
+        border: 1px solid #27624f;
+        color: #77e9c2;
+        padding: 3px 9px;
+        border-radius: 20px;
+      }
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        padding: 18px 32px;
+        border-bottom: 1px solid #253247;
+        align-items: center;
+      }
+      .toolbar input {
+        flex: 1;
+        background: #101c2c;
+        border: 1px solid #33485e;
+        border-radius: 7px;
+        padding: 9px 13px;
+        color: inherit;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 290px minmax(0, 1fr);
+        height: calc(100vh - 211px);
+        min-height: 500px;
+      }
+      aside {
+        padding: 18px 16px;
+        border-right: 1px solid #253247;
+        overflow: auto;
+      }
+      aside h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #8da2b9;
+        margin: 6px 12px 12px;
+      }
+      .file {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        margin: 3px 0;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+      }
+      .file.active {
+        background: #213b4d;
+        color: #80e7c5;
+      }
+      .file small {
+        color: #7992aa;
+        float: right;
+      }
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .meta {
+        display: flex;
+        gap: 30px;
+        padding: 16px 24px;
+        border-bottom: 1px solid #253247;
+        font-size: 13px;
+        color: #91a9c2;
+      }
+      .meta strong {
+        color: #e4edf7;
+        margin-left: 6px;
+      }
+      #preview {
+        width: 100%;
+        flex: 1;
+        min-height: 420px;
+        border: 0;
+        background: white;
+      }
+      #empty {
+        padding: 70px 32px;
+        color: #9eb0c4;
+        text-align: center;
+      }
+      #status {
+        padding: 12px 32px;
+        font-size: 12px;
+        color: #8da6bf;
+        border-top: 1px solid #253247;
+        min-height: 44px;
+      }
+      .error {
+        color: #ffb4a9 !important;
+      }
+      #file-input {
+        display: none;
+      }
+      #results:empty {
+        display: none;
+      }
+      #results {
+        border-bottom: 1px solid #253247;
+        padding: 8px 24px;
+        max-height: 160px;
+        overflow: auto;
+      }
+      #results button {
+        margin: 4px;
+        font-size: 12px;
+      }
+      #binary {
+        padding: 24px;
+        white-space: pre-wrap;
+        overflow: auto;
+        color: #b9d8e8;
+        max-height: 500px;
+        margin: 0;
+      }
+      @media (max-width: 720px) {
+        header,
+        .toolbar {
+          padding: 16px;
+        }
+        .workspace {
+          grid-template-columns: 180px minmax(0, 1fr);
+        }
+        .meta {
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 10px;
+        }
+        aside {
+          padding: 12px 4px;
+        }
+      }
+    </style>
+    <script type="module" src="./viewer.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <h1>CHMKit <span class="pill">100% 本地处理</span></h1>
+        <p>浏览器原生读取 · LZX 解压 · 安全预览 · 无需上传</p>
+      </div>
+      <button id="open">打开 .chm 文件</button
+      ><button id="sample" class="primary">加载演示文档</button
+      ><button id="download" disabled>下载示例 CHM</button>
+    </header>
+    <div class="toolbar">
+      <input
+        id="search"
+        placeholder="搜索文档内容，例如：边界条件"
+        aria-label="搜索内容"
+      /><button id="search-button">全文搜索</button
+      ><button id="toc-button">查看目录</button
+      ><button id="clear-cache">清空缓存</button>
+    </div>
+    <div class="workspace">
+      <aside>
+        <h2>归档文件 <span id="file-count">0</span></h2>
+        <nav id="files" aria-label="文件列表"></nav>
+      </aside>
+      <section class="main">
+        <div class="meta">
+          <span>文档<strong id="archive-title">尚未打开</strong></span
+          ><span>文件<strong id="selected">—</strong></span
+          ><span>缓存<strong id="cache-size">0 B</strong></span>
+        </div>
+        <div id="results"></div>
+        <div id="empty">
+          <h2>让 CHM 文档，在浏览器里重新打开。</h2>
+          <p>选择本地文件，或加载内置演示。内容不离开当前浏览器。</p>
+          <p>HTML 在无脚本、无同源权限的沙箱中预览。</p>
+        </div>
+        <iframe id="preview" title="安全的文档预览" sandbox="" hidden></iframe>
+        <pre id="binary" hidden></pre>
+      </section>
+    </div>
+    <div id="status" role="status">
+      就绪 · 需要先执行 pnpm build，再通过 HTTP 打开本页面。
+    </div>
+    <input id="file-input" type="file" accept=".chm" />
+  </body>
+</html>

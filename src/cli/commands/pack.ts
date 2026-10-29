@@ -1,7 +1,8 @@
 import { Command } from 'commander';
 import type { PackOptions, PackCommandOptions } from '../../core/types';
-import { logger } from '../../logger/logger';
+
 import { CHMKit } from '../../chm-kit';
+import { assertSafeSourceDirectory } from '../paths';
 
 /**
  * 打包目录为 CHM 文件的命令
@@ -13,11 +14,13 @@ export const pack = new Command('pack')
   .option('-t, --title <title>', 'CHM 文件标题')
   .option('-d, --default-topic <file>', '默认主题文件')
   .option('-c, --compression', '启用压缩', true)
+  .option('--no-compression', '不压缩用户内容')
   .option('-v, --verbose', '启用详细输出', false)
   .action(async (input: string, options: PackCommandOptions) => {
     try {
+      const source = await assertSafeSourceDirectory(input);
       const packOptions: PackOptions = {
-        inputDir: input,
+        inputDir: source,
         outputPath: options.output,
         compression: options.compression,
         verbose: options.verbose,
@@ -25,20 +28,22 @@ export const pack = new Command('pack')
         ...(options.defaultTopic && { defaultTopic: options.defaultTopic }),
       };
 
-      const result = await CHMKit.pack(input, options.output, packOptions);
+      const result = await CHMKit.pack(source, options.output, packOptions);
 
       if (result.success) {
         if (options.verbose) {
-          logger.success(`✅ ${result.message}`);
+          process.stdout.write(`${result.message}\n`);
         } else {
-          logger.success(`✅ CHM 文件已创建: ${options.output}`);
+          process.stdout.write(`CHM 文件已创建: ${options.output}\n`);
         }
       } else {
-        logger.error(`❌ ${result.message}`);
-        process.exit(1);
+        process.stderr.write(`${result.message}\n`);
+        process.exitCode = 1;
       }
     } catch (error) {
-      logger.error('❌ Error packing CHM file:', error);
-      process.exit(1);
+      process.stderr.write(
+        `Error packing CHM file: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exitCode = 1;
     }
   });

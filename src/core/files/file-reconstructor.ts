@@ -1,221 +1,377 @@
-import type { DirectoryEntry, CHMFile, ParsedCHM, ResetTable } from '../types';
+import type { DirectoryEntry, CHMFile, ParsedCHM } from '../types';
 import type { BitReader } from '../../utils/io/bit-reader';
 import { LZXDecoder } from '../lzx/lzx-decoder';
 import { CHMFileManager } from './file-manager';
-import { logger } from '../../logger/logger';
+import { checkedEnd, requireRange } from '../headers/binary';
 
-/**
- * 文件重组器
- * 负责按需读取指定文件并重建完整文件内容
- */
+export interface ReconstructorOptions {
+  maxCacheBytes?: number;
+  maxOutputBytes?: number;
+}
+
+/** Reconstruct only the reset groups intersecting a requested byte range. */
 export class FileReconstructor {
-  private parsedCHM: ParsedCHM;
-  private lzxDecoder: LZXDecoder;
-  private fileManager: CHMFileManager;
+  private readonly fileManager: CHMFileManager;
+  private readonly cache = new Map<number, Buffer>();
+  private cacheBytes = 0;
+  private hits = 0;
+  private misses = 0;
+  private maxCacheBytes: number;
+  private readonly maxOutputBytes: number;
 
-  constructor(parsedCHM: ParsedCHM) {
-    this.parsedCHM = parsedCHM;
-    this.lzxDecoder = new LZXDecoder(parsedCHM.header.lzxc);
+  constructor(
+    private readonly parsedCHM: ParsedCHM,
+    options: ReconstructorOptions = {},
+  ) {
     this.fileManager = new CHMFileManager(parsedCHM);
+    this.maxOutputBytes = options.maxOutputBytes ?? LZXDecoder.MAX_OUTPUT_SIZE;
+    if (!Number.isSafeInteger(this.maxOutputBytes) || this.maxOutputBytes < 0)
+      throw new Error('maxOutputBytes must be a non-negative safe integer');
+    this.maxCacheBytes = 0;
+    this.setCacheLimit(options.maxCacheBytes ?? 8 * 1024 * 1024);
   }
 
-  /**
-   * 重组指定文件
-   * @param fileName 文件名
-   * @param reader 位读取器（指向 CHM 文件内容）
-   * @returns 重组后的文件对象
-   */
   reconstructFile(fileName: string, reader: BitReader): CHMFile {
-    // 查找文件条目
-    const entry = this.fileManager.findFileEntry(fileName);
-    if (!entry) {
-      throw new Error(`文件未找到: ${fileName}`);
-    }
-
-    // 读取文件数据
-    const data = this.readFileData(entry, reader);
-
+    const entry = this.requireEntry(fileName);
+    const data = this.reconstructRange(fileName, reader);
     return {
-      name: fileName,
+      name: entry.name,
       data,
-      isCompressed: entry.isCompressed,
-      originalSize: entry.uncompressedLength ?? entry.length,
-      compressedSize: entry.length,
+      isCompressed: entry.section === 1,
+      originalSize: entry.length,
+      compressedSize: entry.section === 1 ? null : entry.length,
     };
   }
 
+  reconstructRange(
+    fileName: string,
+    reader: BitReader,
+    start = 0,
+    end?: number,
+  ): Buffer {
+    const entry = this.requireEntry(fileName);
+    const limit = end ?? entry.length;
+    if (
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(limit) ||
+      start < 0 ||
+      limit < start ||
+      limit > entry.length
+    ) {
+      throw new RangeError(
+        `Invalid file range [${start}, ${limit}) for ${entry.name}`,
+      );
+    }
+    const length = limit - start;
+    if (length > this.maxOutputBytes)
+      throw new RangeError(
+        'Requested output exceeds maxOutputBytes; use a range or stream',
+      );
+    if (length === 0) return Buffer.alloc(0);
+    if (entry.section === 0) {
+      const itsf = this.parsedCHM.header.itsf;
+      const base =
+        itsf.version === 3
+          ? itsf.unknown4
+          : checkedEnd(
+              itsf.directoryOffset,
+              itsf.directoryLength,
+              'ITSF data base',
+            );
+      const absolute = checkedEnd(
+        checkedEnd(base, entry.offset, entry.name),
+        start,
+        entry.name,
+      );
+      requireRange(reader.buffer, absolute, length, entry.name);
+      return Buffer.from(reader.buffer.subarray(absolute, absolute + length));
+    }
+    if (entry.section !== 1)
+      throw new Error(`Unsupported CHM section: ${entry.section}`);
+    const table = this.parsedCHM.resetTable;
+    const frameSize = table.blockSize;
+    const resetBytes = this.parsedCHM.header.lzxc.resetInterval;
+    if (
+      frameSize !== LZXDecoder.FRAME_SIZE ||
+      !Number.isSafeInteger(resetBytes) ||
+      resetBytes <= 0 ||
+      resetBytes % frameSize !== 0 ||
+      resetBytes > LZXDecoder.MAX_OUTPUT_SIZE
+    )
+      throw new Error('Invalid or excessively large LZX reset interval');
+    const absoluteStart = checkedEnd(entry.offset, start, entry.name);
+    const absoluteEnd = checkedEnd(entry.offset, limit, entry.name);
+    if (absoluteEnd > table.uncompressedLength)
+      throw new Error(`File range exceeds LZX stream: ${entry.name}`);
+    const output = Buffer.alloc(length);
+    let written = 0;
+    for (
+      let group = Math.floor(absoluteStart / resetBytes) * resetBytes;
+      group < absoluteEnd;
+      group += resetBytes
+    ) {
+      const data = this.readResetGroup(group, reader);
+      const from = Math.max(absoluteStart, group) - group;
+      const to = Math.min(absoluteEnd, group + data.length) - group;
+      if (to <= from)
+        throw new Error('LZX reset group does not cover requested bytes');
+      data.copy(output, written, from, to);
+      written += to - from;
+    }
+    if (written !== length) throw new Error('Incomplete file reconstruction');
+    return output;
+  }
+
   /**
-   * 批量重组文件
-   * @param fileNames 文件名数组
-   * @param reader 位读取器
-   * @returns 重组后的文件映射
+   * Sequential, cache-independent reconstruction of a file-relative [start, end)
+   * range (default: the whole file). Each physical frame from the nearest reset
+   * before start through the range end is decoded once, including any prefix
+   * needed for history and the last frame's physical Intel E8 tail. Returned
+   * buffers are owned copies, at most min(chunkSize, maxOutputBytes) bytes.
+   * Validation/I/O is lazy; callers must exhaust or return() the generator to
+   * release its decoder and source references. The reader cursor is unchanged.
    */
+  *iterateFileChunks(
+    fileName: string,
+    reader: BitReader,
+    chunkSize: number,
+    start = 0,
+    end?: number,
+  ): Generator<Buffer> {
+    if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0)
+      throw new RangeError('chunkSize must be a positive safe integer');
+    const entry = this.requireEntry(fileName);
+    const until = end ?? entry.length;
+    if (
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(until) ||
+      start < 0 ||
+      until < start ||
+      until > entry.length
+    )
+      throw new RangeError(
+        `Invalid file range [${start}, ${until}) for ${entry.name}`,
+      );
+    const length = until - start;
+    if (length === 0) return;
+    if (entry.section !== 0 && entry.section !== 1)
+      throw new Error(`Unsupported CHM section: ${entry.section}`);
+    const absoluteStart = checkedEnd(entry.offset, start, entry.name);
+    const absoluteEnd = checkedEnd(entry.offset, until, entry.name);
+    if (this.maxOutputBytes === 0)
+      throw new RangeError('Requested output exceeds maxOutputBytes');
+    const limit = Math.min(chunkSize, this.maxOutputBytes);
+    if (entry.section === 0) {
+      const itsf = this.parsedCHM.header.itsf;
+      const base =
+        itsf.version === 3
+          ? itsf.unknown4
+          : checkedEnd(
+              itsf.directoryOffset,
+              itsf.directoryLength,
+              'ITSF data base',
+            );
+      const absolute = checkedEnd(base, absoluteStart, entry.name);
+      requireRange(reader.buffer, absolute, length, entry.name);
+      for (let position = 0; position < length; ) {
+        const size = Math.min(limit, length - position);
+        yield Buffer.from(
+          reader.buffer.subarray(
+            absolute + position,
+            absolute + position + size,
+          ),
+        );
+        position += size;
+      }
+      return;
+    }
+    const table = this.parsedCHM.resetTable;
+    const frameSize = LZXDecoder.FRAME_SIZE;
+    const resetBytes = this.parsedCHM.header.lzxc.resetInterval;
+    if (
+      table.blockSize !== frameSize ||
+      !Number.isSafeInteger(resetBytes) ||
+      resetBytes <= 0 ||
+      resetBytes % frameSize !== 0
+    )
+      throw new Error('Invalid LZX reset interval or frame size');
+    if (absoluteEnd > checkedEnd(table.uncompressedLength, 0, 'LZX stream'))
+      throw new Error(`File range exceeds LZX stream: ${entry.name}`);
+    const startFrame =
+      (Math.floor(absoluteStart / resetBytes) * resetBytes) / frameSize;
+    const endFrame = Math.ceil(absoluteEnd / frameSize);
+    const compressed = this.iterateCompressedFrames(
+      reader,
+      startFrame,
+      endFrame,
+    );
+    let decoded: Generator<Buffer> | undefined = new LZXDecoder(
+      this.parsedCHM.header.lzxc,
+    ).iterateFrames(
+      compressed,
+      absoluteEnd - startFrame * frameSize,
+      startFrame,
+      frameSize,
+    );
+    let chunk: Buffer | undefined;
+    let filled = 0;
+    let remaining = length;
+    let frameStart = startFrame * frameSize;
+    try {
+      for (const frame of decoded) {
+        let position = Math.max(0, absoluteStart - frameStart);
+        frameStart += frameSize;
+        while (position < frame.length) {
+          chunk ??= Buffer.alloc(Math.min(limit, remaining));
+          const count = Math.min(
+            chunk.length - filled,
+            frame.length - position,
+          );
+          frame.copy(chunk, filled, position, position + count);
+          filled += count;
+          position += count;
+          remaining -= count;
+          if (filled === chunk.length) {
+            const ready = chunk;
+            chunk = undefined;
+            filled = 0;
+            yield ready;
+          }
+        }
+      }
+      if (remaining !== 0) throw new Error('Incomplete file reconstruction');
+    } finally {
+      decoded.return(undefined);
+      decoded = undefined;
+      chunk = undefined;
+    }
+  }
+
+  private *iterateCompressedFrames(
+    reader: BitReader,
+    start: number,
+    end: number,
+  ): Generator<Uint8Array> {
+    for (let index = start; index < end; index++)
+      yield this.readCompressedFrame(index, reader);
+  }
+
+  private readCompressedFrame(index: number, reader: BitReader): Uint8Array {
+    const table = this.parsedCHM.resetTable;
+    const offset = table.entries[index]?.compressedLength;
+    const next =
+      table.entries[index + 1]?.compressedLength ?? table.compressedLength;
+    if (
+      offset === undefined ||
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(next) ||
+      offset < 0 ||
+      next <= offset ||
+      next > table.compressedLength
+    )
+      throw new Error(`Invalid LZX frame offsets at ${index}`);
+    const absolute = checkedEnd(
+      this.parsedCHM.contentOffset,
+      offset,
+      'LZX frame',
+    );
+    requireRange(reader.buffer, absolute, next - offset, 'LZX frame');
+    return reader.buffer.subarray(absolute, absolute + next - offset);
+  }
+
+  private readResetGroup(group: number, reader: BitReader): Buffer {
+    const cached = this.cache.get(group);
+    if (cached) {
+      this.hits++;
+      this.cache.delete(group);
+      this.cache.set(group, cached);
+      return cached;
+    }
+    this.misses++;
+    const table = this.parsedCHM.resetTable;
+    const size = Math.min(
+      this.parsedCHM.header.lzxc.resetInterval,
+      table.uncompressedLength - group,
+    );
+    if (size <= 0) throw new Error('LZX reset group is outside the stream');
+    const startFrame = group / LZXDecoder.FRAME_SIZE;
+    const frameCount = Math.ceil(size / LZXDecoder.FRAME_SIZE);
+    const frames: Uint8Array[] = [];
+    for (let index = startFrame; index < startFrame + frameCount; index++)
+      frames.push(this.readCompressedFrame(index, reader));
+    // Decode the complete physical frames, not merely a file prefix: E8's
+    // ten-byte tail exemption and dictionary state depend on the real frame end.
+    const data = new LZXDecoder(this.parsedCHM.header.lzxc).decodeFrames(
+      frames,
+      size,
+      startFrame,
+      LZXDecoder.FRAME_SIZE,
+    );
+    if (data.length <= this.maxCacheBytes) {
+      this.cache.set(group, data);
+      this.cacheBytes += data.length;
+      this.evict();
+    }
+    return data;
+  }
+
   reconstructFiles(
     fileNames: string[],
     reader: BitReader,
   ): Map<string, CHMFile> {
-    const result = new Map<string, CHMFile>();
-
-    for (const fileName of fileNames) {
-      try {
-        const file = this.reconstructFile(fileName, reader);
-        result.set(fileName, file);
-      } catch (error) {
-        // 记录错误但继续处理其他文件
-        logger.error(`重组文件失败 ${fileName}:`, error);
-      }
-    }
-
-    return result;
+    return new Map(
+      fileNames.map(name => [name, this.reconstructFile(name, reader)]),
+    );
   }
 
-  /**
-   * 重组所有文件
-   * @param reader 位读取器
-   * @returns 所有文件的映射
-   */
   reconstructAllFiles(reader: BitReader): Map<string, CHMFile> {
-    const fileNames = this.fileManager.getFileList();
-    return this.reconstructFiles(fileNames, reader);
+    return this.reconstructFiles(this.fileManager.getFileList(), reader);
   }
 
-  /**
-   * 读取文件数据
-   * @param entry 文件条目
-   * @param reader 位读取器
-   * @returns 文件数据
-   */
-  private readFileData(entry: DirectoryEntry, reader: BitReader): Buffer {
-    if (entry.isCompressed) {
-      // section 1 压缩文件：readCompressedData 内部自行定位到正确的压缩块
-      return this.readCompressedData(entry, reader);
-    } else {
-      // section 0 未压缩文件：基址为 itsf.unknown2（sect0Offset）
-      const sect0Base = this.parsedCHM.header.itsf.unknown2;
-      const absoluteOffset = sect0Base + entry.offset;
-      reader.setPosition(absoluteOffset, 0);
-      return this.readUncompressedData(entry, reader);
-    }
-  }
-
-  /**
-   * 读取压缩数据
-   * 对于 section 1 压缩文件，entry.offset 是未压缩流中的字节偏移。
-   * 需要通过重置表找到对应的压缩块起始位置，然后解压并截取。
-   * 若文件跨越多个重置区间，则对每个区间独立解码（每次重置解码器状态）。
-   * @param entry 文件条目
-   * @param reader 位读取器
-   * @returns 解压后的数据
-   */
-  private readCompressedData(entry: DirectoryEntry, reader: BitReader): Buffer {
-    // 对于 section 1，length 字段本身就是未压缩大小
-    const uncompressedLength = entry.uncompressedLength ?? entry.length;
-    if (!uncompressedLength) {
-      throw new Error('压缩文件缺少未压缩长度信息');
-    }
-
-    const resetTable = this.parsedCHM.resetTable;
-    const blockSize = resetTable.blockSize > 0 ? resetTable.blockSize : 0x8000;
-
-    const startBlock = Math.floor(entry.offset / blockSize);
-    const endBlock = Math.floor(
-      (entry.offset + uncompressedLength - 1) / blockSize,
-    );
-    const offsetWithinBlock = entry.offset - startBlock * blockSize;
-
-    if (startBlock === endBlock) {
-      // 快速路径：文件完全在一个重置区间内
-      const compressedStart = this.getCompressedBlockOffset(
-        startBlock,
-        resetTable,
-      );
-      reader.setPosition(this.parsedCHM.contentOffset + compressedStart, 0);
-      const decoded = this.lzxDecoder.decode(
-        reader,
-        offsetWithinBlock + uncompressedLength,
-      );
-      return decoded.subarray(
-        offsetWithinBlock,
-        offsetWithinBlock + uncompressedLength,
-      );
-    }
-
-    // 文件跨越多个重置区间：逐区间独立解码（每次调用 decode() 时内部自动重置状态）
-    const chunks: Buffer[] = [];
-    for (let blk = startBlock; blk <= endBlock; blk++) {
-      const compressedStart = this.getCompressedBlockOffset(blk, resetTable);
-      reader.setPosition(this.parsedCHM.contentOffset + compressedStart, 0);
-
-      // 每个区间解码的未压缩字节数：
-      // - 非最后区间：完整的 blockSize 字节
-      // - 最后区间：只需解码到文件末尾所在的字节数
-      const bytesToDecode =
-        blk === endBlock
-          ? entry.offset + uncompressedLength - blk * blockSize
-          : blockSize;
-
-      chunks.push(this.lzxDecoder.decode(reader, bytesToDecode));
-    }
-
-    // 合并所有区间的解码数据，截取目标文件部分
-    const allDecoded = Buffer.concat(chunks);
-    return allDecoded.subarray(
-      offsetWithinBlock,
-      offsetWithinBlock + uncompressedLength,
-    );
-  }
-
-  /**
-   * 获取指定重置区间在压缩流中的起始偏移
-   * @param blockIndex 区间索引
-   * @param resetTable 重置表
-   * @returns 压缩流偏移（相对于 contentOffset）
-   */
-  private getCompressedBlockOffset(
-    blockIndex: number,
-    resetTable: ResetTable,
-  ): number {
-    if (resetTable.entries.length > blockIndex) {
-      return resetTable.entries[blockIndex]!.compressedLength;
-    }
-    return 0;
-  }
-
-  /**
-   * 读取未压缩数据
-   * @param entry 文件条目
-   * @param reader 位读取器
-   * @returns 原始数据
-   */
-  private readUncompressedData(
-    entry: DirectoryEntry,
-    reader: BitReader,
-  ): Buffer {
-    const data = Buffer.alloc(entry.length);
-
-    for (let i = 0; i < entry.length; i++) {
-      data[i] = reader.read(8);
-    }
-
-    return data;
-  }
-
-  /**
-   * 验证文件数据完整性
-   * @param file 文件对象
-   * @returns 验证结果
-   */
   validateFile(file: CHMFile): boolean {
-    // 基本检查
-    if (!file.data || file.data.length === 0) {
-      return false;
-    }
+    return Buffer.isBuffer(file.data) && file.data.length === file.originalSize;
+  }
 
-    // 检查压缩文件的大小一致性
-    if (file.isCompressed) {
-      return file.data.length === file.originalSize;
-    } else {
-      return file.data.length === file.compressedSize;
+  clearCache(): void {
+    this.cache.clear();
+    this.cacheBytes = 0;
+    this.hits = this.misses = 0;
+  }
+
+  setCacheLimit(bytes: number): void {
+    if (!Number.isSafeInteger(bytes) || bytes < 0)
+      throw new RangeError('Cache limit must be a non-negative safe integer');
+    this.maxCacheBytes = bytes;
+    this.evict();
+  }
+
+  getCacheStats(): {
+    entries: number;
+    bytes: number;
+    hits: number;
+    misses: number;
+    maxBytes: number;
+  } {
+    return {
+      entries: this.cache.size,
+      bytes: this.cacheBytes,
+      hits: this.hits,
+      misses: this.misses,
+      maxBytes: this.maxCacheBytes,
+    };
+  }
+
+  private evict(): void {
+    while (this.cacheBytes > this.maxCacheBytes && this.cache.size > 0) {
+      const key = this.cache.keys().next().value as number;
+      this.cacheBytes -= this.cache.get(key)!.length;
+      this.cache.delete(key);
     }
+  }
+
+  private requireEntry(name: string): DirectoryEntry {
+    const entry = this.fileManager.findFileEntry(name);
+    if (!entry) throw new Error(`文件未找到: ${name}`);
+    return entry;
   }
 }

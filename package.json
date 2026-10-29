@@ -3,37 +3,86 @@
   "version": "1.0.0",
   "description": "A TypeScript library for reading, parsing, and compressing .chm files with command-line tools",
   "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
+  "module": "./dist/esm/index.mjs",
+  "browser": "./dist/browser/root.mjs",
   "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js",
-      "types": "./dist/types/index.d.ts"
-    }
+      "browser": {
+        "types": "./dist/types/browser-root.d.mts",
+        "default": "./dist/browser/root.mjs"
+      },
+      "import": {
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./browser": {
+      "types": "./dist/types/browser.d.mts",
+      "default": "./dist/browser/index.mjs"
+    },
+    "./config": {
+      "import": {
+        "types": "./dist/types/config.d.mts",
+        "default": "./dist/esm/config.mjs"
+      },
+      "require": {
+        "types": "./dist/types/config.d.cts",
+        "default": "./dist/cjs/config.js"
+      }
+    },
+    "./reader": {
+      "browser": {
+        "types": "./dist/types/browser.d.mts",
+        "default": "./dist/browser/index.mjs"
+      },
+      "import": {
+        "types": "./dist/types/reader.d.mts",
+        "default": "./dist/esm/reader.mjs"
+      },
+      "require": {
+        "types": "./dist/types/reader.d.cts",
+        "default": "./dist/cjs/reader.js"
+      }
+    },
+    "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "bin": {
     "chm": "./dist/cjs/cli/index.js",
     "chmkit": "./dist/cjs/cli/index.js"
   },
   "files": [
-    "dist",
+    "dist/cjs",
+    "dist/esm",
+    "dist/browser",
+    "dist/types",
     "README.md",
+    "README_zh.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "pnpm run build:types && pnpm run build:esm && pnpm run build:cjs",
-    "build:types": "tsc --emitDeclarationOnly --outDir dist/types",
-    "build:esm": "tsc --module es2020 --outDir dist/esm",
-    "build:cjs": "tsc --module commonjs --outDir dist/cjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "dev": "tsx watch src/cli/index.ts",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
+    "lint": "eslint src test \"*.config.*ts\" --ext .ts,.mts",
+    "lint:fix": "eslint src test \"*.config.*ts\" --ext .ts,.mts --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepare": "husky install",
-    "test": "find test -name '*.test.ts' -exec tsx {} +",
-    "test:watch": "tsx --watch test/**/*.test.ts",
-    "clean": "rimraf dist"
+    "test": "vitest run",
+    "test:unit": "vitest run --project node",
+    "test:browser": "playwright test",
+    "test:package": "vitest run --project package",
+    "test:all": "pnpm test && pnpm test:browser",
+    "demo": "pnpm build && node scripts/demo.mjs",
+    "prepack": "pnpm build",
+    "test:watch": "vitest --project node",
+    "clean": "rimraf dist test-results coverage"
   },
   "keywords": [
     "chm",
@@ -56,9 +105,10 @@
   "devDependencies": {
     "@commitlint/cli": "^18.4.3",
     "@commitlint/config-conventional": "^18.4.3",
-    "@types/node": "^20.9.0",
+    "@playwright/test": "1.64.1",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
+    "esbuild": "^0.25.0",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.1",
@@ -66,11 +116,16 @@
     "lint-staged": "^15.1.0",
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
+    "rollup": "^4.0.0",
+    "rollup-plugin-dts": "^6.2.3",
     "tsx": "^4.5.0",
     "typescript": "~5.2.2",
-    "uvu": "^0.5.6"
+    "vite": "^5.4.0",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@types/node": "^20.19.6",
+    "buffer": "^6.0.3",
     "chalk": "^5.4.1",
     "commander": "^11.1.0"
   },

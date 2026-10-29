@@ -54,6 +54,15 @@ export const chm = {
    * 版本信息
    */
   version: VERSION,
+  open: CHMKit.open,
+  from: CHMKit.from,
+  packFiles: CHMKit.packFiles,
+  getTOC: CHMKit.getTOC,
+  getIndex: CHMKit.getIndex,
+  search: CHMKit.searchContent,
+  readRange: CHMKit.readRange,
+  readMultiple: CHMKit.readMultiple,
+  exportFiles: CHMKit.exportFiles,
 
   /**
    * 支持的版本

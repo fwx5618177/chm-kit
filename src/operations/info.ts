@@ -31,15 +31,31 @@ export class InfoOperations {
 
       // 创建文件管理器获取统计信息
       const fileManager = new CHMFileManager(parsedCHM);
-      const fileList = fileManager.getFileList();
+      const fileList = fileManager.getUserFileList();
 
       // 计算总大小
       let totalSize = 0;
       let compressedSize = 0;
 
-      for (const [, entry] of parsedCHM.directory.entries) {
+      let hasCompressedFiles = false;
+      for (const name of fileList) {
+        const entry = fileManager.getFileInfo(name)!;
         totalSize += entry.uncompressedLength ?? entry.length;
-        compressedSize += entry.length;
+        if (entry.section === 0) {
+          compressedSize += entry.length;
+        } else if (entry.section === 1) {
+          hasCompressedFiles = true;
+        }
+      }
+
+      // Section-1 directory lengths describe the logical (uncompressed) stream.
+      // Its physical size belongs to Content, not to the individual files.
+      if (hasCompressedFiles) {
+        const content = fileManager.findFileEntry(
+          '::DataSpace/Storage/MSCompressed/Content',
+        );
+        compressedSize +=
+          content?.length ?? parsedCHM.resetTable.compressedLength;
       }
 
       const compressionRatio =

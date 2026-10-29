@@ -21,7 +21,9 @@ export class FileManagerOperations {
       const reader = new BitReader(fileBuffer);
       const reconstructor = new FileReconstructor(parsedCHM);
 
-      const file = reconstructor.reconstructFile(filePath, reader);
+      const entry = new CHMFileManager(parsedCHM).findFileEntry(filePath);
+      if (!entry) throw new Error(`文件未找到: ${filePath}`);
+      const file = reconstructor.reconstructFile(entry.name, reader);
       return file.data;
     } catch (error) {
       throw new Error(
@@ -37,13 +39,9 @@ export class FileManagerOperations {
    * @returns 是否存在
    */
   static async exists(chmPath: string, filePath: string): Promise<boolean> {
-    try {
-      const parsedCHM = await ParserOperations.parse(chmPath);
-      const fileManager = new CHMFileManager(parsedCHM);
-      return fileManager.fileExists(filePath);
-    } catch (error) {
-      return false;
-    }
+    const parsedCHM = await ParserOperations.parse(chmPath);
+    const fileManager = new CHMFileManager(parsedCHM);
+    return fileManager.fileExists(filePath);
   }
 
   /**
@@ -55,7 +53,7 @@ export class FileManagerOperations {
     try {
       const parsedCHM = await ParserOperations.parse(chmPath);
       const fileManager = new CHMFileManager(parsedCHM);
-      return fileManager.getFileList();
+      return fileManager.getUserFileList();
     } catch (error) {
       throw new Error(
         `列出文件失败: ${error instanceof Error ? error.message : String(error)}`,

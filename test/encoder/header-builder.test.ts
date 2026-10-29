@@ -1,125 +1,132 @@
-import { test } from 'uvu';
-import { equal, ok } from 'uvu/assert';
-import { CHMHeaderBuilder } from '../../src/encoder/builders/header-builder';
+import { test } from 'vitest';
+import { strict as assert } from 'node:assert';
+import {
+  CHMHeaderBuilder,
+  encodeEncInt,
+} from '../../src/encoder/builders/header-builder';
 
-test('createITSFHeader should create valid header', () => {
+const GUIDS =
+  '10fd017caa7bd0119e0c00a0c922e6ec11fd017caa7bd0119e0c00a0c922e6ec';
+
+test('ITSF v3 uses GUIDs and 64-bit standard offsets, not legacy fields at 0x20', () => {
   const header = CHMHeaderBuilder.createITSFHeader({
-    directoryOffset: 220,
-    directoryLength: 4096,
-  });
-
-  equal(header.signature, 'ITSF');
-  equal(header.version, 3);
-  equal(header.headerLength, 96);
-  equal(header.directoryOffset, 220);
-  equal(header.directoryLength, 4096);
-  equal(header.languageId, 0x409);
-});
-
-test('createITSFHeader should accept custom options', () => {
-  const header = CHMHeaderBuilder.createITSFHeader({
-    directoryOffset: 300,
-    directoryLength: 8192,
+    directoryOffset: 120,
+    directoryLength: 4180,
+    timestamp: 0x12345678,
     languageId: 0x804,
   });
-
-  equal(header.languageId, 0x804);
+  const data = CHMHeaderBuilder.serializeITSFHeader(header);
+  assert.equal(data.length, 96);
+  assert.equal(data.toString('ascii', 0, 4), 'ITSF');
+  assert.equal(data.readUInt32LE(4), 3);
+  assert.equal(data.readUInt32LE(8), 96);
+  assert.equal(data.readUInt32BE(16), 0x12345678);
+  assert.equal(data.readUInt32LE(20), 0x804);
+  assert.equal(data.subarray(24, 56).toString('hex'), GUIDS);
+  assert.equal(data.readBigUInt64LE(56), 96n);
+  assert.equal(data.readBigUInt64LE(64), 24n);
+  assert.equal(data.readBigUInt64LE(72), 120n);
+  assert.equal(data.readBigUInt64LE(80), 4180n);
+  assert.equal(data.readBigUInt64LE(88), 4300n);
+  assert.ok(CHMHeaderBuilder.validateHeader(header));
 });
 
-test('createITSPHeader should create valid header', () => {
-  const header = CHMHeaderBuilder.createITSPHeader();
-
-  equal(header.signature, 'ITSP');
-  equal(header.version, 1);
-  equal(header.headerLength, 84);
-  equal(header.chunkSize, 4096);
+test('ITSF offsets are not truncated to 32 bits', () => {
+  const data = CHMHeaderBuilder.serializeITSFHeader(
+    CHMHeaderBuilder.createITSFHeader({
+      directoryOffset: 0x100000078,
+      directoryLength: 4180,
+    }),
+  );
+  assert.equal(data.readBigUInt64LE(72), 0x100000078n);
+  assert.equal(data.readBigUInt64LE(88), 0x1000010ccn);
 });
 
-test('createLZXCHeader should create valid header', () => {
+test('ITSP describes a leaf-only chain with explicit chunk count and directory GUID', () => {
+  const header = CHMHeaderBuilder.createITSPHeader({ numChunks: 7 });
+  const data = CHMHeaderBuilder.serializeITSPHeader(header);
+  assert.equal(data.length, 84);
+  assert.equal(data.toString('ascii', 0, 4), 'ITSP');
+  assert.equal(data.readUInt32LE(8), 84);
+  assert.equal(data.readUInt32LE(12), 10);
+  assert.equal(data.readUInt32LE(16), 4096);
+  assert.equal(data.readUInt32LE(20), 2);
+  assert.equal(data.readUInt32LE(24), 1);
+  assert.equal(data.readInt32LE(28), -1);
+  assert.equal(data.readUInt32LE(32), 0);
+  assert.equal(data.readUInt32LE(36), 6);
+  assert.equal(data.readUInt32LE(44), 7);
+  assert.equal(
+    data.subarray(52, 68).toString('hex'),
+    '6a92025d2e21d0119df900a0c922e6ec',
+  );
+  assert.ok(CHMHeaderBuilder.validateHeader(header));
+});
+
+test('ControlData has a DWORD count, LZXC signature and frame-valued v2 sizes', () => {
   const header = CHMHeaderBuilder.createLZXCHeader({
     resetInterval: 0x10000,
-    windowSize: 0x10000,
+    windowSize: 0x20000,
   });
-
-  equal(header.signature, 'LZXC');
-  equal(header.version, 2);
-  equal(header.resetInterval, 0x10000);
-  equal(header.windowSize, 0x10000);
+  const data = CHMHeaderBuilder.serializeLZXCHeader(header);
+  assert.equal(data.length, 28);
+  assert.equal(data.readUInt32LE(0), 6);
+  assert.equal(data.toString('ascii', 4, 8), 'LZXC');
+  assert.equal(data.readUInt32LE(8), 2);
+  assert.equal(data.readUInt32LE(12), 2);
+  assert.equal(data.readUInt32LE(16), 4);
+  assert.ok(CHMHeaderBuilder.validateHeader(header));
 });
 
-test('serializeITSFHeader should produce 96-byte buffer', () => {
+test('ENCINT preserves large safe integers and uses MSB-first seven-bit groups', () => {
+  assert.deepEqual(encodeEncInt(0), Buffer.from([0]));
+  assert.deepEqual(encodeEncInt(127), Buffer.from([127]));
+  assert.deepEqual(encodeEncInt(128), Buffer.from([0x81, 0]));
+  for (const value of [
+    0,
+    1,
+    128,
+    16384,
+    0xffffffff,
+    0x100000000,
+    Number.MAX_SAFE_INTEGER,
+  ]) {
+    const decoded = [...encodeEncInt(value)].reduce(
+      (result, byte) => result * 128 + (byte & 127),
+      0,
+    );
+    assert.equal(decoded, value);
+  }
+  assert.throws(() => encodeEncInt(-1));
+  assert.throws(() => encodeEncInt(1.5));
+  assert.throws(() => encodeEncInt(Number.MAX_SAFE_INTEGER + 1));
+});
+
+test('validation does not accept a signature alone', () => {
   const header = CHMHeaderBuilder.createITSFHeader({
-    directoryOffset: 220,
-    directoryLength: 4096,
+    directoryOffset: 120,
+    directoryLength: 4180,
   });
-  const buf = CHMHeaderBuilder.serializeITSFHeader(header);
-
-  equal(buf.length, 96);
-  equal(buf.subarray(0, 4).toString('ascii'), 'ITSF');
-  equal(buf.readUInt32LE(4), 3); // version
+  assert.equal(
+    CHMHeaderBuilder.validateHeader({ ...header, directoryLength: -1 }),
+    false,
+  );
+  assert.equal(
+    CHMHeaderBuilder.validateHeader({ ...header, headerLength: 32 }),
+    false,
+  );
+  assert.equal(
+    CHMHeaderBuilder.validateHeader({
+      ...CHMHeaderBuilder.createITSPHeader(),
+      chunkSize: 0,
+    }),
+    false,
+  );
+  assert.equal(
+    CHMHeaderBuilder.validateHeader({
+      ...CHMHeaderBuilder.createLZXCHeader(),
+      windowSize: 123,
+    }),
+    false,
+  );
 });
-
-test('serializeITSPHeader should produce 84-byte buffer', () => {
-  const header = CHMHeaderBuilder.createITSPHeader();
-  const buf = CHMHeaderBuilder.serializeITSPHeader(header);
-
-  equal(buf.length, 84);
-  equal(buf.subarray(0, 4).toString('ascii'), 'ITSP');
-});
-
-test('serializeLZXCHeader should produce 40-byte buffer', () => {
-  const header = CHMHeaderBuilder.createLZXCHeader();
-  const buf = CHMHeaderBuilder.serializeLZXCHeader(header);
-
-  equal(buf.length, 40);
-  equal(buf.subarray(0, 4).toString('ascii'), 'LZXC');
-});
-
-test('calculateHeaderSize should sum all header sizes', () => {
-  const size = CHMHeaderBuilder.calculateHeaderSize(100);
-  equal(size, 96 + 84 + 40 + 100); // ITSF + ITSP + LZXC + resetTable
-});
-
-test('validateHeader should accept valid headers', () => {
-  const itsf = CHMHeaderBuilder.createITSFHeader({
-    directoryOffset: 220,
-    directoryLength: 4096,
-  });
-  ok(CHMHeaderBuilder.validateHeader(itsf));
-
-  const itsp = CHMHeaderBuilder.createITSPHeader();
-  ok(CHMHeaderBuilder.validateHeader(itsp));
-
-  const lzxc = CHMHeaderBuilder.createLZXCHeader();
-  ok(CHMHeaderBuilder.validateHeader(lzxc));
-});
-
-test('serializeDirectory should serialize entries', () => {
-  const entries = [
-    {
-      name: 'test.html',
-      isCompressed: true,
-      offset: 0,
-      length: 100,
-      section: 1,
-    },
-  ];
-  const buf = CHMHeaderBuilder.serializeDirectory(entries);
-  ok(buf.length > 0);
-});
-
-test('serialized headers should round-trip', () => {
-  const original = CHMHeaderBuilder.createITSFHeader({
-    directoryOffset: 500,
-    directoryLength: 2048,
-  });
-  const buf = CHMHeaderBuilder.serializeITSFHeader(original);
-
-  // Read back
-  equal(buf.subarray(0, 4).toString('ascii'), 'ITSF');
-  equal(buf.readUInt32LE(4), 3);
-  equal(buf.readUInt32LE(32), 500); // directoryOffset
-  equal(buf.readUInt32LE(36), 2048); // directoryLength
-});
-
-test.run();

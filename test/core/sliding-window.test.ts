@@ -1,5 +1,5 @@
-import { test } from 'uvu';
-import { equal, ok, throws } from 'uvu/assert';
+import { test } from 'vitest';
+import { deepStrictEqual as equal, ok, throws } from 'node:assert/strict';
 import { SlidingWindow } from '../../src/core/lzx/sliding-window';
 
 test('SlidingWindow should initialize with correct size', () => {
@@ -126,5 +126,3 @@ test('SlidingWindow getRemainingSpace should be correct', () => {
   window.write(Buffer.from([0x41, 0x42]));
   equal(window.getRemainingSpace(), 14);
 });
-
-test.run();

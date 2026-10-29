@@ -48,7 +48,7 @@ export function getFileType(fileName: string): string {
  * @returns 过滤后的文件列表
  */
 export function filterFiles(files: string[], pattern: string): string[] {
-  const regex = new RegExp(pattern.replace(/\*/g, '.*'), 'i');
+  const regex = globToRegExp(pattern);
   return files.filter(file => regex.test(file));
 }
 
@@ -127,13 +127,44 @@ export function createFilterFunction(
     return () => true;
   }
 
-  const regexPatterns = filters.map(
-    filter => new RegExp(filter.replace(/\*/g, '.*').replace(/\?/g, '.'), 'i'),
-  );
+  const regexPatterns = filters.map(globToRegExp);
 
   return (path: string) => {
     return regexPatterns.some(pattern => pattern.test(path));
   };
+}
+
+/**
+ * Basename patterns match at any depth; patterns containing / match from the
+ * archive root. Only ** crosses directory boundaries. Regex syntax is literal.
+ */
+export function globToRegExp(pattern: string): RegExp {
+  const rooted = pattern.includes('/');
+  const glob = rooted ? pattern.replace(/^\/+/, '') : pattern;
+  let source = rooted ? '^/?' : '(?:^|/)';
+
+  for (let i = 0; i < glob.length; i++) {
+    const char = glob[i]!;
+    if (char === '*') {
+      if (glob[i + 1] === '*') {
+        while (glob[i + 1] === '*') i++;
+        if (glob[i + 1] === '/') {
+          source += '(?:.*/)?';
+          i++;
+        } else {
+          source += '.*';
+        }
+      } else {
+        source += '[^/]*';
+      }
+    } else if (char === '?') {
+      source += '[^/]';
+    } else {
+      source += /[\\^$.*+?()[\]{}|]/.test(char) ? `\\${char}` : char;
+    }
+  }
+
+  return new RegExp(`${source}$`, 'i');
 }
 
 /**

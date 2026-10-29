@@ -1,33 +1,79 @@
-import { test } from 'uvu';
-import { ok } from 'uvu/assert';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { stripVTControlCharacters } from 'node:util';
 import { CHMLogger } from '../../src/logger/logger';
 
-// 测试日志输出格式
+const timestamp = '[2024-05-06T07:08:09.000Z]';
+const consoleMethods = ['error', 'warn', 'info', 'debug', 'log'] as const;
+
+function spyOnConsole() {
+  return {
+    error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+    warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+    info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+    debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
+    log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+  };
+}
+
+let spies: ReturnType<typeof spyOnConsole>;
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2024-05-06T07:08:09.987Z'));
+  spies = spyOnConsole();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
+
+function expectOutput(
+  expected: Partial<Record<(typeof consoleMethods)[number], string[]>>,
+): void {
+  for (const method of consoleMethods) {
+    const calls = spies[method].mock.calls.map(args =>
+      args.map(arg =>
+        typeof arg === 'string' ? stripVTControlCharacters(arg) : arg,
+      ),
+    );
+    expect(calls, `console.${method}`).toEqual(
+      (expected[method] ?? []).map(message => [message]),
+    );
+  }
+}
+
 test('Logger should format messages correctly', () => {
   const testLogger = new CHMLogger();
 
-  // 测试消息格式化（不实际输出到控制台）
-  ok(() => {
-    testLogger.info('Test message');
-    testLogger.error('Error message');
-    testLogger.warn('Warning message');
-  }, 'Logger should format messages without throwing');
+  testLogger.info('Test message');
+  testLogger.error('Error message');
+  testLogger.warn('Warning message');
+
+  expectOutput({
+    info: [`${timestamp} [INFO] Test message`],
+    error: [`${timestamp} [ERROR] Error message`],
+    warn: [`${timestamp} [WARN] Warning message`],
+  });
 });
 
-// 测试时间戳格式
 test('Logger should include timestamp in messages', () => {
   const testLogger = new CHMLogger();
 
-  // 验证日志方法调用不抛出异常
-  ok(() => {
-    testLogger.info('Message with timestamp');
-  }, 'Logger should include timestamp without error');
+  testLogger.info('Message with timestamp');
+  vi.setSystemTime(new Date('2024-05-06T07:08:10.123Z'));
+  testLogger.info('Message one second later');
+
+  expectOutput({
+    info: [
+      `${timestamp} [INFO] Message with timestamp`,
+      '[2024-05-06T07:08:10.000Z] [INFO] Message one second later',
+    ],
+  });
 });
 
-// 测试不同日志级别的输出
 test('Logger should support all log levels', () => {
   const testLogger = new CHMLogger();
-
   const levels = [
     'error',
     'warn',
@@ -37,17 +83,24 @@ test('Logger should support all log levels', () => {
     'verbose',
   ] as const;
 
-  levels.forEach(level => {
-    ok(() => {
-      (testLogger as any)[level](`Test message for ${level}`);
-    }, `Logger should support ${level} level`);
+  for (const level of levels) {
+    testLogger[level](`Test message for ${level}`);
+  }
+
+  expectOutput({
+    error: [`${timestamp} [ERROR] Test message for error`],
+    warn: [`${timestamp} [WARN] Test message for warn`],
+    info: [`${timestamp} [INFO] Test message for info`],
+    debug: [
+      `${timestamp} [DEBUG] Test message for debug`,
+      `${timestamp} [VERBOSE] Test message for verbose`,
+    ],
+    log: [`${timestamp} [SUCCESS] Test message for success`],
   });
 });
 
-// 测试复杂参数处理
 test('Logger should handle complex arguments', () => {
   const testLogger = new CHMLogger();
-
   const complexData = {
     nested: {
       array: [1, 2, 3],
@@ -58,51 +111,89 @@ test('Logger should handle complex arguments', () => {
       undefined: undefined,
     },
   };
+  const formattedData = `{
+  "nested": {
+    "array": [
+      1,
+      2,
+      3
+    ],
+    "string": "test",
+    "number": 42,
+    "boolean": true,
+    "null": null
+  }
+}`;
 
-  ok(() => {
-    testLogger.info('Complex data test', complexData);
-    testLogger.debug('Multiple arguments', 'string', 123, { key: 'value' });
-    testLogger.error('Error with complex data', complexData, 'additional info');
-  }, 'Logger should handle complex arguments');
+  testLogger.info('Complex data test', complexData);
+  testLogger.debug('Multiple arguments', 'string', 123, { key: 'value' });
+  testLogger.error('Error with complex data', complexData, 'additional info');
+  testLogger.warn('Primitive values', false, null, undefined, 0, '');
+
+  expectOutput({
+    info: [`${timestamp} [INFO] Complex data test ${formattedData}`],
+    debug: [
+      `${timestamp} [DEBUG] Multiple arguments string 123 {\n  "key": "value"\n}`,
+    ],
+    error: [
+      `${timestamp} [ERROR] Error with complex data ${formattedData} additional info`,
+    ],
+    warn: [`${timestamp} [WARN] Primitive values false null undefined 0 `],
+  });
 });
 
-// 测试子 logger 前缀功能
 test('Child logger should work with different prefixes', () => {
   const parentLogger = new CHMLogger();
   const child1 = parentLogger.child('MODULE1');
   const child2 = parentLogger.child('MODULE2');
 
-  ok(() => {
-    child1.info('Message from module 1');
-    child2.info('Message from module 2');
-    parentLogger.info('Message from parent');
-  }, 'Child loggers should work with different prefixes');
+  child1.info('Message from module 1');
+  child2.info('Message from module 2');
+  parentLogger.info('Message from parent');
+
+  expectOutput({
+    info: [
+      `${timestamp} [INFO] [MODULE1] Message from module 1`,
+      `${timestamp} [INFO] [MODULE2] Message from module 2`,
+      `${timestamp} [INFO] Message from parent`,
+    ],
+  });
 });
 
-// 测试嵌套子 logger
 test('Nested child loggers should work', () => {
   const parentLogger = new CHMLogger();
   const child1 = parentLogger.child('PARENT');
   const child2 = child1.child('CHILD');
 
-  ok(() => {
-    child2.info('Nested child message');
-    child1.info('Child message');
-    parentLogger.info('Parent message');
-  }, 'Nested child loggers should work');
+  child2.info('Nested child message', { depth: 2 });
+  child1.info('Child message');
+  parentLogger.info('Parent message');
+
+  expectOutput({
+    info: [
+      `${timestamp} [INFO] [PARENT] [CHILD] Nested child message {\n  "depth": 2\n}`,
+      `${timestamp} [INFO] [PARENT] Child message`,
+      `${timestamp} [INFO] Parent message`,
+    ],
+  });
 });
 
-// 测试空消息和特殊字符
 test('Logger should handle empty and special messages', () => {
   const testLogger = new CHMLogger();
 
-  ok(() => {
-    testLogger.info('');
-    testLogger.info('   ');
-    testLogger.info('Special chars: !@#$%^&*()');
-    testLogger.info('Unicode: 中文测试 🚀');
-    testLogger.info('New\nLine\nTest');
-  }, 'Logger should handle empty and special messages');
-});
+  testLogger.info('');
+  testLogger.info('   ');
+  testLogger.info('Special chars: !@#$%^&*()');
+  testLogger.info('Unicode: 中文测试 🚀');
+  testLogger.info('New\nLine\nTest');
 
-test.run();
+  expectOutput({
+    info: [
+      `${timestamp} [INFO] `,
+      `${timestamp} [INFO]    `,
+      `${timestamp} [INFO] Special chars: !@#$%^&*()`,
+      `${timestamp} [INFO] Unicode: 中文测试 🚀`,
+      `${timestamp} [INFO] New\nLine\nTest`,
+    ],
+  });
+});

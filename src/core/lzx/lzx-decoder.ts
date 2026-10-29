@@ -1,594 +1,546 @@
-import type {
-  LZXBlock,
-  LZXCHeader,
-  HuffmanDecoder,
-  HuffmanTree,
-} from '../types';
+import type { LZXCHeader } from '../types';
 import type { BitReader } from '../../utils/io/bit-reader';
 import { SlidingWindow } from './sliding-window';
-import { ResetTableProcessor } from './reset-table';
-import { Huffman } from '../../utils/compression/huffman';
+import { LZXBitReader } from './lzx-bit-reader';
 
 /**
- * LZX 块类型常量
+ * A bounded canonical decoder. Like 7-Zip and libmspack, require full trees;
+ * only the secondary length tree may be empty (and then cannot be used).
  */
-enum LZXBlockType {
-  VERBATIM = 1, // 逐字块
-  ALIGNED = 2, // 对齐块
-  UNCOMPRESSED = 3, // 未压缩块
+class CanonicalTree {
+  private readonly counts = new Uint16Array(17);
+  private readonly firstCodes = new Uint32Array(17);
+  private readonly firstSymbols = new Uint16Array(17);
+  private readonly symbols: number[] = [];
+  private maxLength = 0;
+
+  constructor(lengths: readonly number[], allowEmpty = false) {
+    for (const length of lengths) {
+      if (!Number.isInteger(length) || length < 0 || length > 16) {
+        throw new Error('Invalid LZX Huffman code length');
+      }
+      if (length !== 0) {
+        this.counts[length]!++;
+        this.maxLength = Math.max(this.maxLength, length);
+      }
+    }
+    if (this.maxLength === 0) {
+      if (allowEmpty) return;
+      throw new Error('Empty LZX Huffman tree');
+    }
+    let free = 1;
+    let code = 0;
+    for (let length = 1; length <= 16; length++) {
+      free = free * 2 - this.counts[length]!;
+      if (free < 0) throw new Error('Oversubscribed LZX Huffman tree');
+      code = (code + (this.counts[length - 1] ?? 0)) * 2;
+      this.firstCodes[length] = code;
+      this.firstSymbols[length] = this.symbols.length;
+      for (let symbol = 0; symbol < lengths.length; symbol++) {
+        if (lengths[symbol] === length) this.symbols.push(symbol);
+      }
+    }
+    if (free !== 0) throw new Error('Incomplete LZX Huffman tree');
+  }
+
+  decode(reader: LZXBitReader): number {
+    let code = 0;
+    for (let length = 1; length <= this.maxLength; length++) {
+      code = code * 2 + reader.read(1);
+      const index = code - this.firstCodes[length]!;
+      if (index >= 0 && index < this.counts[length]!) {
+        return this.symbols[this.firstSymbols[length]! + index]!;
+      }
+    }
+    throw new Error('Invalid or empty LZX Huffman code');
+  }
 }
 
-/**
- * LZX 解码器
- * 负责实现完整的 LZX 解码算法，包括滑动窗口、霍夫曼解码等
- */
+/** Standard (non-DELTA) LZX, with 32 KiB frames and byte-valued CHM resets. */
 export class LZXDecoder {
-  private window: SlidingWindow;
-  private _resetProcessor: ResetTableProcessor; // 将来会使用
-  private huffmanDecoder: HuffmanDecoder | null = null;
-  private alignedTree: HuffmanTree | null = null;
-  private windowSize: number;
-  private resetInterval: number;
-  // LZX R0/R1/R2 最近使用偏移缓存（初始值均为 1）
+  static readonly FRAME_SIZE = 0x8000;
+  // A corrupt size must not cause an eager multi-gigabyte allocation. Large
+  // resources can be reconstructed in independent reset-aligned batches.
+  static readonly MAX_OUTPUT_SIZE = 256 * 1024 * 1024;
+  static readonly ALIGNED_NUM_ELEMENTS = 8;
+
+  private readonly window: SlidingWindow;
+  private readonly windowSize: number;
+  private readonly resetInterval: number;
+  private readonly mainLengths: number[];
+  private readonly lengthLengths = new Array<number>(249).fill(0);
+  private readonly positionBases: number[] = [];
+  private readonly extraBits: number[] = [];
+  private mainTree: CanonicalTree | null = null;
+  private lengthTree: CanonicalTree | null = null;
+  private alignedTree: CanonicalTree | null = null;
   private recentOffsets: [number, number, number] = [1, 1, 1];
-  // LZX 树长度持久化状态（跨块 delta 解码基准）
-  private prevMainLengths: number[] = [];
-  private prevLengthLengths: number[] = [];
-
-  // LZX 常量
-  private static readonly NUM_CHARS = 256;
-  private static readonly PRETREE_NUM_ELEMENTS = 20;
-  private static readonly _ALIGNED_NUM_ELEMENTS = 8; // 将来会使用
-  // NUM_PRIMARY_LENGTHS = 7: 主树中每个位置槽的内联长度数量（length_header 0-6）
-  // 步幅为 8（0-7，其中 7 是哨兵值 = 使用长度树），在 decodeMatch 中以字面量 8 表示
-  private static readonly NUM_SECONDARY_LENGTHS = 249; // 长度树符号总数（0..248）
-
-  // 窗口大小 → 位置槽数量映射（LZX 规范，每翻倍加 2）
-  private static readonly POSITION_SLOTS: ReadonlyMap<number, number> = new Map(
-    [
-      [512, 10],
-      [1024, 12],
-      [2048, 14],
-      [4096, 16],
-      [8192, 18],
-      [16384, 20],
-      [32768, 22],
-      [65536, 24],
-      [131072, 26],
-      [262144, 28],
-      [524288, 30],
-      [1048576, 32],
-      [2097152, 34],
-    ],
-  );
-
-  /**
-   * 根据窗口大小获取位置槽数量
-   */
-  private getNumPositionSlots(): number {
-    return LZXDecoder.POSITION_SLOTS.get(this.windowSize) ?? 22;
-  }
-
-  /**
-   * 获取字面量/主树的符号总数
-   * LZX 规范：NUM_CHARS + 8 * numPositionSlots
-   */
-  private getMainTreeElementCount(): number {
-    return LZXDecoder.NUM_CHARS + 8 * this.getNumPositionSlots();
-  }
+  private headerRead = false;
+  private intelFileSize = 0;
+  private intelStarted = false;
+  private blockType = 0;
+  private blockRemaining = 0;
+  private oddRawPadding = false;
+  private historySize = 0;
 
   constructor(lzxcHeader: LZXCHeader) {
     this.windowSize = lzxcHeader.windowSize;
     this.resetInterval = lzxcHeader.resetInterval;
+    if (!this.validate())
+      throw new Error('Invalid LZX window size or reset interval');
     this.window = new SlidingWindow(this.windowSize);
-    this._resetProcessor = new ResetTableProcessor();
+    const slots = [30, 32, 34, 36, 38, 42, 50][
+      Math.log2(this.windowSize) - 15
+    ]!;
+    this.mainLengths = new Array<number>(256 + slots * 8).fill(0);
+    let base = 0;
+    for (let slot = 0; slot < slots; slot++) {
+      const extra = slot < 4 ? 0 : Math.min(17, Math.floor(slot / 2) - 1);
+      this.positionBases.push(base);
+      this.extraBits.push(extra);
+      base += 2 ** extra;
+    }
   }
 
   /**
-   * 解码 LZX 数据块
-   * @param reader 位读取器
-   * @param uncompressedSize 预期的未压缩大小
-   * @returns 解码后的数据
+   * Compatibility entry point for a contiguous LZX stream. The existing byte
+   * reader must be byte-aligned; its bytes are read in LZX word order here.
+   * Each call starts a new stream. Success advances the supplied reader;
+   * failure leaves its cursor unchanged and clears the decoder. A partial
+   * match at the requested endpoint is allowed, but never across a 32 KiB
+   * boundary. For Intel-filtered prefixes use decodeFrames with lastFrameSize.
    */
-  decode(reader: BitReader, uncompressedSize: number): Buffer {
-    const result = Buffer.alloc(uncompressedSize);
-    let outputPosition = 0;
-
-    // 重置解码器状态
+  decode(reader: BitReader, size: number): Buffer {
     this.reset();
+    this.checkOutputSize(size);
+    if (
+      reader.bitPosition !== 0 ||
+      !Number.isSafeInteger(reader.position) ||
+      reader.position < 0 ||
+      reader.position > reader.buffer.length
+    ) {
+      throw new Error('LZX input reader must be byte-aligned and in bounds');
+    }
+    const input = new LZXBitReader(reader.buffer.subarray(reader.position));
+    const chunks: Buffer[] = [];
+    try {
+      for (let position = 0, frame = 0; position < size; frame++) {
+        this.beginFrame(frame);
+        const length = Math.min(LZXDecoder.FRAME_SIZE, size - position);
+        chunks.push(this.readFrame(input, length, frame));
+        position += length;
+      }
+      const output = Buffer.concat(chunks, size);
+      reader.position += input.position;
+      return output;
+    } catch (error) {
+      this.reset();
+      throw error;
+    }
+  }
 
-    while (outputPosition < uncompressedSize) {
-      // 读取块头
-      const block = this.readBlockHeader(reader);
-
-      // 解码块数据
-      const decodedData = this.decodeBlock(reader, block);
-
-      // 将解码数据写入结果缓冲区
-      const bytesToCopy = Math.min(
-        decodedData.length,
-        uncompressedSize - outputPosition,
+  /**
+   * Decode frame buffers from the nearest reset point. startFrame is the
+   * absolute 32 KiB frame index, not an index into frames, and must be reset
+   * aligned. outputSize is the requested output prefix. For a prefix ending
+   * inside a physical frame, supply that frame's actual unpacked length as
+   * lastFrameSize (32768 for CHM, including CHM's final padded frame). That
+   * whole frame is decoded and Intel-filtered before returning the prefix.
+   * Without lastFrameSize, the requested end is treated as the physical end
+   * for Intel tail exclusion, retaining support for short CAB frames.
+   * State persists within this call, never between calls; errors clear it.
+   */
+  decodeFrames(
+    frames: readonly Uint8Array[],
+    outputSize: number,
+    startFrame = 0,
+    lastFrameSize?: number,
+  ): Buffer {
+    this.reset();
+    this.checkOutputSize(outputSize);
+    const resetFrames = this.resetInterval / LZXDecoder.FRAME_SIZE;
+    if (
+      !Number.isSafeInteger(startFrame) ||
+      startFrame < 0 ||
+      startFrame >
+        Math.floor(Number.MAX_SAFE_INTEGER / LZXDecoder.FRAME_SIZE) -
+          frames.length ||
+      startFrame % resetFrames !== 0
+    ) {
+      throw new Error(
+        'LZX startFrame must be an absolute reset-aligned frame index',
       );
-
-      decodedData.copy(result, outputPosition, 0, bytesToCopy);
-      outputPosition += bytesToCopy;
-
-      // 注意：窗口已在 decodeBlock 内部实时更新（字面量和匹配各自在解码时写入）
-      // 对于未压缩块，窗口也在 decodeUncompressedBlock 内部更新
-      // 此处无需再次调用 window.write()，避免双写导致状态错误
     }
-
-    return result;
-  }
-
-  /**
-   * 读取块头信息
-   * @param reader 位读取器
-   * @returns 块信息
-   */
-  private readBlockHeader(reader: BitReader): LZXBlock {
-    // 读取块类型 (3 位)
-    const blockType = reader.read(3);
-
-    // 读取未压缩大小 (24 位)
-    const uncompressedSize = reader.read(24);
-
-    // 注意：LZX 格式中块头仅包含 type(3) + size(24)
-    // 对齐块的对齐树（8×3 bits）在 decodeAlignedBlock 内部读取，此处不多读
-    return {
-      type: blockType,
-      uncompressedSize,
-      data: Buffer.alloc(0), // 临时占位，稍后填充
-    };
-  }
-
-  /**
-   * 解码数据块
-   * @param reader 位读取器
-   * @param block 块信息
-   * @returns 解码后的数据
-   */
-  private decodeBlock(reader: BitReader, block: LZXBlock): Buffer {
-    switch (block.type) {
-      case LZXBlockType.VERBATIM:
-        return this.decodeVerbatimBlock(reader, block.uncompressedSize);
-
-      case LZXBlockType.ALIGNED:
-        return this.decodeAlignedBlock(reader, block.uncompressedSize);
-
-      case LZXBlockType.UNCOMPRESSED:
-        return this.decodeUncompressedBlock(reader, block.uncompressedSize);
-
-      default:
-        throw new Error(`不支持的 LZX 块类型: ${block.type}`);
+    if (frames.length !== Math.ceil(outputSize / LZXDecoder.FRAME_SIZE)) {
+      throw new Error('LZX frame count does not match output size');
     }
-  }
-
-  /**
-   * 解码逐字块
-   * @param reader 位读取器
-   * @param uncompressedSize 未压缩大小
-   * @returns 解码后的数据
-   */
-  private decodeVerbatimBlock(
-    reader: BitReader,
-    uncompressedSize: number,
-  ): Buffer {
-    // 逐字块不使用对齐树
-    this.alignedTree = null;
-    // 读取霍夫曼表
-    this.huffmanDecoder = this.readHuffmanTables(reader);
-
-    const result = Buffer.alloc(uncompressedSize);
-    let outputPosition = 0;
-
-    while (outputPosition < uncompressedSize) {
-      // 解码下一个符号
-      const symbol = this.decodeSymbol(reader, this.huffmanDecoder.literalTree);
-
-      if (symbol < LZXDecoder.NUM_CHARS) {
-        // 字面量字符 — 立即写入滑动窗口（使后续匹配可引用）
-        result[outputPosition] = symbol;
-        this.window.writeByte(symbol);
-        outputPosition++;
-      } else {
-        // 匹配序列
-        const matchInfo = this.decodeMatch(reader, symbol);
-        const matchData = this.window.copyData(
-          matchInfo.offset,
-          matchInfo.length,
+    const lastRequested =
+      outputSize === 0
+        ? 0
+        : outputSize - (frames.length - 1) * LZXDecoder.FRAME_SIZE;
+    const lastPhysical = lastFrameSize ?? lastRequested;
+    if (
+      !Number.isInteger(lastPhysical) ||
+      lastPhysical < lastRequested ||
+      lastPhysical > LZXDecoder.FRAME_SIZE ||
+      (outputSize === 0 && lastPhysical !== 0)
+    ) {
+      throw new Error('Invalid LZX lastFrameSize');
+    }
+    const chunks: Buffer[] = [];
+    let remaining = outputSize;
+    try {
+      for (let i = 0; i < frames.length; i++) {
+        const frame = startFrame + i;
+        this.beginFrame(frame);
+        const input = new LZXBitReader(frames[i]!);
+        const length = Math.min(LZXDecoder.FRAME_SIZE, remaining);
+        const physical =
+          i === frames.length - 1 ? lastPhysical : LZXDecoder.FRAME_SIZE;
+        const decoded = this.readFrame(
+          input,
+          physical,
+          frame,
+          lastFrameSize === undefined,
         );
+        chunks.push(decoded.subarray(0, length));
+        remaining -= length;
+      }
+      return Buffer.concat(chunks, outputSize);
+    } catch (error) {
+      this.reset();
+      throw error;
+    }
+  }
 
-        // 复制匹配数据
-        const bytesToCopy = Math.min(
-          matchData.length,
-          uncompressedSize - outputPosition,
+  /**
+   * Lazily decode a reset-aligned sequence, retaining only the dictionary and
+   * current physical frame. Unlike decodeFrames, outputSize is not an aggregate
+   * allocation limit. The source must contain exactly ceil(outputSize / 32768)
+   * frames; its count and any later errors are checked as iteration advances.
+   * Prefix/physical-tail semantics match decodeFrames. Do not interleave other
+   * operations on this decoder while iterating. Exhaustion, return() and errors
+   * close the source and clear stream state; merely abandoning an iterator does
+   * not run its cleanup.
+   */
+  *iterateFrames(
+    frames: Iterable<Uint8Array>,
+    outputSize: number,
+    startFrame = 0,
+    lastFrameSize?: number,
+  ): Generator<Buffer> {
+    this.reset();
+    if (!Number.isSafeInteger(outputSize) || outputSize < 0)
+      throw new Error('Invalid LZX output size');
+    const count = Math.ceil(outputSize / LZXDecoder.FRAME_SIZE);
+    const resetFrames = this.resetInterval / LZXDecoder.FRAME_SIZE;
+    if (
+      !Number.isSafeInteger(startFrame) ||
+      startFrame < 0 ||
+      startFrame >
+        Math.floor(Number.MAX_SAFE_INTEGER / LZXDecoder.FRAME_SIZE) - count ||
+      startFrame % resetFrames !== 0
+    )
+      throw new Error(
+        'LZX startFrame must be an absolute reset-aligned frame index',
+      );
+    const lastRequested =
+      count === 0 ? 0 : outputSize - (count - 1) * LZXDecoder.FRAME_SIZE;
+    const lastPhysical = lastFrameSize ?? lastRequested;
+    if (
+      !Number.isInteger(lastPhysical) ||
+      lastPhysical < lastRequested ||
+      lastPhysical > LZXDecoder.FRAME_SIZE ||
+      (count === 0 && lastPhysical !== 0)
+    )
+      throw new Error('Invalid LZX lastFrameSize');
+    let index = 0;
+    try {
+      for (const bytes of frames) {
+        if (index >= count)
+          throw new Error('LZX frame count does not match output size');
+        const frame = startFrame + index;
+        this.beginFrame(frame);
+        const requested =
+          index === count - 1 ? lastRequested : LZXDecoder.FRAME_SIZE;
+        const physical =
+          index === count - 1 ? lastPhysical : LZXDecoder.FRAME_SIZE;
+        const decoded = this.readFrame(
+          new LZXBitReader(bytes),
+          physical,
+          frame,
+          lastFrameSize === undefined,
         );
-
-        matchData.copy(result, outputPosition, 0, bytesToCopy);
-        outputPosition += bytesToCopy;
+        index++;
+        yield decoded.subarray(0, requested);
       }
+      if (index !== count)
+        throw new Error('LZX frame count does not match output size');
+    } finally {
+      this.reset();
     }
-
-    return result;
   }
 
-  /**
-   * 解码对齐块
-   * 对齐块与逐字块相似，但大偏移值的低3位使用对齐树编码
-   * @param reader 位读取器
-   * @param uncompressedSize 未压缩大小
-   * @returns 解码后的数据
-   */
-  private decodeAlignedBlock(
-    reader: BitReader,
-    uncompressedSize: number,
-  ): Buffer {
-    // 读取8个3位的对齐树长度（位流顺序：对齐树在主树/长度树之前）
-    const alignedLengths: number[] = [];
-    for (let i = 0; i < 8; i++) {
-      alignedLengths.push(reader.read(3));
-    }
-    // 构建对齐树，供 decodeMatch 在偏移 footer bits >= 3 时使用
-    this.alignedTree = Huffman.createCanonicalTree(alignedLengths);
-
-    // 读取主树与长度树（与逐字块相同）
-    this.huffmanDecoder = this.readHuffmanTables(reader);
-
-    const result = Buffer.alloc(uncompressedSize);
-    let outputPosition = 0;
-
-    while (outputPosition < uncompressedSize) {
-      const symbol = this.decodeSymbol(reader, this.huffmanDecoder.literalTree);
-
-      if (symbol < LZXDecoder.NUM_CHARS) {
-        result[outputPosition] = symbol;
-        this.window.writeByte(symbol);
-        outputPosition++;
-      } else {
-        const matchInfo = this.decodeMatch(reader, symbol);
-        const matchData = this.window.copyData(
-          matchInfo.offset,
-          matchInfo.length,
-        );
-        const bytesToCopy = Math.min(
-          matchData.length,
-          uncompressedSize - outputPosition,
-        );
-        matchData.copy(result, outputPosition, 0, bytesToCopy);
-        outputPosition += bytesToCopy;
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * 解码未压缩块
-   * @param reader 位读取器
-   * @param uncompressedSize 未压缩大小
-   * @returns 解码后的数据
-   */
-  private decodeUncompressedBlock(
-    reader: BitReader,
-    uncompressedSize: number,
-  ): Buffer {
-    // 对齐到字节边界，再对齐到 16-bit（2 字节）边界
-    reader.align();
-    if (reader.position % 2 !== 0) {
-      reader.read(8);
-    }
-
-    // LZX 规范：未压缩块在数据前显式编码新的 R0/R1/R2（各 4 字节 LE）
-    this.recentOffsets[0] = this.readUInt32LE(reader);
-    this.recentOffsets[1] = this.readUInt32LE(reader);
-    this.recentOffsets[2] = this.readUInt32LE(reader);
-
-    const result = Buffer.alloc(uncompressedSize);
-    for (let i = 0; i < uncompressedSize; i++) {
-      const byte = reader.read(8);
-      result[i] = byte;
-      // 未压缩块也需要立即更新滑动窗口
-      this.window.writeByte(byte);
-    }
-
-    // LZX 规范：未压缩块字节数为奇数时，须跳过 1 个填充字节使下一块头对齐到 16-bit 边界
-    if (uncompressedSize % 2 !== 0) {
-      reader.read(8);
-    }
-
-    return result;
-  }
-
-  /**
-   * 读取 4 字节小端序无符号整数（用于 R0/R1/R2 等字段）
-   */
-  private readUInt32LE(reader: BitReader): number {
-    const b0 = reader.read(8);
-    const b1 = reader.read(8);
-    const b2 = reader.read(8);
-    const b3 = reader.read(8);
-    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
-    return (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
-  }
-
-  /**
-   * 读取霍夫曼表
-   * LZX 规范：主树和长度树各自使用独立的预树
-   * @param reader 位读取器
-   * @returns 霍夫曼解码器
-   */
-  private readHuffmanTables(reader: BitReader): HuffmanDecoder {
-    const mainCount = this.getMainTreeElementCount();
-    // LZX 规范：长度树仅有 249 个符号（0..248 代表额外长度值）
-    // NUM_SECONDARY_LENGTHS = 249，不能与 NUM_PRIMARY_LENGTHS 相加
-    const lengthCount = LZXDecoder.NUM_SECONDARY_LENGTHS;
-
-    // 初始化历史长度数组（首个块第一次调用时）
-    if (this.prevMainLengths.length !== mainCount) {
-      this.prevMainLengths = new Array(mainCount).fill(0);
-    }
-    if (this.prevLengthLengths.length !== lengthCount) {
-      this.prevLengthLengths = new Array(lengthCount).fill(0);
-    }
-
-    // 主树：读取主树预树，再 delta 解码主树长度
-    const mainPretreeLengths = this.readPretreeLengths(reader);
-    const mainPretree = Huffman.createCanonicalTree(mainPretreeLengths);
-    const literalLengths = this.readTreeLengths(
-      reader,
-      mainPretree,
-      mainCount,
-      this.prevMainLengths,
-    );
-    this.prevMainLengths = [...literalLengths];
-
-    // 长度树：读取长度树预树，再 delta 解码长度树
-    const lengthPretreeLengths = this.readPretreeLengths(reader);
-    const lengthPretree = Huffman.createCanonicalTree(lengthPretreeLengths);
-    const lengthLengths = this.readTreeLengths(
-      reader,
-      lengthPretree,
-      lengthCount,
-      this.prevLengthLengths,
-    );
-    this.prevLengthLengths = [...lengthLengths];
-
-    return {
-      literalTree: Huffman.createCanonicalTree(literalLengths),
-      matchTree: Huffman.createCanonicalTree([]), // LZX 不使用独立 matchTree
-      lengthTree: Huffman.createCanonicalTree(lengthLengths),
-    };
-  }
-
-  /**
-   * 读取预树长度
-   * @param reader 位读取器
-   * @returns 预树长度数组
-   */
-  private readPretreeLengths(reader: BitReader): number[] {
-    const lengths: number[] = [];
-
-    for (let i = 0; i < LZXDecoder.PRETREE_NUM_ELEMENTS; i++) {
-      lengths.push(reader.read(4));
-    }
-
-    return lengths;
-  }
-
-  /**
-   * 读取树长度
-   * @param reader 位读取器
-   * @param pretree 预树，用于解码码长符号序列
-   * @param count 要读取的长度数量
-   * @param prevLengths 上一个块的树长度（delta 解码基准，首次为全零）
-   * @returns 长度数组
-   */
-  private readTreeLengths(
-    reader: BitReader,
-    pretree: HuffmanTree | null,
-    count: number,
-    prevLengths: number[],
-  ): number[] {
-    const lengths: number[] = [];
-    let i = 0;
-
-    while (i < count) {
-      const symbol = this.decodeSymbol(reader, pretree);
-
-      if (symbol <= 16) {
-        // Delta 解码：new_len = (prev_len - delta + 17) % 17
-        // 首块 prev=0，后续块使用上一块的实际长度
-        const prev = prevLengths[i] ?? 0;
-        lengths.push((prev - symbol + 17) % 17);
-        i++;
-      } else if (symbol === 17) {
-        // 重复零长度 (4~19 个零)
-        const zeros = reader.read(4) + 4;
-        for (let j = 0; j < zeros && i < count; j++, i++) {
-          lengths.push(0);
-        }
-      } else if (symbol === 18) {
-        // 重复零长度 (20~51 个零)
-        const zeros = reader.read(5) + 20;
-        for (let j = 0; j < zeros && i < count; j++, i++) {
-          lengths.push(0);
-        }
-      } else if (symbol === 19) {
-        // 重复某长度 4 或 5 次：
-        // 先读 1 bit extra，再从预树解码参考符号并 delta 解码得到实际长度
-        const extra = reader.read(1);
-        const s = this.decodeSymbol(reader, pretree);
-        const prev = prevLengths[i] ?? 0;
-        const len = (prev - s + 17) % 17;
-        const repeats = 4 + extra;
-        for (let j = 0; j < repeats && i < count; j++, i++) {
-          lengths.push(len);
-        }
-      } else {
-        // 不应出现 symbol > 19（预树有效时不可能），但加防护避免死循环
-        throw new Error(`无效的预树符号: ${symbol}`);
-      }
-    }
-
-    return lengths;
-  }
-
-  /**
-   * 解码霍夫曼符号
-   * @param reader 位读取器
-   * @param tree 霍夫曼树
-   * @returns 解码的符号
-   */
-  private decodeSymbol(reader: BitReader, tree: HuffmanTree | null): number {
-    if (!tree || tree.symbols.length === 0) {
-      return reader.read(8);
-    }
-
-    let code = 0;
-    let length = 0;
-
-    while (length < 16) {
-      if (!reader.hasMore()) {
-        throw new Error('解码霍夫曼符号时遇到数据结尾');
-      }
-
-      const bit = reader.read(1);
-      code = (code << 1) | bit;
-      length++;
-
-      for (let i = 0; i < tree.codes.length; i++) {
-        if (tree.lengths[i] === length && tree.codes[i] === code) {
-          return tree.symbols[i]!;
-        }
-      }
-    }
-
-    throw new Error('无效的霍夫曼编码');
-  }
-
-  /**
-   * 解码匹配信息（含 R0/R1/R2 最近偏移缓存）
-   * @param reader 位读取器
-   * @param symbol 匹配符号
-   * @returns 匹配信息
-   */
-  private decodeMatch(
-    reader: BitReader,
-    symbol: number,
-  ): { offset: number; length: number } {
-    // 计算位置槽和长度头
-    // LZX 规范：主树中每个位置槽占 8 个符号（步幅 = 8）
-    //   调整后符号 = positionSlot × 8 + lengthHeader
-    //   lengthHeader 0-6: 内联长度 = 2 + lengthHeader（值域 2-8）
-    //   lengthHeader = 7:  长度哨兵，需从长度树读取额外长度
-    const adjustedSymbol = symbol - LZXDecoder.NUM_CHARS;
-    const POS_SLOT_STRIDE = 8; // 每个位置槽的步幅（非 NUM_PRIMARY_LENGTHS=7）
-    const positionSlot = Math.floor(adjustedSymbol / POS_SLOT_STRIDE);
-    const lengthHeader = adjustedSymbol % POS_SLOT_STRIDE;
-
-    // 解码匹配长度
-    let matchLength: number;
-    if (lengthHeader === 7) {
-      // 哨兵值 7：需要从长度树读取额外长度，matchLength = 9 + extra（值域 9-257）
-      const extraLength = this.huffmanDecoder?.lengthTree
-        ? this.decodeSymbol(reader, this.huffmanDecoder.lengthTree)
-        : 0;
-      matchLength = 9 + extraLength;
-    } else {
-      // lengthHeader 0-6：内联长度
-      matchLength = lengthHeader + 2;
-    }
-
-    // 解码匹配偏移（基于位置槽和 R0/R1/R2 缓存）
-    let matchOffset: number;
-    if (positionSlot === 0) {
-      // 重用 R0（最近使用的偏移）
-      matchOffset = this.recentOffsets[0];
-    } else if (positionSlot === 1) {
-      // 重用 R1，并将 R1 提升为 R0
-      matchOffset = this.recentOffsets[1];
-      this.recentOffsets[1] = this.recentOffsets[0];
-      this.recentOffsets[0] = matchOffset;
-    } else if (positionSlot === 2) {
-      // 重用 R2，并将 R2 提升为 R0
-      matchOffset = this.recentOffsets[2];
-      this.recentOffsets[2] = this.recentOffsets[1];
-      this.recentOffsets[1] = this.recentOffsets[0];
-      this.recentOffsets[0] = matchOffset;
-    } else {
-      // 计算额外位数和基值（基于位置槽，参照 LZX 规范 lzx_position_base 表）
-      // 公式：extraBits = max(0, floor(slot/2) - 1)
-      //       baseOffset = (2 + (slot & 1)) << extraBits
-      // 验证：slot3→3, slot4→4, slot5→6, slot6→8, slot7→12, slot8→16, slot9→24 ✓
-      const extraBits = Math.max(0, Math.floor(positionSlot / 2) - 1);
-      const baseOffset = (2 + (positionSlot & 1)) << extraBits;
-
-      if (extraBits > 3 && this.alignedTree) {
-        // 对齐块：高位从位流读取，低3位从对齐树解码
-        const highBits = reader.read(extraBits - 3);
-        const lowBits = this.decodeSymbol(reader, this.alignedTree);
-        matchOffset = baseOffset + (highBits << 3) + lowBits;
-      } else if (extraBits === 3 && this.alignedTree) {
-        // 对齐块：全部3位从对齐树解码
-        matchOffset = baseOffset + this.decodeSymbol(reader, this.alignedTree);
-      } else if (extraBits > 0) {
-        matchOffset = baseOffset + reader.read(extraBits);
-      } else {
-        matchOffset = baseOffset;
-      }
-
-      // 更新 R2 ← R1, R1 ← R0, R0 ← matchOffset
-      this.recentOffsets[2] = this.recentOffsets[1];
-      this.recentOffsets[1] = this.recentOffsets[0];
-      this.recentOffsets[0] = matchOffset;
-    }
-
-    return { offset: Math.max(1, matchOffset), length: matchLength };
-  }
-
-  /**
-   * 重置解码器状态
-   */
-  private reset(): void {
+  /** Clear all stream state, including the dictionary and delta code lengths. */
+  reset(): void {
     this.window.reset();
-    this.huffmanDecoder = null;
-    this.alignedTree = null;
-    // LZX 规范：重置时清空树历史长度（下一块重新从全零基准 delta 解码）
-    this.prevMainLengths = [];
-    this.prevLengthLengths = [];
-    // LZX 规范：R0/R1/R2 初始值均为 1
+    this.mainLengths.fill(0);
+    this.lengthLengths.fill(0);
+    this.mainTree = this.lengthTree = this.alignedTree = null;
     this.recentOffsets = [1, 1, 1];
+    this.headerRead = false;
+    this.intelFileSize = 0;
+    this.intelStarted = false;
+    this.blockType = 0;
+    this.blockRemaining = 0;
+    this.oddRawPadding = false;
+    this.historySize = 0;
   }
 
-  /**
-   * 获取解码器状态信息
-   * @returns 状态信息字符串
-   */
+  validate(): boolean {
+    return (
+      Number.isInteger(this.windowSize) &&
+      this.windowSize >= 0x8000 &&
+      this.windowSize <= 0x200000 &&
+      Number.isInteger(Math.log2(this.windowSize)) &&
+      Number.isSafeInteger(this.resetInterval) &&
+      this.resetInterval > 0 &&
+      this.resetInterval % LZXDecoder.FRAME_SIZE === 0
+    );
+  }
+
   getStatus(): string {
     return [
       `窗口大小: ${this.windowSize} 字节`,
-      `重置间隔: ${this.resetInterval}`,
+      `重置间隔: ${this.resetInterval} 字节`,
       this.window.getStatus(),
     ].join('\n');
   }
 
-  /**
-   * 验证解码器配置
-   * @returns 验证结果
-   */
-  validate(): boolean {
-    return (
-      this.windowSize > 0 &&
-      this.resetInterval > 0 &&
-      this._resetProcessor !== undefined
-    );
+  private checkOutputSize(size: number): void {
+    if (
+      !Number.isSafeInteger(size) ||
+      size < 0 ||
+      size > LZXDecoder.MAX_OUTPUT_SIZE
+    ) {
+      throw new Error(
+        `Invalid LZX output size (maximum ${LZXDecoder.MAX_OUTPUT_SIZE} bytes)`,
+      );
+    }
   }
 
-  /**
-   * 获取对齐元素数量
-   */
-  static get ALIGNED_NUM_ELEMENTS(): number {
-    return LZXDecoder._ALIGNED_NUM_ELEMENTS;
+  private beginFrame(frame: number): void {
+    if (frame % (this.resetInterval / LZXDecoder.FRAME_SIZE) === 0) {
+      if (this.blockRemaining !== 0)
+        throw new Error('LZX block crosses a reset boundary');
+      this.reset();
+    }
+  }
+
+  private readFrame(
+    reader: LZXBitReader,
+    size: number,
+    frame: number,
+    allowPrefixMatch = true,
+  ): Buffer {
+    if (!this.headerRead) {
+      if (reader.read(1)) {
+        this.intelFileSize = (reader.read(16) * 0x10000 + reader.read(16)) | 0;
+      }
+      this.headerRead = true;
+    }
+    const output = Buffer.alloc(size);
+    let position = 0;
+    while (position < size) {
+      if (this.blockRemaining === 0) this.readBlockHeader(reader);
+      if (this.blockType === 3) {
+        const count = Math.min(this.blockRemaining, size - position);
+        const bytes = reader.readRaw(count);
+        output.set(bytes, position);
+        for (const byte of bytes) this.writeByte(byte);
+        position += count;
+        this.blockRemaining -= count;
+        continue;
+      }
+      const symbol = this.mainTree!.decode(reader);
+      if (symbol < 256) {
+        output[position++] = symbol;
+        this.writeByte(symbol);
+        this.blockRemaining--;
+      } else {
+        const { offset, length } = this.readMatch(reader, symbol);
+        const frameLimit = allowPrefixMatch ? LZXDecoder.FRAME_SIZE : size;
+        if (length > this.blockRemaining || length > frameLimit - position) {
+          throw new Error('LZX match exceeds block or frame boundary');
+        }
+        if (offset <= 0 || offset > this.historySize) {
+          throw new Error('LZX match offset exceeds available history');
+        }
+        for (let i = 0; i < length; i++) {
+          const byte = this.window.readBackByte(offset);
+          if (position < size) output[position] = byte;
+          position++;
+          this.writeByte(byte);
+        }
+        this.blockRemaining -= length;
+      }
+    }
+    reader.alignFrame();
+    // Padding belongs to the raw block, not to the following compressed tree.
+    // Consume it here if it is in this frame, otherwise defer until next header.
+    if (
+      this.blockRemaining === 0 &&
+      this.oddRawPadding &&
+      reader.remainingBytes > 0
+    ) {
+      reader.readRaw(1);
+      this.oddRawPadding = false;
+    }
+    this.translateIntel(output, frame);
+    return output;
+  }
+
+  private writeByte(byte: number): void {
+    this.window.writeByte(byte);
+    this.historySize = Math.min(this.windowSize, this.historySize + 1);
+  }
+
+  private readBlockHeader(reader: LZXBitReader): void {
+    if (this.oddRawPadding) {
+      reader.readRaw(1);
+      this.oddRawPadding = false;
+    }
+    this.blockType = reader.read(3);
+    this.blockRemaining = reader.read(16) * 256 + reader.read(8);
+    if (this.blockRemaining === 0) throw new Error('Zero-length LZX block');
+    if (this.blockType === 3) {
+      this.intelStarted = true;
+      reader.alignUncompressed();
+      this.recentOffsets = [
+        reader.readUInt32LE(),
+        reader.readUInt32LE(),
+        reader.readUInt32LE(),
+      ];
+      if (
+        this.recentOffsets.some(
+          offset => offset === 0 || offset > this.windowSize,
+        )
+      ) {
+        throw new Error('Invalid LZX uncompressed repeated offset');
+      }
+      this.oddRawPadding = (this.blockRemaining & 1) !== 0;
+      return;
+    }
+    if (this.blockType !== 1 && this.blockType !== 2) {
+      throw new Error(`Invalid LZX block type: ${this.blockType}`);
+    }
+    this.alignedTree =
+      this.blockType === 2
+        ? new CanonicalTree(Array.from({ length: 8 }, () => reader.read(3)))
+        : null;
+    // These are two separate length ranges, each with its own pretree.
+    this.readLengths(reader, this.mainLengths, 0, 256);
+    this.readLengths(reader, this.mainLengths, 256, this.mainLengths.length);
+    this.mainTree = new CanonicalTree(this.mainLengths);
+    if (this.mainLengths[0xe8] !== 0) this.intelStarted = true;
+    this.readLengths(reader, this.lengthLengths, 0, 249);
+    this.lengthTree = new CanonicalTree(this.lengthLengths, true);
+  }
+
+  private readLengths(
+    reader: LZXBitReader,
+    lengths: number[],
+    first: number,
+    end: number,
+  ): void {
+    const pretree = new CanonicalTree(
+      Array.from({ length: 20 }, () => reader.read(4)),
+    );
+    let position = first;
+    while (position < end) {
+      const symbol = pretree.decode(reader);
+      if (symbol <= 16) {
+        lengths[position] = (lengths[position]! - symbol + 17) % 17;
+        position++;
+        continue;
+      }
+      let count: number;
+      let value = 0;
+      if (symbol === 17) {
+        count = reader.read(4) + 4;
+      } else if (symbol === 18) {
+        count = reader.read(5) + 20;
+      } else {
+        count = reader.read(1) + 4;
+        const delta = pretree.decode(reader);
+        if (delta > 16)
+          throw new Error('Invalid LZX repeated code-length delta');
+        value = (lengths[position]! - delta + 17) % 17;
+      }
+      if (count > end - position)
+        throw new Error('LZX code-length run exceeds tree range');
+      lengths.fill(value, position, position + count);
+      position += count;
+    }
+  }
+
+  private readMatch(
+    reader: LZXBitReader,
+    symbol: number,
+  ): { offset: number; length: number } {
+    const match = symbol - 256;
+    const slot = Math.floor(match / 8);
+    let length = match & 7;
+    if (length === 7) length += this.lengthTree!.decode(reader);
+    length += 2;
+    let offset: number;
+    if (slot < 3) {
+      offset = this.recentOffsets[slot]!;
+      // R2 swaps with R0; R1 is NOT shifted when selecting slot 2.
+      if (slot !== 0) {
+        this.recentOffsets[slot] = this.recentOffsets[0];
+        this.recentOffsets[0] = offset;
+      }
+    } else {
+      const extra = this.extraBits[slot]!;
+      offset = this.positionBases[slot]! - 2;
+      if (this.blockType === 2 && extra >= 3) {
+        offset += reader.read(extra - 3) * 8 + this.alignedTree!.decode(reader);
+      } else {
+        offset += reader.read(extra);
+      }
+      this.recentOffsets = [
+        offset,
+        this.recentOffsets[0],
+        this.recentOffsets[1],
+      ];
+    }
+    return { offset, length };
+  }
+
+  private translateIntel(output: Buffer, frame: number): void {
+    // CHM resets start independent LZX streams, including their Intel header
+    // and translation origin (7-Zip/CHMLib). startFrame remains absolute only
+    // for reset scheduling; a seek to any reset must produce identical bytes.
+    const frameInReset = frame % (this.resetInterval / LZXDecoder.FRAME_SIZE);
+    if (
+      !this.intelStarted ||
+      !this.intelFileSize ||
+      frameInReset >= 32768 ||
+      output.length <= 10
+    )
+      return;
+    const framePosition = frameInReset * LZXDecoder.FRAME_SIZE;
+    for (let i = 0; i < output.length - 10; i++) {
+      if (output[i] !== 0xe8) continue;
+      const position = framePosition + i;
+      const absolute = output.readInt32LE(i + 1);
+      if (absolute >= -position && absolute < this.intelFileSize) {
+        const relative =
+          absolute >= 0 ? absolute - position : absolute + this.intelFileSize;
+        output.writeInt32LE(relative | 0, i + 1);
+      }
+      i += 4;
+    }
   }
 }

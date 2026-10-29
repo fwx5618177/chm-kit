@@ -1,17 +1,25 @@
 import type { HuffmanTree } from '../../core/types';
 import { BitReader } from '../io/bit-reader';
 
+const MAX_CODE_LENGTH = 32;
+
 /**
  * 通用 Huffman 树操作类
  * 负责通用的 Huffman 算法实现
  */
 export class HuffmanTreeOperations {
   /**
-   * 创建 Canonical Huffman 表
+   * 创建 Canonical Huffman 表。码长为 0 表示未使用，支持 1–32 位码。
+   * 允许不完整及空码表，但不允许过订阅。
    * @param lengths 码长数组
    * @returns Huffman 树
    */
   static createCanonicalTree(lengths: number[]): HuffmanTree {
+    for (const length of lengths) {
+      if (!Number.isInteger(length) || length < 0 || length > MAX_CODE_LENGTH) {
+        throw new Error('Invalid Huffman code length: expected 0–32 bits');
+      }
+    }
     const symbols: number[] = [];
     const codes: number[] = [];
     const treeLengths: number[] = [];
@@ -33,8 +41,11 @@ export class HuffmanTreeOperations {
     for (const item of sortedSymbols) {
       // 如果码长增加，左移代码
       if (item.length > prevLength) {
-        code <<= item.length - prevLength;
+        code *= 2 ** (item.length - prevLength);
         prevLength = item.length;
+      }
+      if (code >= 2 ** item.length) {
+        throw new Error('Oversubscribed Huffman tree');
       }
 
       symbols.push(item.symbol);
@@ -63,6 +74,18 @@ export class HuffmanTreeOperations {
     tree: HuffmanTree,
     maxCodeLength: number = 16,
   ): number {
+    if (
+      !Number.isInteger(maxCodeLength) ||
+      maxCodeLength < 1 ||
+      maxCodeLength > MAX_CODE_LENGTH
+    ) {
+      throw new Error(
+        'Invalid Huffman maximum code length: expected 1–32 bits',
+      );
+    }
+    if (!this.validateTree(tree) || tree.symbols.length === 0) {
+      throw new Error('Invalid or empty Huffman tree');
+    }
     let code = 0;
     let length = 0;
 
@@ -75,7 +98,7 @@ export class HuffmanTreeOperations {
       }
 
       const bit = reader.read(1);
-      code = (code << 1) | bit;
+      code = code * 2 + bit;
       length++;
 
       // 查找匹配的码
@@ -109,22 +132,45 @@ export class HuffmanTreeOperations {
    */
   static validateTree(tree: HuffmanTree): boolean {
     if (
+      !tree ||
+      !Array.isArray(tree.symbols) ||
+      !Array.isArray(tree.codes) ||
+      !Array.isArray(tree.lengths) ||
       tree.symbols.length !== tree.codes.length ||
       tree.symbols.length !== tree.lengths.length
     ) {
       return false;
     }
 
-    // 检查是否有重复的码
-    const codeMap = new Map<string, number>();
+    const symbols = new Set<number>();
+    const ranges: Array<{ start: number; end: number }> = [];
     for (let i = 0; i < tree.codes.length; i++) {
-      const key = `${tree.codes[i]}-${tree.lengths[i]}`;
-      if (codeMap.has(key)) {
+      const symbol = tree.symbols[i]!;
+      const code = tree.codes[i]!;
+      const length = tree.lengths[i]!;
+      if (
+        !Number.isSafeInteger(symbol) ||
+        symbol < 0 ||
+        symbols.has(symbol) ||
+        !Number.isInteger(length) ||
+        length < 1 ||
+        length > MAX_CODE_LENGTH ||
+        !Number.isSafeInteger(code) ||
+        code < 0 ||
+        code >= 2 ** length
+      ) {
         return false;
       }
-      codeMap.set(key, tree.symbols[i]!);
+      symbols.add(symbol);
+      // A prefix occupies an interval of the 32-bit code space. Overlaps detect
+      // duplicate codes and prefix conflicts regardless of the table's ordering.
+      const scale = 2 ** (MAX_CODE_LENGTH - length);
+      ranges.push({ start: code * scale, end: (code + 1) * scale });
     }
-
+    ranges.sort((a, b) => a.start - b.start);
+    for (let i = 1; i < ranges.length; i++) {
+      if (ranges[i]!.start < ranges[i - 1]!.end) return false;
+    }
     return true;
   }
 

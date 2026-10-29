@@ -1,0 +1,8 @@
+* text=auto eol=lf
+# Fixture hashes and independent oracles require byte-exact checkout on Windows.
+test/fixtures/** -text
+# Preserve upstream license whitespace and byte-exact extracted oracle data.
+test/fixtures/pychm-example/COPYING -whitespace
+test/fixtures/pychm-example/expected/** -whitespace
+*.chm binary
+*.png binary

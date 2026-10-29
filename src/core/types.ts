@@ -11,11 +11,11 @@ export interface ITSFHeader {
   unknown1: number;
   timestamp: number;
   languageId: number;
-  unknown2: number;
-  unknown3: number;
+  unknown2: number; // Auxiliary header section offset (not the file-data base).
+  unknown3: number; // Auxiliary header section length.
   directoryOffset: number;
   directoryLength: number;
-  unknown4: number;
+  unknown4: number; // ITSF v3 data-section base; absent/zero in v2.
 }
 
 export interface ITSPHeader {
@@ -62,6 +62,7 @@ export interface ResetTable {
 }
 
 export interface ResetTableEntry {
+  /** Historical name: cumulative compressed frame offset, not a frame length. */
   compressedLength: number;
   uncompressedLength: number;
 }
@@ -71,7 +72,8 @@ export interface CHMFile {
   data: Buffer;
   isCompressed: boolean;
   originalSize: number;
-  compressedSize: number;
+  /** null for files in a shared LZX stream: no exact per-file physical size. */
+  compressedSize: number | null;
 }
 
 export interface CHMHeader {

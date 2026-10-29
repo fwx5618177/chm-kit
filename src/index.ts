@@ -37,5 +37,12 @@ export { VERSION, SUPPORTED_VERSIONS, DEFAULT_CONFIG } from './constants';
 // 导出便捷方法
 export { chm } from './convenience';
 
+export { CHMArchive } from './reader/chm-archive';
+export { CHMReader } from './reader/chm-reader';
+export type { FileWithMetadata } from './reader/chm-reader';
+export * from './reader/types';
+export { packFiles } from './encoder/archive-builder';
+export type { PackFilesOptions } from './encoder/archive-builder';
+
 // 默认导出
 export { CHMKit as default } from './chm-kit';

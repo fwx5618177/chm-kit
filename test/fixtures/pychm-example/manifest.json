@@ -1,0 +1,160 @@
+{
+  "source": {
+    "repository": "https://github.com/dottedmag/pychm",
+    "revision": "9db50a881aa19649da100e5168d45401ee8f694b",
+    "path": "tests/integration/example.chm",
+    "url": "https://raw.githubusercontent.com/dottedmag/pychm/9db50a881aa19649da100e5168d45401ee8f694b/tests/integration/example.chm",
+    "gitBlobSha1": "a77d0a403edfc5644dc0219d2418a87f152c686e",
+    "introducedBy": "64d4ef6a096e020a2e3f27295ffa9f7f44c256d3",
+    "license": "GPL-2.0-or-later",
+    "modified": false
+  },
+  "archive": {
+    "file": "example.chm",
+    "size": 10842,
+    "sha256": "729ecdc2a8c29e9672b0162d07fb01910882ce012bd5f7f1d72ac87f2df9ca54",
+    "itsfVersion": 3,
+    "firstLzxBlockType": 2,
+    "contentOffset": 8702,
+    "directoryEntries": 25,
+    "resetInterval": 65536,
+    "windowSize": 65536,
+    "frameCount": 1,
+    "compressedLength": 2092,
+    "uncompressedLength": 13068
+  },
+  "oracle": {
+    "tool": "7-Zip (z) 26.05 (arm64)",
+    "commands": ["7zz t example.chm", "7zz x -y -oexpected example.chm"],
+    "files": 14,
+    "totalBytes": 17336
+  },
+  "files": [
+    {
+      "name": "/#IDXHDR",
+      "section": 1,
+      "offset": 8764,
+      "length": 4096,
+      "sha256": "dae93658f21bbdd6d918b0e79e4272b0889760787c6ab127c186919e438ec2aa",
+      "userDocument": false,
+      "expectedFile": "expected/#IDXHDR"
+    },
+    {
+      "name": "/#ITBITS",
+      "section": 0,
+      "offset": 0,
+      "length": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "userDocument": false,
+      "expectedFile": "expected/#ITBITS"
+    },
+    {
+      "name": "/#STRINGS",
+      "section": 1,
+      "offset": 13053,
+      "length": 15,
+      "sha256": "3ff3120c91c2df08b22c3557c22f9c719f95af6a1dc6deb56f9d7ea80e87481d",
+      "userDocument": false,
+      "expectedFile": "expected/#STRINGS"
+    },
+    {
+      "name": "/#SYSTEM",
+      "section": 0,
+      "offset": 134,
+      "length": 4268,
+      "sha256": "c19e9928834bca2ddb06d4db59d1453cfc1bee4e963b5d3e5c5ab80204abb1ba",
+      "userDocument": false,
+      "expectedFile": "expected/#SYSTEM"
+    },
+    {
+      "name": "/#TOPICS",
+      "section": 1,
+      "offset": 12860,
+      "length": 64,
+      "sha256": "436daa971961555a11ee5ebd6a9ed18be20c374c095abb5e9a44af97b5694551",
+      "userDocument": false,
+      "expectedFile": "expected/#TOPICS"
+    },
+    {
+      "name": "/#URLSTR",
+      "section": 1,
+      "offset": 12972,
+      "length": 81,
+      "sha256": "dedb67e68efed7cfeb5e74cc35641bf9b29ff7d6ed2dfe43003a0839899b0648",
+      "userDocument": false,
+      "expectedFile": "expected/#URLSTR"
+    },
+    {
+      "name": "/#URLTBL",
+      "section": 1,
+      "offset": 12924,
+      "length": 48,
+      "sha256": "790f24746ca31735db15be05a9579c03c6b26cca2e23fae3fb4748322956f635",
+      "userDocument": false,
+      "expectedFile": "expected/#URLTBL"
+    },
+    {
+      "name": "/$FIftiMain",
+      "section": 1,
+      "offset": 3640,
+      "length": 5124,
+      "sha256": "f2c136c5859a1aa622895b6ca33610baa410681004b6b4323406d331db4526da",
+      "userDocument": false,
+      "expectedFile": "expected/$FIftiMain"
+    },
+    {
+      "name": "/$OBJINST",
+      "section": 1,
+      "offset": 925,
+      "length": 2715,
+      "sha256": "c4331d2003c6625857733dcc769b3a6347fd486fd8ab3ac9af41e95dc4a67410",
+      "userDocument": false,
+      "expectedFile": "expected/$OBJINST"
+    },
+    {
+      "name": "/$WWAssociativeLinks/Property",
+      "section": 1,
+      "offset": 921,
+      "length": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+      "userDocument": false,
+      "expectedFile": "expected/$WWAssociativeLinks/Property"
+    },
+    {
+      "name": "/$WWKeywordLinks/Property",
+      "section": 1,
+      "offset": 917,
+      "length": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+      "userDocument": false,
+      "expectedFile": "expected/$WWKeywordLinks/Property"
+    },
+    {
+      "name": "/Documents/Table of Contents.hhc",
+      "section": 1,
+      "offset": 0,
+      "length": 566,
+      "sha256": "0b025b74050ea3c76f2ba4b152885c96538dfba7e24e9f4d213513898a4f598b",
+      "userDocument": true,
+      "expectedFile": "expected/Documents/Table of Contents.hhc"
+    },
+    {
+      "name": "/page 1.html",
+      "section": 1,
+      "offset": 566,
+      "length": 170,
+      "sha256": "29c5fe323f0ed28b3618bb732a41247413a044a0b79c9897e4f9322d6ba8649b",
+      "userDocument": true,
+      "expectedFile": "expected/page 1.html"
+    },
+    {
+      "name": "/page 2.html",
+      "section": 1,
+      "offset": 736,
+      "length": 181,
+      "sha256": "00008a3deacc36cc9fef9fd6b5bb59d3e0da05f6a8c6a86489845dd435d34323",
+      "userDocument": true,
+      "expectedFile": "expected/page 2.html"
+    }
+  ]
+}

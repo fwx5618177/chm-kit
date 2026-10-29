@@ -2,8 +2,17 @@ import { ParserOperations } from './operations/parser';
 import { ExtractorOperations } from './operations/extractor';
 import { PackerOperations } from './operations/packer';
 import { InfoOperations } from './operations/info';
-import { FileManagerOperations } from './operations/file-manager';
+
 import type { ParsedCHM, ExtractOptions, PackOptions } from './core/types';
+import { CHMReader } from './reader/chm-reader';
+import { CHMArchive } from './reader/chm-archive';
+import { packFiles, type PackFilesOptions } from './encoder/archive-builder';
+import type {
+  ReaderOptions,
+  NavigationEntry,
+  SearchOptions,
+  SearchResult,
+} from './reader/types';
 
 /**
  * CHM 操作的主要类
@@ -75,7 +84,7 @@ export class CHMKit {
    * @returns 文件内容
    */
   static async readFile(chmPath: string, filePath: string): Promise<Buffer> {
-    return FileManagerOperations.readFile(chmPath, filePath);
+    return CHMKit.withReader(chmPath, reader => reader.readFile(filePath));
   }
 
   /**
@@ -85,7 +94,7 @@ export class CHMKit {
    * @returns 是否存在
    */
   static async exists(chmPath: string, filePath: string): Promise<boolean> {
-    return FileManagerOperations.exists(chmPath, filePath);
+    return CHMKit.withReader(chmPath, reader => reader.exists(filePath));
   }
 
   /**
@@ -93,8 +102,8 @@ export class CHMKit {
    * @param chmPath CHM 文件路径
    * @returns 文件路径数组
    */
-  static async listFiles(chmPath: string): Promise<string[]> {
-    return FileManagerOperations.listFiles(chmPath);
+  static async listFiles(chmPath: string, pattern?: string): Promise<string[]> {
+    return CHMKit.withReader(chmPath, reader => reader.listFiles(pattern));
   }
 
   /**
@@ -107,9 +116,11 @@ export class CHMKit {
   static async readText(
     chmPath: string,
     filePath: string,
-    encoding: BufferEncoding = 'utf-8',
+    encoding?: string,
   ): Promise<string> {
-    return FileManagerOperations.readText(chmPath, filePath, encoding);
+    return CHMKit.withReader(chmPath, reader =>
+      reader.readText(filePath, encoding),
+    );
   }
 
   /**
@@ -119,6 +130,93 @@ export class CHMKit {
    * @returns HTML 内容字符串
    */
   static async readHTML(chmPath: string, filePath: string): Promise<string> {
-    return FileManagerOperations.readHTML(chmPath, filePath);
+    return CHMKit.withReader(chmPath, reader => reader.readHTML(filePath));
+  }
+
+  static open(filePath: string, options?: ReaderOptions): Promise<CHMReader> {
+    return CHMReader.open(filePath, options);
+  }
+
+  static from(
+    input: Uint8Array | ArrayBuffer,
+    options?: ReaderOptions,
+  ): CHMArchive {
+    return new CHMArchive(input, options);
+  }
+
+  static packFiles(
+    files: ReadonlyMap<string, Uint8Array>,
+    options?: PackFilesOptions,
+  ): Buffer {
+    return packFiles(files, options);
+  }
+
+  static readRange(
+    chmPath: string,
+    filePath: string,
+    start = 0,
+    end?: number,
+  ): Promise<Buffer> {
+    return CHMKit.withReader(chmPath, reader =>
+      reader.readRange(filePath, start, end),
+    );
+  }
+
+  static getTOC(chmPath: string): Promise<NavigationEntry[]> {
+    return CHMKit.withReader(chmPath, reader => reader.getTOC());
+  }
+
+  static getIndex(chmPath: string): Promise<NavigationEntry[]> {
+    return CHMKit.withReader(chmPath, reader => reader.getIndex());
+  }
+
+  static searchContent(
+    chmPath: string,
+    keyword: string,
+    options?: SearchOptions,
+  ): Promise<SearchResult[]> {
+    return CHMKit.withReader(chmPath, reader =>
+      reader.search(keyword, options),
+    );
+  }
+
+  static readMultiple(
+    chmPath: string,
+    paths: readonly string[],
+  ): Promise<Map<string, Buffer>> {
+    return CHMKit.withReader(chmPath, reader => reader.readMultiple(paths));
+  }
+
+  static exportFiles(
+    chmPath: string,
+    paths: readonly string[],
+    outputDir: string,
+  ): Promise<{ files: string[]; totalFiles: number; errors: string[] }> {
+    const selected = new Set(
+      paths.map(path =>
+        path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase(),
+      ),
+    );
+    return CHMKit.extract(chmPath, outputDir, {
+      preserveStructure: true,
+      filter: path => selected.has(path.replace(/^\/+/, '').toLowerCase()),
+    });
+  }
+
+  static list = CHMKit.listFiles;
+  static get = CHMKit.readFile;
+  static extractAll = CHMKit.extract;
+  static search = CHMKit.searchContent;
+
+  private static async withReader<T>(
+    path: string,
+    operation: (reader: CHMReader) => T | Promise<T>,
+  ): Promise<T> {
+    const reader = await CHMReader.open(path);
+    try {
+      return await operation(reader);
+    } finally {
+      reader.close();
+    }
   }
 }

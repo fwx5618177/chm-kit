@@ -20,8 +20,13 @@ export class BitReader implements IBitReader {
    * @returns 读取的数值
    */
   public read(bits: number): number {
-    if (bits <= 0 || bits > 32) {
-      throw new Error('Invalid bits count: must be between 1 and 32');
+    if (!Number.isInteger(bits) || bits <= 0 || bits > 32) {
+      throw new Error(
+        'Invalid bits count: must be an integer between 1 and 32',
+      );
+    }
+    if (bits > (this.buffer.length - this.position) * 8 - this.bitPosition) {
+      throw new Error('End of buffer reached');
     }
 
     let result = 0;
@@ -53,7 +58,7 @@ export class BitReader implements IBitReader {
       bitsLeft -= bitsToRead;
     }
 
-    return result;
+    return result >>> 0;
   }
 
   /**
@@ -65,13 +70,12 @@ export class BitReader implements IBitReader {
     const currentPosition = this.position;
     const currentBitPosition = this.bitPosition;
 
-    const result = this.read(bits);
-
-    // 恢复位置
-    this.position = currentPosition;
-    this.bitPosition = currentBitPosition;
-
-    return result;
+    try {
+      return this.read(bits);
+    } finally {
+      this.position = currentPosition;
+      this.bitPosition = currentBitPosition;
+    }
   }
 
   /**
@@ -79,6 +83,14 @@ export class BitReader implements IBitReader {
    * @param bits 要跳过的位数
    */
   public skip(bits: number): void {
+    if (!Number.isSafeInteger(bits) || bits < 0) {
+      throw new Error(
+        'Invalid bits count: must be a non-negative safe integer',
+      );
+    }
+    if (bits > (this.buffer.length - this.position) * 8 - this.bitPosition) {
+      throw new Error('End of buffer reached');
+    }
     const totalBits = this.bitPosition + bits;
     this.position += Math.floor(totalBits / 8);
     this.bitPosition = totalBits % 8;
@@ -119,10 +131,15 @@ export class BitReader implements IBitReader {
    * @param bit 位位置
    */
   public setPosition(byte: number, bit: number = 0): void {
-    if (byte < 0 || byte > this.buffer.length) {
+    if (!Number.isSafeInteger(byte) || byte < 0 || byte > this.buffer.length) {
       throw new Error('Invalid byte position');
     }
-    if (bit < 0 || bit >= 8) {
+    if (
+      !Number.isInteger(bit) ||
+      bit < 0 ||
+      bit >= 8 ||
+      (byte === this.buffer.length && bit !== 0)
+    ) {
       throw new Error('Invalid bit position');
     }
 

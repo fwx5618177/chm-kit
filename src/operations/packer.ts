@@ -24,8 +24,12 @@ export class PackerOperations {
         outputPath,
         compression: options.compression ?? true,
         verbose: options.verbose ?? false,
-        ...(options.title && { title: options.title }),
-        ...(options.defaultTopic && { defaultTopic: options.defaultTopic }),
+        validateBeforeWrite: options.validateBeforeWrite,
+        verifyAfterWrite: options.verifyAfterWrite,
+        ...(options.title !== undefined && { title: options.title }),
+        ...(options.defaultTopic !== undefined && {
+          defaultTopic: options.defaultTopic,
+        }),
       };
 
       const encoder = new CHMEncoder();

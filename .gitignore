@@ -19,6 +19,8 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+test-results/
+playwright-report/
 *.lcov
 
 # nyc test coverage
@@ -140,7 +142,7 @@ design.md
 
 # Configuration files
 chmkit.config.json
-!chmkit.config.json.example
+
 
 # Temporary files and output
 temp/

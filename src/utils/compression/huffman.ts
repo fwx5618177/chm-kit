@@ -9,7 +9,7 @@ import { LZXHuffmanDecoder } from './lzx-huffman-decoder';
  */
 export class Huffman {
   /**
-   * 创建 Canonical Huffman 表
+   * 创建 Canonical Huffman 表（0 为未使用，支持 1–32 位码）。
    * @param lengths 码长数组
    * @returns Huffman 树
    */
@@ -21,14 +21,19 @@ export class Huffman {
    * 解码单个符号
    * @param reader 位读取器
    * @param tree Huffman 树
+   * @param maxCodeLength 最大码长（默认 16，最大 32）
    * @returns 解码的符号
    */
-  public static decodeSymbol(reader: BitReader, tree: HuffmanTree): number {
-    return HuffmanTreeOperations.decodeSymbol(reader, tree);
+  public static decodeSymbol(
+    reader: BitReader,
+    tree: HuffmanTree,
+    maxCodeLength = 16,
+  ): number {
+    return HuffmanTreeOperations.decodeSymbol(reader, tree, maxCodeLength);
   }
 
   /**
-   * 创建 LZX 解码器
+   * @deprecated 不支持旧的三树 LZX 模型；请使用 chmkit 的 LZXDecoder。
    * @param windowSize 窗口大小
    * @returns Huffman 解码器
    */
@@ -37,7 +42,7 @@ export class Huffman {
   }
 
   /**
-   * 从位读取器读取码长
+   * @deprecated 不支持将固定 4-bit 读取视为 LZX 码长解码；请使用 LZXDecoder。
    * @param reader 位读取器
    * @param count 要读取的码长数量
    * @returns 码长数组
@@ -47,7 +52,7 @@ export class Huffman {
   }
 
   /**
-   * 构建预定义的 Huffman 表
+   * @deprecated LZX 无此预定义三树模型；请使用 LZXDecoder。
    * @param type 表类型 ('literal' | 'match' | 'length')
    * @param windowSize 窗口大小
    * @returns Huffman 树

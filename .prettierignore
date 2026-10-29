@@ -2,6 +2,10 @@ node_modules/
 dist/
 build/
 coverage/
+test-results/
+playwright-report/
+# Immutable third-party oracle bytes must not be formatted.
+test/fixtures/
 *.log
 *.lock
 package-lock.json

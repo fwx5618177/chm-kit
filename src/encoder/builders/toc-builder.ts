@@ -278,6 +278,7 @@ ${indent}\t</OBJECT>\n`;
     // 按路径深度排序
     this.entries.sort((a, b) => a.level - b.level);
 
+    const attached = new Set<TOCEntry>();
     // 构建父子关系
     for (let i = 0; i < this.entries.length; i++) {
       const current = this.entries[i];
@@ -296,13 +297,14 @@ ${indent}\t</OBJECT>\n`;
             potential.children = [];
           }
           potential.children.push(current);
+          attached.add(current);
           break;
         }
       }
     }
 
-    // 过滤出顶级条目
-    this.entries = this.entries.filter(entry => entry.level === 0);
+    // Keep entries without a matching parent, even when their paths are nested.
+    this.entries = this.entries.filter(entry => !attached.has(entry));
   }
 
   /**
@@ -314,7 +316,11 @@ ${indent}\t</OBJECT>\n`;
   private isParentPath(parentPath: string, childPath: string): boolean {
     const parentDir = parentPath.substring(0, parentPath.lastIndexOf('/'));
     const childDir = childPath.substring(0, childPath.lastIndexOf('/'));
-    return childDir.startsWith(parentDir);
+    return (
+      parentDir === '' ||
+      childDir === parentDir ||
+      childDir.startsWith(`${parentDir}/`)
+    );
   }
 
   /**

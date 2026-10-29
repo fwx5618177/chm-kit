@@ -1,5 +1,5 @@
-import { test } from 'uvu';
-import { equal, ok } from 'uvu/assert';
+import { test } from 'vitest';
+import { deepStrictEqual as equal, ok } from 'node:assert/strict';
 import {
   formatTimestamp,
   getFileType,
@@ -98,4 +98,31 @@ test('createFilterFunction with empty filters should match all', () => {
   ok(filter('anything.txt'));
 });
 
-test.run();
+test('glob escapes regex syntax and anchors the whole name', () => {
+  const files = [
+    'a+b[1](x).txt',
+    'aaab1xXtxt',
+    'prefix-a+b[1](x).txt',
+    'a+b[1](x).txt.bak',
+  ];
+  equal(filterFiles(files, 'a+b[1](x).txt'), [files[0]]);
+  equal(filterFiles(['file{a}^$.txt', 'filea.txt'], 'file{a}^$.txt'), [
+    'file{a}^$.txt',
+  ]);
+});
+
+test('glob supports basename *, single-character ?, and recursive **', () => {
+  const files = [
+    '/one.html',
+    '/docs/two.html',
+    '/docs/deep/three.html',
+    '/docs/two.html.bak',
+  ];
+  equal(filterFiles(files, '*.html'), files.slice(0, 3));
+  equal(filterFiles(files, '/docs/*.html'), ['/docs/two.html']);
+  equal(filterFiles(files, '**/*.html'), files.slice(0, 3));
+  equal(filterFiles(files, '/docs/**/*.html'), files.slice(1, 3));
+  ok(createFilterFunction(['/docs/t?o.html'])('/DOCS/TWO.HTML'));
+  ok(!createFilterFunction(['/docs/t?o.html'])('/docs/too-long.html'));
+  ok(!createFilterFunction(['/docs/?.html'])('/docs/x/y.html'));
+});

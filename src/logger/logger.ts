@@ -13,7 +13,10 @@ export class CHMLogger implements Logger {
   private chalk: ChalkInstance | undefined;
 
   constructor() {
-    this.initChalk();
+    // Color is optional: CJS loaders may not support chalk's ESM entry point.
+    void this.initChalk().catch(() => {
+      this.chalk = undefined;
+    });
   }
 
   /**

@@ -1,65 +1,71 @@
 import type { ResetTable, ResetTableEntry } from '../types';
 import type { BitReader } from '../../utils/io/bit-reader';
+import {
+  isUInt,
+  readBytes,
+  readUInt64LE,
+  requireRange,
+} from '../headers/binary';
 
-/**
- * 重置表处理器
- * 负责解析和管理 LZX 解码中的重置表
- */
 export class ResetTableProcessor {
   private resetTable: ResetTable | null = null;
 
-  /**
-   * 解析重置表
-   * @param reader 位读取器
-   * @returns 解析后的重置表
-   */
   parseResetTable(reader: BitReader): ResetTable {
-    // 读取版本号（LE uint32）
-    const version = this.readUInt32LE(reader);
-    if (version !== 2) {
-      throw new Error(`不支持的重置表版本: ${version}`);
+    this.reset();
+    const start = reader.position;
+    const data = readBytes(reader, 0x28, 'ResetTable header');
+    const version = data.readUInt32LE(0);
+    const blockCount = data.readUInt32LE(4);
+    const entrySize = data.readUInt32LE(8);
+    const tableOffset = data.readUInt32LE(12);
+    if (version !== 2) throw new Error(`不支持的重置表版本: ${version}`);
+    if (entrySize !== 8) throw new Error(`无效的条目大小: ${entrySize}`);
+    if (tableOffset < 0x28) throw new Error(`无效的表偏移: ${tableOffset}`);
+    const uncompressedLength = readUInt64LE(
+      data,
+      0x10,
+      'ResetTable uncompressed length',
+    );
+    const compressedLength = readUInt64LE(
+      data,
+      0x18,
+      'ResetTable compressed length',
+    );
+    const blockSize = readUInt64LE(data, 0x20, 'ResetTable block size');
+    if (blockSize !== 0x8000) throw new Error(`无效的块大小: ${blockSize}`);
+    if (blockCount !== Math.ceil(uncompressedLength / blockSize))
+      throw new Error(
+        'ResetTable: block count does not match uncompressed length',
+      );
+    requireRange(
+      reader.buffer,
+      start,
+      tableOffset + blockCount * entrySize,
+      'ResetTable entries',
+    );
+    reader.setPosition(start + tableOffset, 0);
+    const offsets = readBytes(
+      reader,
+      blockCount * entrySize,
+      'ResetTable entries',
+    );
+    const entries: ResetTableEntry[] = [];
+    for (let i = 0; i < blockCount; i++) {
+      // Preserve the legacy property name: compressedLength is a cumulative
+      // offset relative to Content, not the compressed size of this frame.
+      entries.push({
+        compressedLength: readUInt64LE(
+          offsets,
+          i * entrySize,
+          'ResetTable compressed offset',
+        ),
+        uncompressedLength: Math.min(
+          blockSize,
+          uncompressedLength - i * blockSize,
+        ),
+      });
     }
-
-    // 读取块数量
-    const blockCount = this.readUInt32LE(reader);
-    if (blockCount === 0) {
-      throw new Error(`无效的块数量: ${blockCount}`);
-    }
-
-    // 读取条目大小（应为 8）
-    const entrySize = this.readUInt32LE(reader);
-    if (entrySize !== 8) {
-      throw new Error(`无效的条目大小: ${entrySize}`);
-    }
-
-    // 读取表偏移
-    const tableOffset = this.readUInt32LE(reader);
-
-    // 读取未压缩长度（uint64 LE，取低32位）
-    const uncompressedLength = this.readUInt32LE(reader);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8); // skip high 4 bytes
-
-    // 读取压缩长度（uint64 LE，取低32位）
-    const compressedLength = this.readUInt32LE(reader);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8); // skip high 4 bytes
-
-    // 读取块大小
-    const blockSize = this.readUInt32LE(reader);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8);
-    reader.read(8); // skip high 4 bytes
-
-    // 解析重置表条目（每条 8 字节：uint64 累计偏移）
-    const entries = this.parseResetTableEntries(reader, blockCount);
-
-    this.resetTable = {
+    const table = {
       version,
       blockCount,
       entrySize,
@@ -69,231 +75,124 @@ export class ResetTableProcessor {
       blockSize,
       entries,
     };
-
-    return this.resetTable;
+    if (!this.isValid(table))
+      throw new Error('ResetTable: invalid cumulative compressed offsets');
+    this.resetTable = table;
+    return table;
   }
 
-  /**
-   * 读取 32 位小端序无符号整数
-   */
-  private readUInt32LE(reader: BitReader): number {
-    const b0 = reader.read(8);
-    const b1 = reader.read(8);
-    const b2 = reader.read(8);
-    const b3 = reader.read(8);
-    // >>> 0 将有符号 32 位整数转换为无符号，避免高位置 1 时产生负值
-    return (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)) >>> 0;
-  }
-
-  /**
-   * 解析重置表条目
-   * @param reader 位读取器
-   * @param blockCount 块数量
-   * @returns 重置表条目数组
-   */
-  private parseResetTableEntries(
-    reader: BitReader,
-    blockCount: number,
-  ): ResetTableEntry[] {
-    const entries: ResetTableEntry[] = [];
-
-    for (let i = 0; i < blockCount; i++) {
-      // 每个条目是一个 uint64 LE 累计压缩偏移，取低 32 位
-      const compressedLength = this.readUInt32LE(reader);
-      reader.read(8);
-      reader.read(8);
-      reader.read(8);
-      reader.read(8); // skip high 4 bytes
-      // uncompressedLength 可通过 blockSize * i 推导，这里存储为 0 作为兼容占位
-      entries.push({ compressedLength, uncompressedLength: 0 });
-    }
-
-    return entries;
-  }
-
-  /**
-   * 获取指定块的信息
-   * @param blockIndex 块索引
-   * @returns 块信息
-   */
   getBlockInfo(blockIndex: number): ResetTableEntry | null {
-    if (!this.resetTable) {
-      return null;
-    }
-
-    if (blockIndex < 0 || blockIndex >= this.resetTable.entries.length) {
-      return null;
-    }
-
-    return this.resetTable.entries[blockIndex]!;
+    const entry = Number.isInteger(blockIndex)
+      ? this.resetTable?.entries[blockIndex]
+      : undefined;
+    return entry ? { ...entry } : null;
   }
 
-  /**
-   * 获取总块数
-   * @returns 总块数
-   */
   getBlockCount(): number {
     return this.resetTable?.blockCount ?? 0;
   }
 
-  /**
-   * 获取块大小
-   * @returns 块大小
-   */
   getBlockSize(): number {
     return this.resetTable?.blockSize ?? 0;
   }
 
-  /**
-   * 计算指定块的偏移量
-   * @param blockIndex 块索引
-   * @returns 块偏移量
-   */
+  /** Offset relative to the compressed Content stream, never to ResetTable. */
   calculateBlockOffset(blockIndex: number): number {
-    if (!this.resetTable) {
-      throw new Error('重置表未初始化');
-    }
-
-    if (blockIndex < 0 || blockIndex >= this.resetTable.entries.length) {
-      throw new Error(`无效的块索引: ${blockIndex}`);
-    }
-
-    let offset = this.resetTable.tableOffset;
-    for (let i = 0; i < blockIndex; i++) {
-      offset += this.resetTable.entries[i]!.compressedLength;
-    }
-
-    return offset;
+    if (!this.resetTable) throw new Error('重置表未初始化');
+    const entry = this.getBlockInfo(blockIndex);
+    if (!entry) throw new Error(`无效的块索引: ${blockIndex}`);
+    return entry.compressedLength;
   }
 
-  /**
-   * 查找包含指定偏移量的块
-   * @param offset 目标偏移量
-   * @returns 块索引，如果未找到返回 -1
-   */
+  /** Find a frame by its compressed Content-stream offset (end exclusive). */
   findBlockByOffset(offset: number): number {
-    if (!this.resetTable) {
+    const table = this.resetTable;
+    if (!table || !isUInt(offset) || offset >= table.compressedLength)
       return -1;
+    let low = 0;
+    let high = table.entries.length - 1;
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      if (table.entries[middle]!.compressedLength <= offset) low = middle + 1;
+      else high = middle - 1;
     }
-
-    let currentOffset = this.resetTable.tableOffset;
-
-    for (let i = 0; i < this.resetTable.entries.length; i++) {
-      const blockEntry = this.resetTable.entries[i]!;
-      const nextOffset = currentOffset + blockEntry.compressedLength;
-
-      if (offset >= currentOffset && offset < nextOffset) {
-        return i;
-      }
-
-      currentOffset = nextOffset;
-    }
-
-    return -1;
+    return high;
   }
 
-  /**
-   * 验证重置表的完整性
-   * @returns 验证结果
-   */
-  validate(): boolean {
-    if (!this.resetTable) {
+  private isValid(table: ResetTable): boolean {
+    if (
+      table.version !== 2 ||
+      table.entrySize !== 8 ||
+      table.tableOffset < 0x28 ||
+      table.blockSize !== 0x8000 ||
+      ![
+        table.blockCount,
+        table.tableOffset,
+        table.compressedLength,
+        table.uncompressedLength,
+      ].every(isUInt) ||
+      table.blockCount !== table.entries.length ||
+      table.blockCount !== Math.ceil(table.uncompressedLength / table.blockSize)
+    )
       return false;
-    }
-
-    // 检查基本字段
-    if (this.resetTable.version !== 2) {
-      return false;
-    }
-
-    if (this.resetTable.blockCount === 0) {
-      return false;
-    }
-
-    if (this.resetTable.entrySize !== 8) {
-      return false;
-    }
-
-    // 检查条目数量
-    if (this.resetTable.entries.length !== this.resetTable.blockCount) {
-      return false;
-    }
-
-    // 检查每个条目的有效性
-    for (const entry of this.resetTable.entries) {
-      if (entry.compressedLength <= 0 || entry.uncompressedLength <= 0) {
+    if (table.blockCount === 0)
+      return table.compressedLength === 0 && table.uncompressedLength === 0;
+    if (table.entries[0]!.compressedLength !== 0) return false;
+    let previous = -1;
+    for (let i = 0; i < table.entries.length; i++) {
+      const entry = table.entries[i]!;
+      if (
+        !isUInt(entry.compressedLength) ||
+        entry.compressedLength <= previous ||
+        entry.compressedLength >= table.compressedLength ||
+        entry.uncompressedLength !==
+          Math.min(
+            table.blockSize,
+            table.uncompressedLength - i * table.blockSize,
+          )
+      )
         return false;
-      }
+      previous = entry.compressedLength;
     }
-
     return true;
   }
 
-  /**
-   * 获取重置表统计信息
-   * @returns 统计信息字符串
-   */
+  validate(): boolean {
+    return this.resetTable !== null && this.isValid(this.resetTable);
+  }
+
   getStatistics(): string {
-    if (!this.resetTable) {
-      return '重置表未初始化';
-    }
-
-    const totalCompressed = this.resetTable.entries.reduce(
-      (sum, entry) => sum + entry.compressedLength,
-      0,
-    );
-
-    const totalUncompressed = this.resetTable.entries.reduce(
-      (sum, entry) => sum + entry.uncompressedLength,
-      0,
-    );
-
-    const compressionRatio = (totalCompressed / totalUncompressed) * 100;
-
+    if (!this.resetTable) return '重置表未初始化';
+    const table = this.resetTable;
+    const ratio =
+      table.uncompressedLength === 0
+        ? 0
+        : (table.compressedLength / table.uncompressedLength) * 100;
     return [
-      `重置表版本: ${this.resetTable.version}`,
-      `总块数: ${this.resetTable.blockCount}`,
-      `块大小: ${this.formatBytes(this.resetTable.blockSize)}`,
-      `总压缩大小: ${this.formatBytes(totalCompressed)}`,
-      `总未压缩大小: ${this.formatBytes(totalUncompressed)}`,
-      `压缩率: ${compressionRatio.toFixed(2)}%`,
+      `重置表版本: ${table.version}`,
+      `总块数: ${table.blockCount}`,
+      `块大小: ${this.formatBytes(table.blockSize)}`,
+      `总压缩大小: ${this.formatBytes(table.compressedLength)}`,
+      `总未压缩大小: ${this.formatBytes(table.uncompressedLength)}`,
+      `压缩率: ${ratio.toFixed(2)}%`,
     ].join('\n');
   }
 
-  /**
-   * 格式化字节数为可读格式
-   * @param bytes 字节数
-   * @returns 格式化后的字符串
-   */
   private formatBytes(bytes: number): string {
-    if (bytes >= 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    } else if (bytes >= 1024) {
-      return `${(bytes / 1024).toFixed(2)} KB`;
-    } else {
-      return `${bytes} 字节`;
-    }
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${bytes} 字节`;
   }
 
-  /**
-   * 重置处理器状态
-   */
   reset(): void {
     this.resetTable = null;
   }
 
-  /**
-   * 获取当前重置表（只读）
-   * @returns 重置表的副本
-   */
   getResetTable(): ResetTable | null {
-    if (!this.resetTable) {
-      return null;
-    }
-
+    if (!this.resetTable) return null;
     return {
       ...this.resetTable,
-      entries: [...this.resetTable.entries],
+      entries: this.resetTable.entries.map(entry => ({ ...entry })),
     };
   }
 }

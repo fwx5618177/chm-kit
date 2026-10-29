@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import type { InfoCommandOptions } from '../../core/types';
-import { logger } from '../../logger/logger';
+
 import { CHMKit } from '../../chm-kit';
 import { displayInfo } from '../../utils/helpers';
 
@@ -16,12 +16,14 @@ export const info = new Command('info')
     try {
       const info = await CHMKit.getInfo(input);
       if (options.json) {
-        logger.info(JSON.stringify(info, null, 2));
+        process.stdout.write(`${JSON.stringify(info, null, 2)}\n`);
       } else {
         displayInfo(info);
       }
     } catch (error) {
-      logger.error('❌ Error reading CHM file:', error);
-      process.exit(1);
+      process.stderr.write(
+        `Error reading CHM file: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exitCode = 1;
     }
   });

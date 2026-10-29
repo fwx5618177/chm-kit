@@ -18,9 +18,15 @@ export class DirectoryScanner {
       recursive?: boolean;
       filter?: (filename: string) => boolean;
       sortFiles?: boolean;
+      includeDirectories?: boolean;
     } = {},
   ): Promise<string[]> {
-    const { recursive = true, filter, sortFiles = true } = options;
+    const {
+      recursive = true,
+      filter,
+      sortFiles = true,
+      includeDirectories = false,
+    } = options;
 
     const files: string[] = [];
 
@@ -37,6 +43,12 @@ export class DirectoryScanner {
         const stats = await fs.stat(itemPath);
 
         if (stats.isDirectory() && recursive) {
+          if (
+            includeDirectories &&
+            (!filter || filter(`${itemRelativePath}/`))
+          ) {
+            files.push(`${itemRelativePath}/`);
+          }
           await scanRecursive(itemPath, itemRelativePath);
         } else if (stats.isFile()) {
           // 应用过滤器

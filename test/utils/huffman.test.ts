@@ -1,5 +1,5 @@
-import { test } from 'uvu';
-import { equal, ok } from 'uvu/assert';
+import { test } from 'vitest';
+import { deepStrictEqual as equal, ok } from 'node:assert/strict';
 import { HuffmanTreeOperations } from '../../src/utils/compression/huffman-tree';
 import { Huffman } from '../../src/utils/compression/huffman';
 import { BitReader } from '../../src/utils/io/bit-reader';
@@ -115,5 +115,3 @@ test('buildTreeFromLengths should validate after building', () => {
   const tree = HuffmanTreeOperations.buildTreeFromLengths([1, 1]);
   ok(tree.symbols.length === 2);
 });
-
-test.run();

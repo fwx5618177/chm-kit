@@ -1,5 +1,5 @@
-import { test } from 'uvu';
-import { equal, ok } from 'uvu/assert';
+import { test } from 'vitest';
+import { deepStrictEqual as equal, ok } from 'node:assert/strict';
 import { CHMFileManager } from '../../src/core/files/file-manager';
 import type { ParsedCHM, CHMDirectory } from '../../src/core/types';
 
@@ -189,4 +189,62 @@ test('CHMFileManager.getDirectoryStructure should map dirs', () => {
   ok(structure.size > 0);
 });
 
-test.run();
+test('exists, info and read lookup share normalized case-insensitive paths', () => {
+  const manager = new CHMFileManager(createMockParsedCHM());
+  for (const name of [
+    'IMAGES\\\\LOGO.PNG',
+    '//IMAGES///logo.PNG',
+    'images/logo.png',
+  ]) {
+    ok(manager.fileExists(name));
+    equal(manager.getFileInfo(name), manager.findFileEntry(name));
+    equal(manager.findFileEntry(name)?.name, '/images/logo.png');
+  }
+});
+
+test('user files exclude directories and CHM system streams, but keep empty files', () => {
+  const parsed = createMockParsedCHM();
+  for (const name of [
+    '/',
+    '/docs/',
+    '::DataSpace/Storage/MSCompressed/Content',
+    '/::DataSpace/NameList',
+    '/#SYSTEM',
+    '/$FIftiMain',
+    '/empty.txt',
+  ]) {
+    parsed.directory.entries.set(name, {
+      name,
+      section: 0,
+      isCompressed: false,
+      offset: 0,
+      length: 0,
+    });
+  }
+  const manager = new CHMFileManager(parsed);
+  equal(manager.getFileList().length, 11);
+  equal(manager.getUserFileList(), [
+    '/index.html',
+    '/style.css',
+    '/images/logo.png',
+    '/scripts/app.js',
+    '/empty.txt',
+  ]);
+});
+
+test('search uses literal, anchored glob semantics', () => {
+  const parsed = createMockParsedCHM();
+  const name = '/images/a+b[1].png';
+  parsed.directory.entries.set(name, {
+    name,
+    section: 0,
+    isCompressed: false,
+    offset: 0,
+    length: 0,
+  });
+  const manager = new CHMFileManager(parsed);
+  equal(manager.searchFiles('a+b[1].png'), [name]);
+  equal(manager.searchFiles('/images/????.png'), ['/images/logo.png']);
+  equal(manager.searchFiles('/**/*.html'), ['/index.html']);
+  equal(manager.searchFiles('index.html.bak'), []);
+});

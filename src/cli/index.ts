@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { extract, pack, info } from './commands';
+import { extract, pack, info, read } from './commands';
 
 const program = new Command();
 
@@ -12,7 +12,14 @@ program
   .addCommand(extract)
   .addCommand(pack)
   .addCommand(info)
-  .parse(process.argv);
+  .addCommand(read);
+
+program.parseAsync(process.argv).catch((error: unknown) => {
+  process.stderr.write(
+    `${error instanceof Error ? error.message : String(error)}\n`,
+  );
+  process.exitCode = 1;
+});
 
 // 如果没有提供命令，显示帮助
 if (!process.argv.slice(2).length) {

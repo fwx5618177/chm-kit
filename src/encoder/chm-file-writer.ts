@@ -1,211 +1,103 @@
 import { promises as fs } from 'fs';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 import type { PackOptions } from '../core/types';
+import {
+  readArchiveForVerification,
+  compareArchiveFiles,
+} from './archive-validation';
 
-/**
- * CHM 文件写入器
- * 负责将组装好的 CHM 数据写入文件
- */
+interface ArchiveSections {
+  headers: Buffer[];
+  resetTable: Buffer;
+  directory: Buffer;
+  content: Buffer;
+}
+
+/** Filesystem output and independent parse/extract/byte-compare verification. */
 export class CHMFileWriter {
-  /**
-   * 写入 CHM 文件
-   * @param outputPath 输出路径
-   * @param sections 文件段落数据
-   * @param options 写入选项
-   */
+  static async writeArchiveBuffer(
+    outputPath: string,
+    data: Buffer,
+    options: Partial<PackOptions> = {},
+    expectedFiles?: ReadonlyMap<string, Uint8Array>,
+    onProgress?: (written: number, total: number) => void,
+  ): Promise<void> {
+    let original: Map<string, Buffer> | undefined;
+    if (
+      options.validateBeforeWrite !== false ||
+      options.verifyAfterWrite !== false
+    ) {
+      original = readArchiveForVerification(data);
+      if (expectedFiles) compareArchiveFiles(original, expectedFiles);
+    }
+    await fs.mkdir(dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, data);
+    onProgress?.(data.length, data.length);
+    if (options.verifyAfterWrite !== false) {
+      const written = await fs.readFile(outputPath);
+      const extracted = readArchiveForVerification(written);
+      if (!written.equals(data))
+        throw new Error('CHM file bytes changed during disk write');
+      if (original) compareArchiveFiles(extracted, original, true);
+      if (expectedFiles) compareArchiveFiles(extracted, expectedFiles);
+    }
+  }
+
+  /** Compatibility adapter for callers already supplying serialized sections. */
   static async writeCHMFile(
     outputPath: string,
-    sections: {
-      headers: Buffer[];
-      resetTable: Buffer;
-      directory: Buffer;
-      content: Buffer;
-    },
+    sections: ArchiveSections,
     options: Partial<PackOptions> = {},
   ): Promise<void> {
-    // 确保输出目录存在
-    await fs.mkdir(dirname(outputPath), { recursive: true });
-
-    const buffers: Buffer[] = [];
-
-    // 1. 添加所有头部
-    buffers.push(...sections.headers);
-
-    // 2. 添加重置表
-    if (sections.resetTable.length > 0) {
-      buffers.push(sections.resetTable);
-    }
-
-    // 3. 添加目录信息
-    buffers.push(sections.directory);
-
-    // 4. 添加压缩内容
-    buffers.push(sections.content);
-
-    // 合并所有数据并写入文件
-    const finalBuffer = Buffer.concat(buffers);
-
-    // 写入前验证
-    if (options.validateBeforeWrite !== false) {
-      this.validateCHMData(finalBuffer);
-    }
-
-    await fs.writeFile(outputPath, finalBuffer);
-
-    // 写入后验证文件完整性
-    if (options.verifyAfterWrite !== false) {
-      await this.verifyCHMFile(outputPath);
-    }
+    await this.writeArchiveBuffer(outputPath, this.combine(sections), options);
   }
 
-  /**
-   * 验证 CHM 数据完整性
-   * @param data CHM 数据
-   */
-  private static validateCHMData(data: Buffer): void {
-    if (data.length < 96) {
-      throw new Error('CHM 数据太小，不是有效的 CHM 文件');
-    }
-
-    // 检查 ITSF 签名
-    const signature = data.slice(0, 4).toString('ascii');
-    if (signature !== 'ITSF') {
-      throw new Error(`无效的 CHM 文件签名: ${signature}`);
-    }
-
-    // 基本完整性检查
-    const headerLength = data.readUInt32LE(8);
-    if (headerLength !== 96) {
-      throw new Error(`无效的 ITSF 头部长度: ${headerLength}`);
-    }
-  }
-
-  /**
-   * 验证写入的 CHM 文件
-   * @param filePath 文件路径
-   */
-  private static async verifyCHMFile(filePath: string): Promise<void> {
-    try {
-      const stats = await fs.stat(filePath);
-
-      if (stats.size === 0) {
-        throw new Error('生成的 CHM 文件为空');
-      }
-
-      // 读取文件头部进行基本验证
-      const fd = await fs.open(filePath, 'r');
-      const buffer = Buffer.alloc(96);
-      await fd.read(buffer, 0, 96, 0);
-      await fd.close();
-
-      this.validateCHMData(buffer);
-    } catch (error) {
-      throw new Error(
-        `CHM 文件验证失败: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  /**
-   * 写入带进度回调的 CHM 文件
-   * @param outputPath 输出路径
-   * @param sections 文件段落数据
-   * @param onProgress 进度回调
-   * @param options 写入选项
-   */
   static async writeCHMFileWithProgress(
     outputPath: string,
-    sections: {
-      headers: Buffer[];
-      resetTable: Buffer;
-      directory: Buffer;
-      content: Buffer;
-    },
+    sections: ArchiveSections,
     onProgress?: (written: number, total: number) => void,
     options: Partial<PackOptions> = {},
   ): Promise<void> {
-    await fs.mkdir(dirname(outputPath), { recursive: true });
-
-    const allBuffers = [
-      ...sections.headers,
-      sections.resetTable,
-      sections.directory,
-      sections.content,
-    ].filter(buf => buf.length > 0);
-
-    const totalSize = allBuffers.reduce((sum, buf) => sum + buf.length, 0);
-
-    if (options.validateBeforeWrite !== false) {
-      const combinedBuffer = Buffer.concat(allBuffers);
-      this.validateCHMData(combinedBuffer);
-    }
-
-    // 创建文件句柄
-    const fd = await fs.open(outputPath, 'w');
-    let writtenBytes = 0;
-
-    try {
-      // 逐个写入缓冲区
-      for (const buffer of allBuffers) {
-        await fd.write(buffer);
-        writtenBytes += buffer.length;
-
-        if (onProgress) {
-          onProgress(writtenBytes, totalSize);
-        }
-      }
-    } finally {
-      await fd.close();
-    }
-
-    if (options.verifyAfterWrite !== false) {
-      await this.verifyCHMFile(outputPath);
-    }
+    await this.writeArchiveBuffer(
+      outputPath,
+      this.combine(sections),
+      options,
+      undefined,
+      onProgress,
+    );
   }
 
-  /**
-   * 获取文件大小预估
-   * @param sections 文件段落数据
-   * @returns 预估文件大小
-   */
-  static estimateFileSize(sections: {
-    headers: Buffer[];
-    resetTable: Buffer;
-    directory: Buffer;
-    content: Buffer;
-  }): number {
+  static estimateFileSize(sections: ArchiveSections): number {
     return (
-      sections.headers.reduce((sum, buf) => sum + buf.length, 0) +
+      sections.headers.reduce((sum, buffer) => sum + buffer.length, 0) +
       sections.resetTable.length +
       sections.directory.length +
       sections.content.length
     );
   }
 
-  /**
-   * 创建临时 CHM 文件
-   * @param sections 文件段落数据
-   * @param tempDir 临时目录
-   * @returns 临时文件路径
-   */
   static async createTempCHMFile(
-    sections: {
-      headers: Buffer[];
-      resetTable: Buffer;
-      directory: Buffer;
-      content: Buffer;
-    },
-    tempDir?: string,
+    sections: ArchiveSections,
+    tempDir = 'dist/test-tmp',
   ): Promise<string> {
-    const tempPath = tempDir
-      ? `${tempDir}/temp-${Date.now()}.chm`
-      : `/tmp/temp-${Date.now()}.chm`;
+    await fs.mkdir(tempDir, { recursive: true });
+    const directory = await fs.mkdtemp(join(tempDir, 'chm-'));
+    const output = join(directory, 'archive.chm');
+    try {
+      await this.writeCHMFile(output, sections);
+      return output;
+    } catch (error) {
+      await fs.rm(directory, { recursive: true, force: true });
+      throw error;
+    }
+  }
 
-    await this.writeCHMFile(tempPath, sections, {
-      validateBeforeWrite: true,
-      verifyAfterWrite: true,
-    });
-
-    return tempPath;
+  private static combine(sections: ArchiveSections): Buffer {
+    return Buffer.concat([
+      ...sections.headers,
+      sections.resetTable,
+      sections.directory,
+      sections.content,
+    ]);
   }
 }

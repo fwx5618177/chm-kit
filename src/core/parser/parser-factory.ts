@@ -1,39 +1,67 @@
 import { CHMParser } from './chm-parser';
-import { logger } from '../../logger/logger';
+import { CHMParserValidator } from './parser-validator';
+import type { ParsedCHM } from '../types';
+import type { BitReader } from '../../utils/io/bit-reader';
 
-/**
- * CHM 解析器工厂
- * 负责创建和管理解析器实例
- */
+type ParserOptions = {
+  enableResetTable?: boolean;
+  strictValidation?: boolean;
+};
+
+class ConfiguredCHMParser extends CHMParser {
+  constructor(private readonly strictValidation: boolean) {
+    super();
+  }
+
+  override parse(reader: BitReader): ParsedCHM {
+    const parsed = super.parse(reader);
+    if (
+      this.strictValidation &&
+      !CHMParserValidator.validate(parsed, {
+        strict: true,
+        fileSize: reader.buffer.length,
+      })
+    ) {
+      this.reset();
+      throw new Error('Strict CHM validation failed');
+    }
+    return parsed;
+  }
+}
+
+/** Factory options can add validation, never disable mandatory safety checks. */
 export class CHMParserFactory {
-  /**
-   * 创建解析器实例
-   * @returns 新的解析器实例
-   */
   static create(): CHMParser {
     return new CHMParser();
   }
 
-  /**
-   * 创建具有预配置选项的解析器实例
-   * @param options 解析器配置选项
-   * @returns 配置好的解析器实例
-   */
-  static createWithOptions(options?: {
-    enableResetTable?: boolean;
-    strictValidation?: boolean;
-  }): CHMParser {
-    const parser = new CHMParser();
-
-    logger.debug('Creating parser with options:', options);
-
-    return parser;
+  static createWithOptions(options: ParserOptions = {}): CHMParser {
+    if (
+      options === null ||
+      typeof options !== 'object' ||
+      Array.isArray(options) ||
+      (Object.getPrototypeOf(options) !== Object.prototype &&
+        Object.getPrototypeOf(options) !== null)
+    ) {
+      throw new Error('Invalid parser options');
+    }
+    for (const key of Object.keys(options)) {
+      if (key !== 'enableResetTable' && key !== 'strictValidation') {
+        throw new Error(`Unsupported parser option: ${key}`);
+      }
+      if (options[key] !== undefined && typeof options[key] !== 'boolean') {
+        throw new Error(`Parser option '${key}' must be a boolean`);
+      }
+    }
+    if (options.enableResetTable === false) {
+      throw new Error(
+        'enableResetTable: false is not supported; ResetTable validation is required for compressed archives',
+      );
+    }
+    return new ConfiguredCHMParser(options.strictValidation === true);
   }
 
-  /**
-   * 创建轻量级解析器（仅解析头部和目录）
-   * @returns 轻量级解析器实例
-   */
+  /** Retain mandatory compression-metadata validation, including in quickParse. */
   static createLightweight(): CHMParser {
     return new CHMParser();
   }

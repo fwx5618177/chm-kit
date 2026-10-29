@@ -1,4 +1,5 @@
 import type { DirectoryEntry, ParsedCHM } from '../types';
+import { filterFiles } from '../../utils/helpers';
 
 /**
  * CHM 文件管理器
@@ -17,7 +18,7 @@ export class CHMFileManager {
    * @returns 是否存在
    */
   fileExists(fileName: string): boolean {
-    return this.parsedCHM.directory.entries.has(fileName);
+    return this.findFileEntry(fileName) !== null;
   }
 
   /**
@@ -26,7 +27,7 @@ export class CHMFileManager {
    * @returns 文件信息
    */
   getFileInfo(fileName: string): DirectoryEntry | null {
-    return this.parsedCHM.directory.entries.get(fileName) ?? null;
+    return this.findFileEntry(fileName);
   }
 
   /**
@@ -35,6 +36,19 @@ export class CHMFileManager {
    */
   getFileList(): string[] {
     return Array.from(this.parsedCHM.directory.entries.keys());
+  }
+
+  /** User-visible files only; keep getFileList available for internal streams. */
+  getUserFileList(): string[] {
+    return this.getFileList().filter(name => {
+      const relative = name.replace(/^\/+/, '');
+      return (
+        relative.length > 0 &&
+        !/[\\/]$/.test(name) &&
+        !/^::dataspace(?:\/|$)/i.test(relative) &&
+        !/^[#$]/.test(relative)
+      );
+    });
   }
 
   /**
@@ -70,7 +84,10 @@ export class CHMFileManager {
 
     // 尝试不区分大小写查找
     for (const [entryName, entryData] of this.parsedCHM.directory.entries) {
-      if (entryName.toLowerCase() === fileName.toLowerCase()) {
+      if (
+        this.normalizePath(entryName).toLowerCase() ===
+        normalizedName.toLowerCase()
+      ) {
         return entryData;
       }
     }
@@ -84,13 +101,10 @@ export class CHMFileManager {
    * @returns 标准化后的路径
    */
   normalizePath(path: string): string {
-    // 确保路径以 / 开头
+    path = path.replace(/\\/g, '/');
     if (!path.startsWith('/')) {
       path = `/${path}`;
     }
-
-    // 替换反斜杠为正斜杠
-    path = path.replace(/\\/g, '/');
 
     // 移除重复的斜杠
     path = path.replace(/\/+/g, '/');
@@ -117,8 +131,7 @@ export class CHMFileManager {
    * @returns 匹配的文件名数组
    */
   searchFiles(pattern: string): string[] {
-    const regex = new RegExp(pattern.replace(/\*/g, '.*'), 'i');
-    return this.getFileList().filter(fileName => regex.test(fileName));
+    return filterFiles(this.getFileList(), pattern);
   }
 
   /**
