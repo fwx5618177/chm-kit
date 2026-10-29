@@ -10,11 +10,11 @@
 | `pnpm typecheck`                                  | 源码、测试及测试配置全部通过                                       |
 | `pnpm lint`                                       | 源码、测试及测试配置零错误、零警告                                 |
 | `pnpm format:check`                               | 通过；不可变第三方 fixture 不参与格式化                            |
-| `pnpm test`                                       | **530/530，33 个测试文件，0 失败、0 跳过**                         |
-| Node project                                      | **506 项**源码单元/集成测试；包含真正执行并检查输出的日志测试      |
-| Package project                                   | **24 项**构建参数、已安装 tarball、入口、CLI、声明及浏览器打包验收 |
+| `pnpm test`                                       | **532/532，33 个测试文件，0 失败、0 跳过**                         |
+| Node project                                      | **507 项**源码单元/集成测试；包含真正执行并检查输出的日志测试      |
+| Package project                                   | **25 项**构建参数、已安装 tarball、入口、CLI、声明及浏览器打包验收 |
 | `pnpm test:browser`                               | **21/21**，Chromium/Firefox/WebKit 各 7 项；0 跳过、0 flaky        |
-| Node 20.10.0 包验收                               | **24/24**；构建和实际隔离消费者运行均通过                          |
+| Node 20.10.0 包验收                               | **25/25**；构建和实际隔离消费者运行均通过                          |
 | `pnpm demo`                                       | 4 个源文件提取后逐字节一致；131,344 字节源内容生成 10,012 字节 CHM |
 | `git diff --check`                                | 通过                                                               |
 
@@ -71,8 +71,8 @@ Node 20.10.0 验收会显示宿主 npm 11 自身的引擎警告，但测试成�
 
 ## 证据与重跑
 
-- `test-results/vitest.json`：Vitest 原生结果，包含 530 项。
-- `test-results/package-node20.json`：Node 20.10.0 的 24 项独立包验收。
+- `test-results/vitest.json`：Vitest 原生结果，包含 532 项。
+- `test-results/package-node20.json`：Node 20.10.0 的 25 项独立包验收。
 - `test-results/browser/results.json`：Playwright 原生三引擎结果与版本注解。
 - `test-results/browser/html/`：HTML 报告；`artifacts/` 内有截图与测试附件，失败时保留 trace。
 - `dist/demo/{sample.chm,input,extracted,report.json,info.json,toc.json,search.json}`：实际数据演示。
@@ -112,5 +112,5 @@ python3 -m http.server 8080 --bind 127.0.0.1
 - 旧部分构建命令已删除，调用者应使用 `pnpm build`；旧测试脚本改为上述正式 runner 命令。
 - `Huffman.createLZXDecoder/readCodeLengths/buildPredefinedTree` 等旧伪 LZX helper 现在明确弃用/抛错，不保留看似成功的伪实现。真正的 CHM/LZXDecoder 解码不受影响。
 - 输入归档仍完整载入内存；普通随机范围可能解码整个相关 reset 组，顺序范围流则逐帧复用。目录展开及单次输出有安全限制。
-- **Windows/Linux 托管 CI 尚未实际执行**；矩阵与报告上传已接入新命令，但配置不是通过证据。
+- [首次托管 CI](https://github.com/fwx5618177/chm-kit/actions/runs/40925496021) 已执行：三浏览器及 macOS Node 24 通过，但其余 Node 任务失败。发现并修复 Windows 提取时对盘符根执行 `mkdir` 的 EPERM、测试符号链接类型/归档路径的平台假设，以及 npm 10 prepare 输出污染 `npm pack --json`。Linux 移除硬编码 `7zz` 探针，由测试统一探测 `7zz/7z`，仍强制独立 oracle 可用。新增根目录和打包输出回归，本机重新通过上述全部检查；修复后的完整托管矩阵仍需复跑确认。
 - 更多真实 CHM 语料、自适应压缩、文件系统随机读取、Electron IPC 等仍见 [TODO.md](TODO.md)。测试通过不代表穷尽全部输入、最优压缩或所有生产工具兼容。

@@ -21,11 +21,14 @@ function isMissing(error: unknown): boolean {
 /** Create one component at a time; recursive mkdir would follow existing links. */
 async function ensureDirectory(directory: string): Promise<void> {
   const parent = dirname(directory);
-  if (parent !== directory) await ensureDirectory(parent);
-  try {
-    await fs.mkdir(directory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+  // Drive/share roots already exist; mkdir(root) returns EPERM on Windows.
+  if (parent !== directory) {
+    await ensureDirectory(parent);
+    try {
+      await fs.mkdir(directory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
   }
   const stat = await fs.lstat(directory);
   if (stat.isSymbolicLink() || !stat.isDirectory()) {

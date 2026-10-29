@@ -16,6 +16,7 @@ import {
   consumerSources,
   invoke,
   invokePackageManager,
+  isolatedEnv,
   packageRoot,
   tsc,
 } from './support';
@@ -32,6 +33,12 @@ interface InstalledManifest {
 
 const html = '<title>Package</title>中文';
 const binary = Buffer.from([0, 128, 255]);
+// npm 10's prepare hook can ignore --ignore-scripts and pollute JSON stdout.
+const packOptions = [
+  '--ignore-scripts',
+  '--foreground-scripts=false',
+  '--json',
+];
 
 let directory: string | undefined;
 let consumer: string;
@@ -73,6 +80,45 @@ describe('build command interface', () => {
   });
 });
 
+it('keeps npm pack JSON clean even when prepare writes to stdout', async () => {
+  expect(isolatedEnv().HUSKY).toBe('0');
+  const fixture = await mkdtemp(
+    join(await realpath(tmpdir()), 'chmkit pack output '),
+  );
+  try {
+    await writeFile(
+      join(fixture, 'package.json'),
+      JSON.stringify({
+        name: 'chmkit-pack-output-test',
+        version: '1.0.0',
+        scripts: { prepare: 'node prepare.cjs' },
+      }),
+    );
+    await writeFile(
+      join(fixture, 'prepare.cjs'),
+      "process.stdout.write('prepare output must not pollute JSON\\n');\n",
+    );
+    const archives = JSON.parse(
+      invokePackageManager(
+        'npm',
+        ['pack', ...packOptions, '--pack-destination', fixture],
+        fixture,
+        20_000,
+      ),
+    ) as PackedTarball[];
+    expect(archives).toHaveLength(1);
+    expect(archives[0].filename).toBe('chmkit-pack-output-test-1.0.0.tgz');
+    expect(archives[0].files.map(file => file.path)).toContain('prepare.cjs');
+  } finally {
+    await rm(fixture, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 100,
+    });
+  }
+});
+
 describe('installed npm tarball', () => {
   beforeAll(async () => {
     // Resolve macOS /tmp aliases and stay outside repository node_modules ancestry.
@@ -82,7 +128,7 @@ describe('installed npm tarball', () => {
     const archives = JSON.parse(
       invokePackageManager(
         'npm',
-        ['pack', '--ignore-scripts', '--json', '--pack-destination', directory],
+        ['pack', ...packOptions, '--pack-destination', directory],
         packageRoot,
         20_000,
       ),

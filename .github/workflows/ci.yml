@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y 7zip
-          7zz i
+          # The test suite probes 7zz/7z and requires a working oracle on Linux.
       - name: Typecheck
         run: pnpm typecheck
       - name: Lint

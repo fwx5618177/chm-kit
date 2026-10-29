@@ -484,10 +484,16 @@ test('CLI rejects symbolic-link roots, parent directories and file destinations'
   await fs.mkdir(outside);
   await fs.mkdir(output);
   await fs.writeFile(join(outside, 'target'), 'original');
-  await fs.symlink(outside, join(root, 'root-link'));
-  failure('extract', archive, '--output', join(root, 'root-link'));
-  await fs.symlink(outside, join(output, 'docs'));
-  await fs.symlink(join(outside, 'target'), join(output, 'index.html'));
+  await fs.symlink(outside, join(root, 'root-link'), 'dir');
+  const linkedRoot = failure(
+    'extract',
+    archive,
+    '--output',
+    join(root, 'root-link'),
+  );
+  ok(/符号链接|symlink/i.test(linkedRoot.stderr.toString()));
+  await fs.symlink(outside, join(output, 'docs'), 'dir');
+  await fs.symlink(join(outside, 'target'), join(output, 'index.html'), 'file');
   const result = cli(
     'extract',
     archive,
@@ -511,20 +517,21 @@ test('CLI rejects symbolic-link roots, parent directories and file destinations'
 test('pack safely rejects linked source roots, ancestors, files, directories and dangling links', async () => {
   const output = join(root, 'unsafe-source.chm');
   const sourceLink = join(root, 'source-link');
-  await fs.symlink(source, sourceLink);
+  await fs.symlink(source, sourceLink, 'dir');
   failure('pack', sourceLink, '--output', output);
   failure('pack', join(sourceLink, 'docs'), '--output', output);
   const unsafeSource = join(root, 'unsafe-source');
   await fs.mkdir(unsafeSource);
   await fs.writeFile(join(unsafeSource, 'index.html'), html);
-  for (const target of [
-    join(source, 'binary.bin'),
-    source,
-    join(root, 'nonexistent'),
-    unsafeSource,
-  ]) {
+  for (const [target, type] of [
+    [join(source, 'binary.bin'), 'file'],
+    [source, 'dir'],
+    [join(root, 'nonexistent'), 'file'],
+    [join(root, 'nonexistent-dir'), 'dir'],
+    [unsafeSource, 'dir'],
+  ] as const) {
     const link = join(unsafeSource, 'link');
-    await fs.symlink(target, link);
+    await fs.symlink(target, link, type);
     const result = failure('pack', unsafeSource, '--output', output);
     ok(/符号链接|symlink/i.test(result.stderr.toString()));
     equal(existsSync(output), false);

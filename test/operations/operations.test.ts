@@ -1,8 +1,8 @@
-import { test, beforeEach, afterEach } from 'vitest';
+import { test, beforeEach, afterEach, vi } from 'vitest';
 import { deepStrictEqual as equal, ok, rejects } from 'node:assert/strict';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, parse, relative, sep } from 'path';
 import type { ParsedCHM } from '../../src/core/types';
 import { ParserOperations } from '../../src/operations/parser';
 import { ExtractorOperations } from '../../src/operations/extractor';
@@ -106,6 +106,23 @@ test('extraction skips directories and system streams but writes empty user file
   equal((await fs.readdir(output)).sort(), ['docs', 'empty.txt']);
 });
 
+test('extraction validates existing filesystem roots without attempting to create them', async () => {
+  files('/safe.txt');
+  const mkdir = vi.spyOn(fs, 'mkdir');
+  try {
+    const output = join(root, 'nested', 'output');
+    const result = await ExtractorOperations.extract(archive, output);
+    equal(result.errors, []);
+    equal(await fs.readFile(join(output, 'safe.txt')), payload);
+    equal(
+      mkdir.mock.calls.some(([directory]) => directory === parse(root).root),
+      false,
+    );
+  } finally {
+    mkdir.mockRestore();
+  }
+});
+
 test('unsafe paths fail independently before reconstruction or directory creation', async () => {
   const bad = [
     '../escape.txt',
@@ -180,13 +197,14 @@ test('Windows ADS, device names, trailing dots/spaces and invalid characters are
 
 test('leading CHM slash is anchored to the extraction root, never the filesystem root', async () => {
   const absolute = join(root, 'outside.txt');
-  files(absolute);
+  const archivePath = `/${relative(parse(root).root, absolute).split(sep).join('/')}`;
+  files(archivePath);
   const output = join(root, 'output');
   const result = await ExtractorOperations.extract(archive, output, {
     preserveStructure: true,
   });
   equal(result.errors, []);
-  equal(await fs.readFile(join(output, absolute.slice(1))), payload);
+  equal(await fs.readFile(join(output, archivePath.slice(1))), payload);
   await rejects(fs.stat(absolute));
 });
 
@@ -257,8 +275,8 @@ test('rejects output root symlinks, including dangling links', async () => {
   files('/safe.txt');
   const outside = join(root, 'outside');
   await fs.mkdir(outside);
-  await fs.symlink(outside, join(root, 'link'));
-  await fs.symlink(join(root, 'missing'), join(root, 'dangling'));
+  await fs.symlink(outside, join(root, 'link'), 'dir');
+  await fs.symlink(join(root, 'missing'), join(root, 'dangling'), 'dir');
   await rejects(
     ExtractorOperations.extract(archive, join(root, 'link')),
     /符号链接/,
@@ -278,8 +296,12 @@ test('rejects parent and leaf symlinks without writing outside the root', async 
   await fs.mkdir(output);
   await fs.mkdir(outside);
   await fs.writeFile(join(outside, 'target.txt'), 'unchanged');
-  await fs.symlink(outside, join(output, 'docs'));
-  await fs.symlink(join(outside, 'target.txt'), join(output, 'leaf.txt'));
+  await fs.symlink(outside, join(output, 'docs'), 'dir');
+  await fs.symlink(
+    join(outside, 'target.txt'),
+    join(output, 'leaf.txt'),
+    'file',
+  );
   const result = await ExtractorOperations.extract(archive, output, {
     preserveStructure: true,
   });

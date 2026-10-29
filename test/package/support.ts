@@ -8,14 +8,18 @@ export const consumerSources = join(packageRoot, 'test/package/consumer');
 export const tsc = join(packageRoot, 'node_modules/typescript/bin/tsc');
 
 export function isolatedEnv(): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([name]) =>
-        !/^(?:NODE_PATH|NODE_OPTIONS|INIT_CWD|TS_NODE_.*|TSX_TSCONFIG_PATH|ESBUILD_BINARY_PATH|npm_package_.*|npm_config_(?:local_prefix|prefix|workspace|workspaces|node_options))$/i.test(
-          name,
-        ),
+  return {
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) =>
+          !/^(?:NODE_PATH|NODE_OPTIONS|INIT_CWD|TS_NODE_.*|TSX_TSCONFIG_PATH|ESBUILD_BINARY_PATH|npm_package_.*|npm_config_(?:local_prefix|prefix|workspace|workspaces|node_options))$/i.test(
+            name,
+          ),
+      ),
     ),
-  );
+    // npm 10 may run prepare despite --ignore-scripts; never install Git hooks.
+    HUSKY: '0',
+  };
 }
 
 export function invoke(
