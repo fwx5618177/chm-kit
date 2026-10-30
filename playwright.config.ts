@@ -9,7 +9,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  globalSetup: './test/browser/global-setup.ts',
+
   outputDir: 'test-results/browser/artifacts',
   reporter: [
     ['list'],
@@ -28,11 +28,12 @@ export default defineConfig({
     { name: 'webkit', use: { browserName: 'webkit' } },
   ],
   webServer: {
+    // Playwright starts webServer before globalSetup, so build in this command.
     command:
-      'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort',
+      'node scripts/build.mjs && node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort',
     cwd: __dirname,
     url: 'http://127.0.0.1:4173/examples/browser/index.html',
     reuseExistingServer: false,
-    timeout: 30_000,
+    timeout: 180_000,
   },
 });

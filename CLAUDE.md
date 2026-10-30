@@ -55,8 +55,8 @@ pnpm test:browser
 
 Start with focused `pnpm test:unit <test-path>` checks, then installed-package and
 real-browser acceptance as appropriate. `pnpm test` runs Vitest node + package;
-`pnpm test:package` uses an isolated consumer, and browser global setup owns a
-separate build. Do not race builds on shared output. `pnpm test:all` also runs
+`pnpm test:package` uses an isolated consumer. Playwright's web-server command
+builds before starting Vite, including its readiness request. Do not race builds on shared output. `pnpm test:all` also runs
 Playwright. Node tests do not establish native browser/Electron behavior.
 External `7zz`/`7z` checks explicitly skip if absent, or fail when
 `CHM_REQUIRE_7Z=1`; skips are not passes. Native benchmarks use

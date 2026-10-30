@@ -73,8 +73,10 @@ Select an engine with `pnpm test:browser --project=chromium` (or firefox/webkit)
 `pnpm test` runs Vitest's node and package projects, including `test/delivery/`.
 `pnpm test:delivery` focuses that directory, including `package.test.mjs`; it is
 not a separate Node test runner. `pnpm test:all` also runs Playwright.
-Package/browser global setup each owns its complete build. Do not run multiple
-builds against shared output concurrently.
+The package project's global setup owns its complete build. Playwright's
+web-server command builds before launching Vite or making readiness requests;
+Playwright runs `globalSetup` too late to own that prerequisite. Do not run
+multiple builds against shared output concurrently.
 
 An installed `7zz`/`7z` supplies an independent CHM oracle. Normal vendored corpus
 and hash checks are offline. External-tool checks explicitly skip if unavailable;
