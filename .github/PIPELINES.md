@@ -28,8 +28,10 @@ it never publishes to npm, deploys, creates tags or creates releases.
   It invokes the canonical `pnpm build`, generates TypeDoc with warnings treated
   as errors, then runs `node scripts/package.mjs`. API HTML is uploaded separately.
 - Every dependency install in the source checkout uses
-  `pnpm install --frozen-lockfile --ignore-scripts`. Only pnpm's store is cached,
-  keyed by `pnpm-lock.yaml`; `node_modules` and build outputs are not cached.
+  `pnpm install --frozen-lockfile --ignore-scripts`. Only pnpm's actual store is
+  cached, keyed by OS, architecture and `pnpm-lock.yaml`; `node_modules` and build
+  outputs are not cached. The subsequent single-writer cache policy below needs
+  its own hosted cold-cache validation.
 - Toolchain order is Node 24 bootstrap → npm install of the exact `packageManager`
   pnpm version into the runner temp directory (no lifecycle scripts) → pnpm
   store cache + frozen source install on Node 24 → selected compatibility Node.
@@ -42,12 +44,40 @@ it never publishes to npm, deploys, creates tags or creates releases.
   assets for 30 days, subject to repository retention limits.
 
 All Playwright projects share `playwright.config.ts`, with explicit browser and
-Electron test directories. Reports are
-`test-results/playwright/{results.json,html,artifacts}`; each browser/native CI
-job uploads its own report tree. Separate local invocations reuse those paths.
-`pnpm test:all` includes Vitest, browser and native Electron runs. Local Electron
-acceptance passed; **the current 15-job hosted revision remains unverified**.
-The 14-job run below is historical evidence only.
+Electron test directories. `pnpm test:all` is `pnpm test && playwright test`:
+Vitest followed by **one invocation of all four Playwright projects**, preserving
+all 46 browser/native cases under
+`test-results/playwright/{results.json,html,artifacts}`. Each browser/native CI
+job uploads its own report tree; focused local invocations replace the previous
+report. **Run 41044610433 at `962ee71` passed all 15 jobs**; this does not verify
+later cache-policy edits.
+
+## Cache policy — follow-up awaiting hosted validation
+
+The working-tree follow-up replaces competing post-job saves with separate
+`actions/cache/restore` and `actions/cache/save` **v6.1.0**, both pinned to
+**`55cc8345863c7cc4c66a329aec7e433d2d1c52a9`**. The official release tag and both
+entry points' Node-24 runtimes were verified. This verifies the pin/runtime,
+not execution of the revised cache flow on hosted runners.
+
+- **All 15 jobs restore; only three write.** The Node-24 matrix job for each of
+  Ubuntu/macOS/Windows is the designated writer of its OS/architecture key. The
+  remaining **12 jobs are restore-only**, including browser, minimum, Electron
+  and delivery jobs. A cold-cache miss in a restore-only job is normal.
+- The composite setup defaults `cache-save` to false. A designated writer saves
+  only on a miss, **immediately after the successful frozen install**, before
+  runtime switching/tests. It does not defer a competing save to post-job cleanup.
+- Fresh keys are `pnpmstore-<OS>-<arch>-<lockhash>`, using `runner.os`,
+  `runner.arch` and `hashFiles('pnpm-lock.yaml')`; old cache namespaces are not
+  reused. Build output and `node_modules` remain uncached.
+- `scripts/setup-pnpm.mjs` emits `store-path` using the installed pnpm **JS entry**
+  executed by `process.execPath` with `store path --silent`, not a Windows `.cmd`
+  shim. Restore/save use that actual validated absolute path.
+
+The accepted `962ee71` run had **11 nonfatal cache-reservation contentions**.
+This policy addresses that race, but a **new hosted cold-cache run is pending**.
+Do not claim the follow-up already passed remotely or that infrastructure noise
+has been eliminated.
 
 ## Action versions and real warnings
 
@@ -61,6 +91,8 @@ runtime is independent of the Node version under compatibility test.
 | `actions/setup-node`                       | `v7.1.0`         | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
 | `actions/upload-artifact`                  | `v7.0.2`         | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
 | `actions/download-artifact` (release only) | `v8.0.2`         | `9000827ccba6bdab643e8b6fd33ac0654aef8333` |
+| `actions/cache/restore` (cache follow-up)  | `v6.1.0`         | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
+| `actions/cache/save` (cache follow-up)     | `v6.1.0`         | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
 
 `pnpm/action-setup v6.1.0` was also verified: its annotated tag peels to commit
 `ea17c68df8912ef543352723c149a84f56e3d413`, and its runtime is Node 24. It is
@@ -91,17 +123,27 @@ at source revision `a67ffe9`:
 No `NODE_NO_WARNINGS`, `--no-warnings`, forced action-runtime overrides, log
 filtering or warning suppression is part of the pipeline.
 
-[Historical hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243)
-at exact source `45a5b5f3ba186bed283036da074e3c697931ffea` passed **14/14 jobs**.
-It predates the FPC fixes, standalone viewer and native Electron job; it is not
-a pass or a new download for the current revision.
-All completed checks' annotations and all complete raw logs were inspected:
-zero technical warning/error matches or warning/failure annotations; only three
-macOS capacity notices remain. Consumer/API artifacts were actually downloaded,
-and source identity, clean manifest and all asset checksums verified. See
-[`VALIDATION.md`](../VALIDATION.md) for counts, Windows-only POSIX skips and the
-concrete failures repaired before this acceptance. Future code changes still
-require their own hosted run; local YAML validation does not substitute for it.
+[Verified hosted run 41044610433](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433)
+at exact source **`962ee71d52b0d1198a36c6c5d69c82a53e62caf9`** passed **15/15 jobs**.
+Each Node job had 883 cases (Windows: 882 passed + one expected POSIX SIGINT skip);
+minimum-runtime acceptance passed 31, each browser passed 13 without retry/flake,
+and native macOS 15 / Electron 45.1.0 passed 7. All **15 complete logs (786,857
+bytes / 8,129 lines)** and annotations were inspected: **zero technical
+warnings/errors**, including esbuild/Vite/IPC/npm/deprecation diagnostics.
+**Four macOS capacity notices and eleven nonfatal cache-reservation contentions**
+were observed; they are not hidden or relabeled as a noise-free run. The later
+cache fix above awaits its own hosted evidence.
+
+The actual runtime/API artifacts were downloaded; exact source, version 1.1.0,
+`dirty: false`, all sizes/hashes and inventories were verified. The downloaded
+browser viewer passed direct `file:` sample preview with zero HTTP requests/errors
+in all three engines; ordinary npm installation of the downloaded tgz outside
+the checkout, pack/read roundtrip, copied standalone CLI and API entry passed.
+See [`VALIDATION.md`](../VALIDATION.md) and [downloads](../docs/guide/downloads.md#verified-prebuilt-snapshot).
+
+Run 41003535243 at `45a5b5f` remains the historical 14-job baseline only. Later
+working-tree changes require their own hosted run; local YAML validation does
+not substitute for it.
 
 ## Downloadable assets: no consumer build
 
@@ -135,9 +177,9 @@ These are the current 1.1.0 filenames; `manifest.json` identifies the exact
 version and source of a particular bundle. The browser archive now includes
 `dist/viewer/{index.html,viewer.js,reader.worker.js,worker-client.js}`;
 `viewer.js` is a classic self-contained IIFE for direct `file:` opening, not an
-ESM entry. Zero-HTTP sample preview passed in all three engines. Library ESM and
-module Worker use still require HTTP(S). Historical linked archives do not gain
-these files retroactively.
+ESM entry. The actual downloaded archive from the verified `962ee71` snapshot
+passed zero-HTTP/error sample preview in all three engines with screenshots.
+Library ESM and module Worker use still require HTTP(S).
 
 The npm asset's staging metadata removes repository-only scripts (including
 `prepare` / `prepack`), devDependencies and package-manager/hook configuration.

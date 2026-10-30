@@ -4,6 +4,9 @@ inputs:
   node-version:
     description: Node version used for project commands (not the action runtime).
     required: true
+  cache-save:
+    description: Save the pnpm store on a miss; enable for only one job per OS/architecture.
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -12,20 +15,26 @@ runs:
         node-version: '24'
         package-manager-cache: false
     - name: Install the packageManager-pinned pnpm without lifecycle scripts
+      id: bootstrap
       shell: bash
       run: node scripts/setup-pnpm.mjs
     # Development tooling requires Node 22.13+ (or 24); install on Node 24
     # before switching to the requested runtime, including Node 20.19.
-    # Only enable the store cache after the pinned pnpm exists.
-    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+    - name: Restore the pnpm store
+      id: pnpm-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0; node24
       with:
-        node-version: '24'
-        cache: pnpm
-        cache-dependency-path: pnpm-lock.yaml
-        package-manager-cache: false
+        path: ${{ steps.bootstrap.outputs.store-path }}
+        key: pnpmstore-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
     - name: Install locked dependencies without lifecycle scripts
       shell: bash
       run: pnpm install --frozen-lockfile --ignore-scripts
+    - name: Save the pnpm store from its designated writer
+      if: inputs.cache-save == 'true' && steps.pnpm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0; node24
+      with:
+        path: ${{ steps.bootstrap.outputs.store-path }}
+        key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
     - name: Select the compatibility test runtime after dependency installation
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
       with:

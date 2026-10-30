@@ -14,23 +14,22 @@
 | `chmkit-1.1.0-cli.cjs`        | 终端检查、搜索、提取、打包                         | Node.js 20.10+；无需 npm install          |
 | `chmkit-1.1.0.tgz`            | Node 库、安装版 CLI、浏览器／Worker／Electron 集成 | 使用 Node.js 和 npm 安装                  |
 
-从成功的 [CI 运行](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)
-下载 **`chmkit-<commit-sha>`** artifact，或获取维护者提供的预编译包，然后解压。
-以下示例使用当前版本 **1.1.0**；请通过 `manifest.json` 确认下载的版本和源码修订，
-保留许可说明并[验证校验和](docs/guide/downloads.md#verify-the-download)。
+下载并解压源码修订 **`962ee71`** 对应的
+[已验证 1.1.0 预编译包](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972336497)，
+其中包含本地查看器、独立 CLI 和库 tgz。以下示例使用版本 **1.1.0**；请通过
+`manifest.json` 确认下载的版本和源码，保留许可说明并
+[验证校验和](docs/guide/downloads.md#verify-the-download)。
 
-已有的[验证通过的托管快照](docs/guide/downloads.md#verified-prebuilt-snapshot)
-是较早的 1.1.0 修订，**不含独立查看器**；新修订的托管验证和上传仍待完成。
 Actions 下载需要 GitHub 登录且会过期。npm 包**尚未发布**；npm 发布或公开 Release
-需要另行授权。见[下载详情](docs/guide/downloads.md)。
+需要另行授权。见[下载详情与 API HTML](docs/guide/downloads.md#verified-prebuilt-snapshot)。
 
 ### 直接打开本地查看器
 
 解压 `chmkit-1.1.0-browser.tar.gz`，双击 **`dist/viewer/index.html`**。
 选择自己的 `.chm` 文件，或使用内置示例，即可浏览、搜索和预览内容。
 保持解压后的目录完整；无需 Node、npm、源码仓库、构建或本地服务器。
-已在 Chromium、Firefox 和 WebKit 验证直接以 `file:` 打开并预览示例，
-**HTTP 请求数为零**。
+实际下载的浏览器包已解压，并在 Chromium、Firefox 和 WebKit 通过 `file:` 打开，
+示例预览验证通过，**HTTP 请求和错误数均为零**。
 
 查看器使用受限的禁脚本预览，部分 CHM 页面功能可能被省略。
 库 ESM 和 module Worker 集成仍需 HTTP(S)。见[浏览器指南](docs/guide/browser.md)。

@@ -35,9 +35,10 @@ same APIs and safety boundaries.
 The standalone viewer is already bundled for direct `file:` opening. Library
 ESM/module Worker examples use HTTP(S) and built modules; adapt imports to the
 installed tarball or extracted browser modules. Electron applications supply
-their own Electron runtime and application/preload packaging. The linked
-[historical hosted snapshot](guide/downloads.md#verified-prebuilt-snapshot)
-predates the standalone viewer; current-revision hosted delivery is pending.
+their own Electron runtime and application/preload packaging. The
+[verified `962ee71` snapshot](guide/downloads.md#verified-prebuilt-snapshot)
+includes the viewer and API HTML; its actual downloaded viewer, tgz and CLI
+have been exercised independently of repository build outputs.
 
 ## Trust, compatibility and maintenance
 

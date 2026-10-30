@@ -14,9 +14,10 @@ GitHub Release exists. Library/CLI versions must match the downloaded manifest.
 The current browser archive adds `dist/viewer/index.html` and a bundled classic
 IIFE. Extract `chmkit-1.1.0-browser.tar.gz` and open that entry directly as `file:`;
 no Node/npm/server/build is needed for ordinary viewing. Library ESM and module
-Worker integrations still need HTTP(S). The linked historical `45a5b5f` snapshot
-also says 1.1.0 but predates the viewer: check source identity/inventory, not just
-the version. New-revision hosted downloads remain pending.
+Worker integrations still need HTTP(S). The [verified `962ee71` snapshot](downloads.md#verified-prebuilt-snapshot)
+includes this viewer; the actual downloaded archive was tested in all three
+browsers as `file:` with zero HTTP requests/errors. Check source identity and
+inventory as well as version when replacing an older download.
 
 The unchanged official FPC 3.2.2 `fpdoc` archive now reads with narrowly validated
 v3 GUID, directory quickref/leaf-hint and terminal ResetTable compatibility.
@@ -179,10 +180,13 @@ Native Electron acceptance now runs through `pnpm test:electron` in the same
 Playwright configuration as the browsers. For contributors, explicitly install
 the pinned dev-only Electron 45.1.0 binary with `pnpm exec install-electron` after
 the script-disabled frozen install; no pnpm lifecycle approval is required.
-`pnpm test:browser` selects `test/browser`, while `pnpm test:all` runs Vitest and
-both Playwright paths. Reports moved from `test-results/browser/` to
-`test-results/playwright/{results.json,html,artifacts}`. Local native execution
-has passed on macOS; new hosted acceptance is separate.
+`pnpm test:browser` selects `test/browser`, while `pnpm test:all` is
+`pnpm test && playwright test`: Vitest followed by all four Playwright projects
+in **one invocation**, preserving the 46 browser/native cases together. Reports
+moved from `test-results/browser/` to
+`test-results/playwright/{results.json,html,artifacts}`; focused runs replace that
+report. Native execution passed locally and in the verified macOS 15 hosted job
+with Electron 45.1.0. See [VALIDATION.md](../../VALIDATION.md).
 
 Delivery tests moved to `test/delivery/*.test.mjs` as native Vitest tests. Use
 `pnpm test:delivery` or the default `pnpm test`, not the removed Node test-runner

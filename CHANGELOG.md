@@ -14,12 +14,14 @@ and [migration](docs/guide/migration.md).
   `dist/viewer/index.html`, a self-contained classic-IIFE `viewer.js`, and Worker
   entry/client integration files alongside browser modules/types/licenses.
   Open the viewer directly as `file:` without Node, npm, a server or a build;
-  generated sample preview was verified in all three browsers with zero HTTP
-  requests. Library ESM/module Worker integration still requires HTTP(S).
+  the actual downloaded archive's sample preview was verified in all three
+  browsers with zero HTTP requests/errors and screenshots. Library ESM/module
+  Worker integration still requires HTTP(S).
 - Native Electron acceptance through the shared Playwright configuration, using
   exactly pinned, development-only Electron 45.1.0 and an actual installed tgz
   outside the repository. Real IPC permissions, sandbox/context-isolation
-  boundaries, lifecycle and actual-window screenshots passed locally on macOS.
+  boundaries, lifecycle and actual-window screenshots passed locally and in
+  the macOS 15 hosted job.
   `pnpm exec install-electron` explicitly installs the official binary without
   requiring pnpm lifecycle approval; consumers gain no Electron runtime dependency.
 - Unmodified official Free Pascal 3.2.2 `fpdoc` corpus with independent resource,
@@ -47,7 +49,8 @@ and [migration](docs/guide/migration.md).
   coverage, native real-corpus benchmarks and peak-memory measurements.
 - Consumer delivery assets: precompiled npm-format tarball, bundled standalone
   CLI, browser viewer/ESM/types archive, usage notes, dependency notices and SHA-256
-  manifest. Linked verified hosted snapshots predate the new viewer changes.
+  manifest. The verified `962ee71` snapshot includes the viewer; downloaded tgz,
+  CLI, browser archive and API HTML were exercised and verified.
 - User guides, migration/security/contribution policies and TypeDoc 0.28.20 API
   generation through `pnpm docs:build` / `typedoc.json`. CI provides the separate
   prebuilt `chmkit-api-<source-sha>` HTML artifact, not a hosted public website;
@@ -70,8 +73,11 @@ and [migration](docs/guide/migration.md).
 - One Playwright configuration now has explicit browser and native Electron
   projects with reports under `test-results/playwright/{results.json,html,artifacts}`.
   `pnpm test:browser` selects `test/browser`; `pnpm test:electron` selects its
-  project; `pnpm test:all` includes both. CI adds a native macOS 15 job and gates
-  delivery on all acceptance jobs; new-revision hosted results are still pending.
+  project; `pnpm test:all` runs Vitest followed by one Playwright invocation of
+  all four projects, preserving the combined browser/native report. CI adds a
+  native macOS 15 job and gates delivery on all acceptance jobs. The `962ee71`
+  snapshot passed all 15 hosted jobs; later cache-policy changes await their own
+  hosted validation.
 - Node path readers retain descriptors instead of snapshotting the full input.
   Backing content must remain immutable until `close()`; reads/decompression
   remain synchronous. Cache accounting includes source read-ahead.

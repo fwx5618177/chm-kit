@@ -8,14 +8,14 @@ Extract the current **`chmkit-1.1.0-browser.tar.gz`** and double-click
 **`dist/viewer/index.html`**. Choose a local `.chm`, or try the generated sample,
 to browse, search and preview pages. Keep the directory intact. The prebuilt
 `viewer.js` is a self-contained classic IIFE: ordinary viewers need **no Node,
-npm, build or local server**. Chromium, Firefox and WebKit have each opened this
-`file:` entry and loaded the sample preview with zero HTTP requests.
+npm, build or local server**. The actual downloaded archive from the
+[verified `962ee71` snapshot](downloads.md#verified-prebuilt-snapshot) was extracted
+and opened through Playwright in Chromium, Firefox and WebKit. Each loaded the
+sample preview as `file:` with zero HTTP requests/errors and screenshots.
 
-The [download guide](downloads.md) distinguishes current bundle contents from
-the older verified hosted snapshot, which does not include this viewer. New
-hosted delivery is pending. The viewer retains the script-free sandbox, CSP,
-resource limits and cleanup described below; it is a restricted static preview,
-not full HTML Help browser compatibility.
+The viewer retains the script-free sandbox, CSP, resource limits and cleanup
+described below; it is a restricted static preview, not full HTML Help browser
+compatibility.
 
 ## Integrate the library
 

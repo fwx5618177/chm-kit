@@ -129,8 +129,9 @@ serve the repository over loopback HTTP with your preferred static server, e.g.
 still need HTTP(S). Automated checks should use bounded tests which own their
 server/browser lifecycle, not orphan background servers.
 See [Electron example setup](examples/electron/README.md) for application preload
-bundling. Native Electron acceptance has passed locally; structural IPC tests
-remain distinct from that actual runtime evidence. See [VALIDATION.md](VALIDATION.md).
+bundling. Native Electron acceptance has passed locally and in the verified
+macOS 15 hosted job; structural IPC tests remain distinct from that actual runtime
+evidence. See [VALIDATION.md](VALIDATION.md).
 
 ## Documentation and public API changes
 

@@ -4,8 +4,8 @@
 
 Choose a ready-to-open browser viewer, standalone CLI or precompiled library.
 Users do not need to clone the repository or compile TypeScript. CI's delivery
-job depends on Node, browser, minimum-runtime and native Electron acceptance;
-current local capabilities and historical hosted downloads are distinguished below.
+job depends on Node, browser, minimum-runtime and native Electron acceptance.
+The verified 1.1.0 snapshot below includes the standalone local viewer.
 The public `chmkit` npm package is **not published**; publication requires separate
 authorization. Import examples using `chmkit` assume you installed the downloaded
 local tarball.
@@ -25,31 +25,34 @@ are not durable releases. If none are available, ask a maintainer for a verified
 prebuilt artifact rather than installing an unrelated similarly named npm package.
 Do not assume the current workspace has already been uploaded to Actions.
 
-An approved GitHub Release can provide durable anonymous assets later. No
-particular release/tag/download URL is represented here as already existing.
+An approved GitHub Release can provide durable anonymous assets later. The
+verified Actions downloads below are available now, not a public Release or tag.
 
 ### Verified prebuilt snapshot
 
-**Historical snapshot, not the new viewer delivery.** This revision predates
-`dist/viewer/`, the FPC compatibility fixes and native Electron acceptance. The
-current source still uses version 1.1.0, so a filename/version alone does not
-identify the new capabilities. New-revision hosted acceptance and downloads
-remain pending; check the source commit and inventory in `manifest.json`.
+Version **1.1.0**, exact source **`962ee71d52b0d1198a36c6c5d69c82a53e62caf9`**,
+passed **15/15 jobs** in
+[run 41044610433](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433)
+on 2026-10-30. It includes the standalone viewer, FPC compatibility fixes and
+native Electron acceptance. These are actual downloaded and verified artifacts:
 
-On 2026-10-30, version **1.1.0** from source
-`45a5b5f3ba186bed283036da074e3c697931ffea` passed all 14 jobs in
-[run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243).
-These are actual uploaded and downloaded artifacts, not example URLs:
+- [Prebuilt local viewer, standalone CLI, npm tarball and browser modules/types](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972336497).
+- [Generated TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972316614).
 
-- [Prebuilt CLI, npm tarball and browser ESM/types](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243/artifacts/12954945785).
-- [Generated TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243/artifacts/12954796076).
+The downloaded manifest reports version `1.1.0`, that exact source and
+`dirty: false`; all asset sizes/hashes and checksum/npm file inventories were
+verified. The **downloaded browser archive** was extracted and opened as `file:`
+in Chromium, Firefox and WebKit through Playwright: sample preview passed with
+zero HTTP requests/errors and screenshots. This was not only a build-output test.
+The **downloaded tgz** passed ordinary npm installation without `--ignore-scripts`
+in a system-temp consumer outside repository ancestry, absent repository/dev/
+lifecycle metadata, with pack/read roundtrip and copied standalone CLI version
+`1.1.0` verified. The API `index.html` was checked too.
 
-The downloaded source manifest reports `dirty: false`; all hashes and inventory
-were verified. Ordinary npm installation outside the repository and a standalone
-CLI run were also verified. This is a fixed acceptance snapshot, not an automatic
-latest-release link. GitHub sign-in/retention limits still apply; if it expires,
-select another successful run above and inspect its manifest. Exact evidence is
-in [VALIDATION.md](../../VALIDATION.md).
+This is a fixed verified snapshot, not an automatic latest-release link or proof
+of later working-tree changes. GitHub sign-in/retention limits still apply; if it
+expires, select another successful run above and inspect its manifest. Exact
+hashes, counts and infrastructure notices are in [VALIDATION.md](../../VALIDATION.md).
 
 ## Select an asset
 
@@ -77,14 +80,11 @@ dist/types/                  # declarations
 
 Keep the extracted directory intact, including licenses/notices. The viewer's
 classic script works directly under `file:`; all three real-browser engines
-opened it and loaded the generated sample preview with **zero HTTP requests**.
+opened the extracted downloaded viewer and loaded the generated sample preview
+with **zero HTTP requests or errors**.
 This measured path is not a universal privacy guarantee for every application
 or arbitrary page. Restricted preview behavior and safety boundaries are in the
 [browser guide](browser.md).
-
-The linked historical snapshot above has only the earlier browser library
-archive; obtain a matching current prebuilt bundle from a maintainer until the
-new revision's successful hosted delivery is recorded.
 
 ### Standalone command line
 
@@ -143,10 +143,11 @@ the entire artifact, keep its directories intact and open `index.html` locally.
 You do not need Node, pnpm or a source build to read it. If your environment
 requires HTTP(S), serve that directory with your existing trusted static host.
 
-This artifact also normally requires GitHub sign-in and requests 30-day retention.
-Its existence in the workflow is not evidence that the current workspace has
-already produced a successful hosted artifact. No public API website is claimed.
-The [API entry map](../api.md) remains readable directly in the repository.
+The [verified API download](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972316614)
+was downloaded and its entry checked for the exact `962ee71` snapshot. It normally
+requires GitHub sign-in and requests 30-day retention; it is downloadable HTML,
+not a publicly deployed API site. The [API entry map](../api.md) is readable in
+the repository.
 
 ## Verify the download
 

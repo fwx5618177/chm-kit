@@ -222,8 +222,9 @@ Inputs are small, authored synthetic archives made by the installed public
 writer. This tests native integration, not an independent CHM conformance
 oracle. `test/electron/electron.test.ts` remains the injected-IPC Vitest suite;
 it alone cannot establish native Electron behavior. **Seven native Playwright
-cases passed locally on macOS with Electron 45.1.0**, including actual-window
-screenshots, with sandbox/context isolation enabled and Node integration off.
-This does not establish other Electron/OS versions or a hosted pass. The current
-CI adds a macOS 15 native job; its new-revision hosted acceptance remains pending.
-See [VALIDATION.md](../../VALIDATION.md) for the evidence boundary.
+cases passed locally and in the macOS 15 hosted job with Electron 45.1.0**,
+including actual-window screenshots, with sandbox/context isolation enabled and
+Node integration off. [Run 41044610433](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433)
+passed all 15 jobs at exact source `962ee71d52b0d1198a36c6c5d69c82a53e62caf9`.
+This establishes that runtime/platform, not other Electron/OS versions or later
+working-tree changes. See [VALIDATION.md](../../VALIDATION.md) for the evidence boundary.

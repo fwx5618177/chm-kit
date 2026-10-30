@@ -15,25 +15,24 @@ Read, search, preview, extract and create archives without uploading your files.
 | `chmkit-1.1.0-cli.cjs`        | Inspect, search, extract and pack from a terminal                | Node.js 20.10+; no npm install                        |
 | `chmkit-1.1.0.tgz`            | Node library, installed CLI, browser/Worker/Electron integration | Node.js and npm for installation                      |
 
-Get the **`chmkit-<commit-sha>`** artifact from a successful
-[CI run](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml), or a
-maintainer-provided prebuilt bundle, and unzip it. These examples use the current
-version **1.1.0**; check `manifest.json` for the version and source of your download.
-Keep its notices and [verify checksums](docs/guide/downloads.md#verify-the-download).
+Download and unzip the [verified 1.1.0 bundle](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972336497)
+from source **`962ee71`**: local viewer, standalone CLI and library tgz are all
+included. These examples use version **1.1.0**; check `manifest.json` for your
+download's version/source, keep its notices and
+[verify checksums](docs/guide/downloads.md#verify-the-download).
 
-The [verified hosted snapshot](docs/guide/downloads.md#verified-prebuilt-snapshot)
-is an older 1.1.0 revision **without the standalone viewer**; hosted acceptance and
-uploads for the new revision are still pending. Actions downloads require GitHub
-sign-in and expire. The npm package is **not published**; npm publication or a
-public release requires separate authorization. [Download details](docs/guide/downloads.md).
+Actions downloads require GitHub sign-in and expire. The npm package is **not
+published**; npm publication or a public release requires separate authorization.
+[Download details and API HTML](docs/guide/downloads.md#verified-prebuilt-snapshot).
 
 ### Open the local viewer
 
 Extract `chmkit-1.1.0-browser.tar.gz`, then double-click **`dist/viewer/index.html`**.
 Select your `.chm` file or try the built-in sample to browse, search and preview it.
 Keep the extracted directory intact. No Node, npm, source checkout, build or local
-server is needed. Direct `file:` opening and sample preview were verified in
-Chromium, Firefox and WebKit with **zero HTTP requests**.
+server is needed. The actual downloaded archive was extracted and opened as
+`file:` in Chromium, Firefox and WebKit; sample preview passed with **zero HTTP
+requests or errors**.
 
 The viewer uses a restricted, script-free preview; some CHM page features may be
 omitted. Library ESM and module Worker integrations still use HTTP(S).

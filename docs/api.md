@@ -10,14 +10,14 @@ has been deployed or an npm package has been published.
 
 ## Open the generated reference
 
-Download **`chmkit-api-<full-source-sha>`** from a successful [CI run](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml),
-extract the entire artifact and open its `index.html`. Keep the asset directories
-beside it. GitHub sign-in is normally required; the workflow requests 30-day
-retention. This is prebuilt HTML: **readers do not need to build the source**.
-Use the matching source revision's entry map and guides below when browsing GitHub.
-See [downloads](guide/downloads.md#api-reference) for details. The verified
-`45a5b5f` API/download links are historical, not documentation or hosted evidence
-for the new standalone viewer revision; new-revision uploads remain pending.
+Download the [verified 1.1.0 TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972316614)
+for exact source **`962ee71d52b0d1198a36c6c5d69c82a53e62caf9`** from the successful
+15-job run. The artifact was actually downloaded and its API `index.html` checked.
+Extract it in full, keep the asset directories beside `index.html` and open that
+file. GitHub sign-in is normally required; retention is 30 days. This is prebuilt
+HTML: **readers do not need to build the source**. Use the matching source revision's
+entry map/guides; later working-tree edits are not part of this fixed snapshot.
+See [downloads](guide/downloads.md#api-reference) for details.
 
 For contributors, `pnpm docs:build` uses TypeDoc 0.28.20 and
 [`typedoc.json`](../typedoc.json) to generate `dist/api/`, treating warnings as

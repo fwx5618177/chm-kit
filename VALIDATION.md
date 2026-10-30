@@ -1,117 +1,116 @@
 # Validation record
 
-Date: 2026-10-30. This separates current local evidence from historical hosted acceptance; neither is an assurance of universal CHM compatibility. Git history/remote state determine commit and push status. No npm publication, GitHub Release, tag creation or deployment was performed.
+Date: 2026-10-30. This records verified execution and downloaded-artifact evidence,
+not universal CHM compatibility or authorization to publish a release.
 
-## Current local capabilities — hosted acceptance pending
+## Verified hosted acceptance
 
-The following records the new working-tree capabilities and supplied local acceptance evidence. It does **not** extend the historical `45a5b5f` run to this revision.
+[Run 41044610433](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433)
+at exact source **`962ee71d52b0d1198a36c6c5d69c82a53e62caf9`**, package version
+**1.1.0**: **15/15 jobs succeeded**. The matrix contains nine Node jobs,
+three browser jobs, minimum-runtime acceptance, native Electron and dependent
+delivery/API generation.
 
-| Area                         | Current local evidence                                                                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Official FPC 3.2.2 `fpdoc`   | Unchanged official archive; all **138 resources** match independently extracted bytes, including range/stream and final partial-frame checks                                                                                                           |
-| Strict compatibility fixes   | Exact v3 duplicated-first-GUID pair, consistent FPC density-2 quickrefs and verified first-leaf hint; terminal ResetTable entry consumed/validated, not exposed as an empty frame                                                                      |
-| Independent corpus           | **6 normal archives and 11 malformed upstream inputs**; **859 resource expectations, 886 checksummed fixture files total**; immutable provenance/license/oracle bytes retained                                                                         |
-| Installed-package acceptance | **31 cases**, including the new browser archive/viewer contract; minimum Node 20.10 consumer acceptance also **31 cases**                                                                                                                              |
-| Browser suite                | **13 cases per engine, 39 browser cases total** across Chromium/Firefox/WebKit; the new standalone-viewer case opens `dist/viewer/index.html` as `file:` and loads an actual generated sample preview with **zero HTTP requests** in all three engines |
-| Native Electron              | **7/7 actual Playwright cases passed locally on macOS with Electron 45.1.0**, separate from the 39 browser cases; real tarball installed outside the repository, real contextBridge/IPC permissions, reader lifecycle and window screenshots           |
-| Native window boundary       | `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false`; no renderer Node globals/raw IPC exposed                                                                                                                                          |
-| Viewer delivery              | Current browser archive includes `dist/viewer/{index.html,viewer.js,reader.worker.js,worker-client.js}` plus existing browser modules, types and licenses; `viewer.js` is a classic self-contained IIFE                                                |
+| Hosted check                          | Verified result                                                                              |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Ubuntu 24.04 × Node 20.19 / 22 / 24   | 883/883 Vitest cases passed per job                                                          |
+| macOS 15 × Node 20.19 / 22 / 24       | 883/883 Vitest cases passed per job                                                          |
+| Windows 2025 × Node 20.19 / 22 / 24   | 883 total per job: 882 passed + 1 expected POSIX-only SIGINT skip; no failures               |
+| Minimum Node 20.10 installed consumer | 31/31 passed                                                                                 |
+| Chromium / Firefox / WebKit           | 13/13 each, 39 total; zero retries/flaky results                                             |
+| Native Electron 45.1.0 / macOS 15     | 7/7 passed, real installed tgz outside the repository, IPC permissions/lifecycle/screenshots |
+| Delivery and TypeDoc                  | Runtime assets and API HTML uploaded, downloaded and verified                                |
 
-Current consolidated local acceptance: **883/883 Vitest cases in 58 files**, **39/39 browser cases**, **7/7 native Electron cases**, zero failures/skips/flaky results. The actual Node 20.10 installed-consumer run also passed **31/31 cases**. Typecheck, zero-warning lint, formatting, frozen install, actionlint, TypeDoc generation and the actual demo passed; the official-registry audit found **zero known vulnerabilities**. The 15-job hosted revision remains pending; the older download links below do not establish this new viewer's hosted delivery.
+All **15 complete logs (786,857 bytes / 8,129 lines)** and all annotations were
+inspected: **zero technical warnings/errors**, including esbuild, Vite, IPC, npm
+and deprecation diagnostics. Infrastructure noise was present: **4 macOS
+capacity notices** and **11 nonfatal cache-reservation contentions**. No warning
+suppression or log filtering is used. This was not an infrastructure-noise-free run.
 
-One `playwright.config.ts` owns explicit `chromium`, `firefox`, `webkit` and `electron` projects. `pnpm test:browser` runs `playwright test test/browser`; `pnpm test:electron` selects the Electron project; `pnpm test:all` runs Vitest followed by one Playwright invocation containing all four projects. Current reports are `test-results/playwright/results.json`, `test-results/playwright/html/` and `test-results/playwright/artifacts/`. The single full-acceptance invocation keeps all 46 browser/native cases and their attachments in one report rather than overwriting browser evidence with a later Electron run. Focused invocations intentionally replace the previous Playwright report.
+## Consolidated local acceptance
 
-Electron 45.1.0 is exactly pinned as a **development-only** dependency. After the frozen script-disabled install, `pnpm exec install-electron` explicitly downloads the official native binary; it needs no pnpm lifecycle approval and adds no CHMKit runtime dependency. Native inputs are authored synthetic archives for integration acceptance, not new independent conformance oracles. Library ESM/module Worker integrations still require HTTP(S); only the standalone classic-script viewer has the direct-disk acceptance above.
+`pnpm test:all` passed **883/883 Vitest cases in 58 files** and **46/46 Playwright
+cases** (39 browser + 7 native Electron), with zero failures/skips/flaky results.
+It is `pnpm test && playwright test`: one Playwright invocation preserves all four
+projects in the same report. Focused `test:browser` / `test:electron` runs replace
+that report; current paths are `test-results/playwright/{results.json,html,artifacts}`.
+Vitest/minimum reports are `test-results/vitest.json` and `test-results/package-node20.json`.
 
-Normal real ITSF v2, GBK/UTF-16 and additional E8/window/long-reset inputs remain gaps. See the [coverage matrix](test/conformance/README.md) and [open gates](TODO.md).
+The actual Node 20.10 installed consumer passed **31/31**. Frozen installation,
+typecheck, zero-warning lint, formatting/whitespace checks, actionlint, TypeDoc
+build and the actual demo passed. The official-registry audit found **0 known
+vulnerabilities**. Local environment: macOS arm64, Node 24.15.0, pnpm 10.34.9;
+Vitest 4.1.12, Playwright 1.64.1, Vite 7.3.7 and independent 7-Zip 26.05.
 
-Documentation relative-link validation passed **1/1** before the full suite, and focused formatting/whitespace checks passed. The consolidated suite and actual consumer/build/demo commands above were executed afterward; these are execution results, not documentation-only claims.
+## Verified downloaded consumer assets
 
-## Historical local acceptance — before the new capabilities
+- [Runtime bundle: tgz, standalone CLI and browser viewer/modules/types](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972336497)
+- [Generated TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972316614)
 
-Environment: macOS / Darwin 24.6.0 arm64, Node 24.15.0, pnpm 10.34.9. Tool versions are pinned by the lockfile: Vitest 4.1.12, Vite 7.3.7, Playwright Test 1.64.1, TypeScript 5.2.2, TypeDoc 0.28.20, ESLint 10.13.0. Independent 7-Zip 26.05 is installed.
+The downloaded manifest identifies exact source `962ee71d52b0d1198a36c6c5d69c82a53e62caf9`,
+version **1.1.0**, `dirty: false`. All sizes, asset hashes, checksum inventory and
+npm file inventory were verified; the API `index.html` was checked.
 
-| Check                                              | Observed result                                                                                                                                                         |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frozen development install                         | Node 24 clean isolated install with strict engines passed; no deprecated dependency warnings                                                                            |
-| `pnpm typecheck` / `pnpm lint`                     | Source, tests, scripts and configuration passed; lint requires zero warnings                                                                                            |
-| `pnpm format:check` / `git diff --check`           | Passed; immutable third-party oracle bytes are excluded from formatting/whitespace normalization                                                                        |
-| `pnpm test:all`                                    | **849/849 Vitest tests in 56 files**, zero failures/skips; **36/36 Playwright cases**, zero skips/flaky                                                                 |
-| Minimum Node 20.10 consumer                        | **30/30 package acceptance cases**; build/runner/compiler remain on development Node, installed runtime exports/CLI/Worker roundtrip execute in a real Node 20.10 child |
-| `pnpm test:bench`                                  | Five native Vitest benchmarks executed against real PuTTY data; fixed runner version, finite durations, independent expected-byte preconditions                         |
-| `pnpm docs:build`                                  | Actual API HTML generated in `dist/api/`, zero TypeDoc warnings with warnings treated as errors                                                                         |
-| `pnpm audit --registry=https://registry.npmjs.org` | **0 known vulnerabilities** across the dependency graph; no overrides or warning suppression                                                                            |
-| `pnpm demo`                                        | Four source files byte-identical after extraction; 131,344 source bytes → **7,034 CHM bytes**; range/search/metadata/CLI JSON verified                                  |
-| `node scripts/package.mjs`                         | Actual prebuilt tarball, standalone CLI, browser archive, notices, source manifest and SHA-256 inventory generated and verified                                         |
+| Downloaded asset              | SHA-256                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `chmkit-1.1.0.tgz`            | `367a19b0bf8094f2147c25367bd857bb16e0d5a801854a58566f685dd1550e04` |
+| `chmkit-1.1.0-browser.tar.gz` | `29af4a2f9238a352d98480e05534e230c025fc5d1e096bd11fad57002f9166f1` |
+| `chmkit-1.1.0-cli.cjs`        | `b05938512175dd868bc9055d7e27ce01a6de16d36033c338b3d71379ae5ee6bc` |
 
-At that historical acceptance, the reports were `test-results/vitest.json`, `test-results/package-node20.json`, and `test-results/browser/results.json`; browser HTML/attachments were under `test-results/browser/`. The current shared Playwright paths are listed above. Performance, RSS calibration and differential evidence are under `test-results/bench/`; timings and process peaks are machine-specific, not performance promises. These ignored outputs are generated evidence, not source fixtures.
+The **actual downloaded browser archive**, not just build output, was extracted
+and opened as `file:` in Chromium, Firefox and WebKit through Playwright. All
+three loaded the sample preview with **zero HTTP requests/errors**, with actual
+screenshots. It contains `dist/viewer/{index.html,viewer.js,reader.worker.js,worker-client.js}`
+plus browser modules/types/licenses. The classic-IIFE viewer needs no Node/npm,
+server or build; library ESM/module Worker integrations still require HTTP(S).
 
-## What the historical baseline established
+The **actual downloaded tgz** was installed with ordinary npm, **without
+`--ignore-scripts`**, in a system-temp consumer outside repository ancestry.
+Repository/dev/lifecycle metadata was absent; pack/read roundtrip and a separately
+copied standalone CLI reporting **1.1.0** passed. No consumer build was required.
+Actions downloads require sign-in and expire; these are not npm publications or
+approved public Releases. See [downloads](docs/guide/downloads.md).
 
-- Normal corpus: PuTTY 0.83, official 7-Zip 23.01 help, Inno MyProg and PyCHM variants, preserving independent provenance/licenses/hashes. That baseline corpus had 721 independently extracted resource expectations plus 11 libmspack malformed/CVE inputs; original PyCHM data remains immutable. See [coverage and limitations](test/conformance/README.md).
-- Deterministic bounded mutations, complete resource comparisons, 200 seeded resource ranges and 50 corresponding streams, independent 7-Zip checks, output/metadata/cache/iteration limits. No unbounded fuzz worker runs in CI.
-- Real fixed/adaptive/ALIGNED/stored output is checked by external extraction across writer options. The official 7-Zip file revealed and now covers valid zero data base / end-of-file directory ordering.
-- File-backed reader/extractor tests include >4 GiB positioned reads, structural budget rejection before allocation, changed/truncated input, cache validation, descriptor cleanup and cancelled/failed output cleanup. Prediction/close tests use actual scheduled work and verify bounded I/O, not only option validation.
-- Worker/Electron tests exercise actual client/host and injected IPC, permission rejection, limits, transfer ownership, retryable close, cancelled opens, transport failure and lifecycle disposal. Playwright consumes **built** browser/Worker/resources modules; there is no source-bundle fallback. Native Electron itself had not been run at that baseline; the current local native acceptance is recorded above.
-- Installed-package tests consume the **same staged tarball produced by the delivery packager**, outside the repository dependency ancestry. They cover CJS/ESM, all platform subpaths, plain browser bytes, templates/updates, portable declarations without DOM/Node, CLI and absent consumer lifecycle/dev tooling.
-- Documentation relative links are checked by Vitest. User docs separate prebuilt consumption from contributor builds; TypeDoc derives exact signatures rather than duplicating a manually maintained API list.
+## Compatibility and security evidence
 
-## Historical delivery snapshot and migration
+- Six normal archives, 859 independent resource expectations and 886 checksummed
+  fixture files total, including 11 malformed upstream inputs. Original oracle
+  bytes, provenance and licenses remain immutable and excluded from delivery.
+- The unchanged official FPC 3.2.2 `fpdoc` passes all 138 resources plus ranges/
+  streams. Exact v3 duplicated-first-GUID, consistent density-2 quickrefs/verified
+  leaf hint and terminal ResetTable normalization retain strict corruption checks.
+- Native Electron uses `sandbox: true`, `contextIsolation: true`,
+  `nodeIntegration: false`; actual IPC permission and reader-lifecycle checks are
+  distinct from injected-IPC tests. Inputs are authored integration samples, not
+  new independent conformance oracles. Electron 45.1.0 remains dev-only; the
+  official `pnpm exec install-electron` needs no pnpm lifecycle approval.
+- Bounded mutation/differential tests, parser limits and sandbox/CSP improve
+  confidence, not exhaustive safety. See [coverage](test/conformance/README.md),
+  [format](docs/guide/format-lzx.md), [budgets](docs/guide/configuration.md) and [security](SECURITY.md).
 
-These links predate the new viewer/FPC/native-Electron revision. They are not new-viewer downloads, even though the source package version remains 1.1.0.
+## Cache follow-up — separate hosted verification pending
 
-The [verified hosted downloads](docs/guide/downloads.md#verified-prebuilt-snapshot) contain `chmkit-1.1.0.tgz`, `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`, usage, notices, `manifest.json` and `SHA256SUMS`. Both the consumer assets and generated TypeDoc artifact were downloaded from run `41003535243`; all asset sizes/hashes, manifest/checksum inventory, exact source `45a5b5f3ba186bed283036da074e3c697931ffea`, version `1.1.0` and `dirty: false` passed verification. The downloaded standalone CLI reports `1.1.0`, and the API entry contains the generated CHMKit reference.
+The working-tree follow-up replaces competing post-job saves with verified
+`actions/cache/restore` and `save` v6.1.0, all-job restore and only three designated
+Node-24 OS writers saving immediately after frozen install. It also emits the
+actual pnpm store path by executing the installed JS entry, not a Windows `.cmd`.
+These changes need their **own hosted cold-cache run**; run 41044610433 does not
+verify them or prove cache contention eliminated. See [.github/PIPELINES.md](.github/PIPELINES.md).
 
-The hosted tarball (SHA-256 `f946d196cb21fea34943436dc982b36c38ce55c5602350cc175f06082018dad0`, identical in verified runs `41002548476` and `41003535243`) was also installed with ordinary npm, without `--ignore-scripts`, in a real system-temp consumer outside repository ancestry. It passed archive pack/read roundtrip, metadata checks for absent lifecycle/dev tooling and an independently copied standalone CLI. Consumers do not build, install pnpm/TypeScript or initialize Git hooks. Uncommitted local builds remain marked `dirty: true`; none of these assets is an npm publication or approved public release.
+## Reproduction and remaining gates
 
-Source installation/development requires Node 22.13+ or 24; the library floor remains Node 20.10. Node 20.19 compatibility jobs install development dependencies on Node 24 before switching runtimes. `prepare` is absent, `pnpm hooks:install` is opt-in. The root `prepack` remains a maintainer build step; shipped tarballs omit repository lifecycle metadata.
+[Contributor setup and commands](CONTRIBUTING.md#focused-validation-then-acceptance)
+cover frozen install, explicit browser/Electron binary installation and full
+`pnpm test:all` acceptance; ordinary users choose the verified downloads.
+Minimum-runtime checks execute the installed consumer with real Node 20.10,
+not modern Vite on that runtime. Binary/dependency installs and audit need network
+access; local archive parsing does not upload content. Builds do not publish.
+Normal upstream v2, GBK/UTF-16 and additional E8/window/long-reset inputs, independent
+public-release approval/tag/environment policy, and separately authorized npm/API-site
+publication remain open in [TODO.md](TODO.md).
 
-See the [migration guide](docs/guide/migration.md) for changed compression/TOC behavior, strict path/config/error semantics, preserved error causes and file-input immutability. Fixed parser metadata ceilings are 1 MiB header, 64 MiB directory and 16 MiB per ControlData/ResetTable stream. They do not cap ordinary file/Content length or total process memory; valid larger metadata is explicitly rejected.
+## Brief history
 
-## Hosted CI and warnings
-
-Historical runs `40927079982` / `40927652020` passed the earlier 532-case revision. They are **not evidence for this revision**.
-
-The revised workflow uses verified Node-24 official action SHAs, explicit Ubuntu 24.04/macOS 15/Windows 2025 labels, current supported dependencies and an exact pnpm bootstrap. No `NODE_NO_WARNINGS`, log filtering, forced runtime override or silent fallback is used. The current workflow defines **15 jobs**: nine Node compatibility jobs, three real-browser jobs, a minimum-runtime installed-consumer job, a native Electron job on macOS 15, and a delivery/docs job dependent on all fourteen acceptance jobs. This topology is not hosted pass evidence for the new revision. See [.github/PIPELINES.md](.github/PIPELINES.md).
-
-**Historical** [hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243), exact source `45a5b5f3ba186bed283036da074e3c697931ffea`: **14/14 jobs passed**. It did not include the new viewer/FPC/native-Electron changes or the new fifteenth-job topology.
-
-| Hosted acceptance                   | Observed result                                                                |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| Ubuntu 24.04 × Node 20.19 / 22 / 24 | 849/849 tests on each runtime, zero skips                                      |
-| macOS 15 × Node 20.19 / 22 / 24     | 849/849 tests on each runtime, zero skips                                      |
-| Windows 2025 × Node 20.19 / 22 / 24 | 848 passed plus one expected POSIX-only SIGINT skip per runtime; zero failures |
-| Installed consumer × Node 20.10.0   | 30/30 passed                                                                   |
-| Chromium / Firefox / WebKit         | 12/12 each; zero skips, retries or flaky results                               |
-| Delivery and generated API          | Consumer assets and TypeDoc uploaded successfully; downloaded and verified     |
-
-All 14 check runs' annotations and all 14 complete raw logs (751,594 bytes / 7,750 lines) were inspected. There were **zero warning/failure annotations**, no deprecation, unknown-config, npm warning/error or browser pre-transform/failed-import diagnostics. Three macOS **capacity notices** remain; these are GitHub infrastructure information, not hidden technical warnings.
-
-Earlier runs found and drove real fixes: Windows ESM loaders now use `file:` URLs; the TypeScript virtual host canonicalizes separators/case; the ctime-only mutation test observes an actual filesystem timestamp change instead of assuming every same-tick write changes it; and Playwright's server command completes the build before launching Vite/readiness requests. The obsolete browser global-setup script was removed. A clean local browser-output deletion followed by Playwright also passed 36/36 with zero startup diagnostics. Logs are retained under ignored `test-results/hosted-45a5b5f/`; hosted test reports are available from the run's artifacts.
-
-## Reproduction
-
-Contributor-only commands (ordinary users choose [prebuilt downloads](docs/guide/downloads.md)):
-
-```sh
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm exec playwright install chromium firefox webkit
-pnpm exec install-electron
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm test:all
-pnpm test:bench
-pnpm docs:build
-pnpm demo
-pnpm package:artifacts
-pnpm audit --registry=https://registry.npmjs.org
-```
-
-For minimum-runtime acceptance, resolve an actual Node 20.10 executable, then run the package project under the development Node with `CHM_TEST_NODE` set to that executable and a distinct JSON output path. Do not try to run modern Vite on Node 20.10 or interpret a tool-engine warning as a library-runtime failure.
-
-Browser/Electron binary installation, isolated consumer dependency installation and registry auditing require network access. Parsing/reading local archives does not upload their content. Build/delivery operations do not publish or deploy.
-
-## Remaining independent evidence / authorization
-
-[TODO.md](TODO.md) retains the genuinely unresolved gates: legally redistributable normal ITSF v2/other encoding/window/reset/E8 corpus, current-revision hosted acceptance and downloads, independent release approval/tag/environment policy, and separately authorized public npm/API-site publication. Local native Electron runtime acceptance is completed, not an open gate. Code support, synthetic input, a protected workflow and a local artifact are not substitutes for those facts.
+Run 41003535243 at `45a5b5f` was the earlier 14-job baseline; older runs predate
+that toolchain revision. They are historical only. Run 41044610433 is the verified
+viewer/FPC/native-Electron delivery recorded above, not evidence for later cache edits.

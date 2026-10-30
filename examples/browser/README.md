@@ -8,7 +8,7 @@ Extract the current **`chmkit-1.1.0-browser.tar.gz`** and double-click **`dist/v
 
 The bundle includes `dist/viewer/index.html`, the self-contained **classic-IIFE** `viewer.js`, and `reader.worker.js` / `worker-client.js`, plus `dist/browser/`, `dist/types/` and licenses/notices. Direct `file:` opening and actual sample preview have been verified in Chromium, Firefox and WebKit with **zero HTTP requests**. This is measured viewer behavior, not a guarantee about arbitrary application code or every CHM feature.
 
-The [download guide](../../docs/guide/downloads.md) distinguishes the current bundle from the historical `45a5b5f` snapshot, which does not include this viewer. New-revision hosted delivery is pending.
+The [verified `962ee71` download](../../docs/guide/downloads.md#verified-prebuilt-snapshot) includes this viewer. The actual hosted browser archive was downloaded, extracted and opened through Playwright in all three engines; sample preview passed with zero HTTP requests/errors and screenshots, independently of repository build-output checks.
 
 ## Contributor source example and ESM integration
 
@@ -121,4 +121,4 @@ The single Playwright config defines explicit **Chromium, Firefox and WebKit** p
 
 The standalone-viewer case opens the built `dist/viewer/index.html` as `file:`, loads the sample preview and checks zero HTTP requests. Other cases use actual module Workers and the library protocol for concurrent open/read/list/TOC/search/range, transferable bytes, cancellation, timeout, malformed archives, native Worker errors and disposal. Preview cases cover nested CSS imports/cycles, srcset, unsafe SVG, no remote or same-origin probes, query/fragment/percent/raw filenames, Unicode and object URL cleanup. The incremental-update case requires the actual browser `updateArchive` export and plain Uint8Array results, not a Node Buffer re-export or test-only replacement.
 
-Reports are in `test-results/playwright/{results.json,html,artifacts}`. `pnpm test:all` also runs Vitest and the separate native Electron project. Current local results and pending hosted evidence are distinguished in [VALIDATION.md](../../VALIDATION.md); documenting a command is not evidence that a new hosted revision passed.
+Reports are in `test-results/playwright/{results.json,html,artifacts}`. `pnpm test:all` is `pnpm test && playwright test`: Vitest followed by one invocation of all four Playwright projects, keeping all 46 browser/native cases together. Focused runs replace that report. Local results and verified 15-job hosted acceptance at `962ee71` are recorded in [VALIDATION.md](../../VALIDATION.md); later cache changes still require their own hosted run.

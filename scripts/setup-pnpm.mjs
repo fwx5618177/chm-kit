@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { appendFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runNpm } from './lib/npm.mjs';
 
@@ -9,7 +10,9 @@ import { runNpm } from './lib/npm.mjs';
 // the compatibility test runtime is selected only after dependencies exist.
 assert.equal(process.argv.length, 2, 'Usage: node scripts/setup-pnpm.mjs');
 assert.ok(
-  process.env.RUNNER_TEMP && process.env.GITHUB_PATH,
+  process.env.RUNNER_TEMP &&
+    process.env.GITHUB_PATH &&
+    process.env.GITHUB_OUTPUT,
   'This bootstrap is for GitHub Actions runners',
 );
 assert.equal(
@@ -44,6 +47,23 @@ console.log(
     root,
   ),
 );
+const pnpmDirectory = join(prefix, 'node_modules', 'pnpm');
+const { bin } = JSON.parse(
+  await readFile(join(pnpmDirectory, 'package.json'), 'utf8'),
+);
+const storePath = execFileSync(
+  process.execPath,
+  [resolve(pnpmDirectory, bin.pnpm), 'store', 'path', '--silent'],
+  { cwd: root, encoding: 'utf8', timeout: 30000 },
+).trim();
+assert.ok(
+  isAbsolute(storePath) &&
+    !storePath.includes('\n') &&
+    !storePath.includes('\r') &&
+    !storePath.includes('\0'),
+  'pnpm store path must be a single absolute path',
+);
+await appendFile(process.env.GITHUB_OUTPUT, `store-path=${storePath}\n`);
 await appendFile(
   process.env.GITHUB_PATH,
   `${join(prefix, 'node_modules', '.bin')}\n`,

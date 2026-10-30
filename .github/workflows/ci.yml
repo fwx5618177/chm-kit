@@ -30,6 +30,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
+          cache-save: ${{ matrix.node == '24' }}
       - name: Check formatting and delivery script regressions
         if: matrix.os == 'ubuntu-24.04' && matrix.node == '24'
         run: |

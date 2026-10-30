@@ -28,8 +28,9 @@ entry points with equivalent guidance; put detail in `docs/guide/`.
 - Package/CLI versions must agree; read actual metadata instead of hard-coding
   a planned version into docs. Use concrete current filenames (`chmkit-1.1.0.tgz`,
   `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`) for quick starts and explain
-  manifest version/source verification once. The historical `45a5b5f` snapshot
-  shares version 1.1.0 but predates the new viewer/FPC/native-Electron changes.
+  manifest version/source verification once. The verified viewer/FPC/native-Electron
+  snapshot is `962ee71d52b0d1198a36c6c5d69c82a53e62caf9`, run 41044610433.
+  Later working-tree changes require their own evidence, even at version 1.1.0.
 - `pnpm docs:build` uses TypeDoc 0.28.20 / `typedoc.json` to generate `dist/api/`.
   CI uploads it separately as `chmkit-api-<sha>`; users download/browse without a
   source build. Keep HTML out of Git and do not claim public hosting is deployed.
@@ -212,13 +213,15 @@ or call synthetic/header-modified files unmodified real-world corpus.
 Bounded fuzz/differential tests are not exhaustive proofs; early rejection may
 not reach later corrupt fields. Record actual commands/platform/failures/skips in
 `VALIDATION.md`; workflow definitions and source-only checks are not hosted runs.
-Current local native acceptance is seven actual Electron 45.1.0 cases on macOS;
-local browser `file:` sample preview passed with zero HTTP requests in all three
-engines. Do not use the historical 14-job run as proof of the new 15-job revision
-(9 Node + 3 browser + minimum + native Electron + dependent delivery).
+Verified run 41044610433 at exact `962ee71d52b0d1198a36c6c5d69c82a53e62caf9`
+passed all 15 jobs (9 Node + 3 browser + minimum + native Electron + delivery).
 Current local full acceptance is 883 Vitest cases in 58 files and 46 Playwright
-cases, with 31 minimum-runtime installed-consumer cases. Record new hosted
-execution evidence separately.
+cases, with 31 minimum-runtime installed-consumer cases. The actual downloaded
+browser archive passed `file:` sample preview with zero HTTP requests/errors in
+all three engines. All hosted logs/annotations were reviewed: zero technical
+warnings/errors, but four capacity notices and eleven nonfatal cache contentions.
+The subsequent single-writer cache follow-up needs its own hosted cold-cache
+verification; do not extend the accepted source's result to later edits.
 
 Normal CI is read-only and never publishes. Manual release policy is in
 `.github/PIPELINES.md`: existing matching tag, coherent version, full CI and
