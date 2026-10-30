@@ -12,6 +12,8 @@ archives in a browser without uploading them.
 **The public npm registry currently returns 404 for `chmkit`.** A registry install
 is not an available distribution channel, and npm publication is not planned.
 Use the precompiled downloads below; no source checkout, pnpm or compiler is needed.
+A [verified 1.1.0 snapshot with direct download links](docs/guide/downloads.md#verified-prebuilt-snapshot)
+is available; GitHub sign-in and artifact retention limits apply.
 
 1. Open [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)
    and select a successful **CI** run for the revision you want.

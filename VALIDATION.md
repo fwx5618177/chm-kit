@@ -11,7 +11,7 @@ Environment: macOS / Darwin 24.6.0 arm64, Node 24.15.0, pnpm 10.34.9. Tool versi
 | Frozen development install                         | Node 24 clean isolated install with strict engines passed; no deprecated dependency warnings                                                                            |
 | `pnpm typecheck` / `pnpm lint`                     | Source, tests, scripts and configuration passed; lint requires zero warnings                                                                                            |
 | `pnpm format:check` / `git diff --check`           | Passed; immutable third-party oracle bytes are excluded from formatting/whitespace normalization                                                                        |
-| `pnpm test:all`                                    | **847/847 Vitest tests in 56 files**, zero failures/skips; **36/36 Playwright cases**, zero skips/flaky                                                                 |
+| `pnpm test:all`                                    | **849/849 Vitest tests in 56 files**, zero failures/skips; **36/36 Playwright cases**, zero skips/flaky                                                                 |
 | Minimum Node 20.10 consumer                        | **30/30 package acceptance cases**; build/runner/compiler remain on development Node, installed runtime exports/CLI/Worker roundtrip execute in a real Node 20.10 child |
 | `pnpm test:bench`                                  | Five native Vitest benchmarks executed against real PuTTY data; fixed runner version, finite durations, independent expected-byte preconditions                         |
 | `pnpm docs:build`                                  | Actual API HTML generated in `dist/api/`, zero TypeDoc warnings with warnings treated as errors                                                                         |
@@ -33,7 +33,9 @@ The full native reports are `test-results/vitest.json`, `test-results/package-no
 
 ## Delivery and migration
 
-`dist/package/` currently contains `chmkit-1.1.0.tgz`, `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`, usage, notices, `manifest.json` and `SHA256SUMS`. Local uncommitted builds are honestly marked `dirty: true`; they are not official published releases. The packager performs a real npm install without disabling consumer scripts, confirms repository scripts/devDependencies are absent, and runs an independently copied standalone CLI. Consumers do not build, install pnpm/TypeScript or initialize Git hooks.
+The [verified hosted downloads](docs/guide/downloads.md#verified-prebuilt-snapshot) contain `chmkit-1.1.0.tgz`, `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`, usage, notices, `manifest.json` and `SHA256SUMS`. Both the consumer assets and generated TypeDoc artifact were downloaded from run `41003535243`; all asset sizes/hashes, manifest/checksum inventory, exact source `45a5b5f3ba186bed283036da074e3c697931ffea`, version `1.1.0` and `dirty: false` passed verification. The downloaded standalone CLI reports `1.1.0`, and the API entry contains the generated CHMKit reference.
+
+The hosted tarball (SHA-256 `f946d196cb21fea34943436dc982b36c38ce55c5602350cc175f06082018dad0`, identical in verified runs `41002548476` and `41003535243`) was also installed with ordinary npm, without `--ignore-scripts`, in a real system-temp consumer outside repository ancestry. It passed archive pack/read roundtrip, metadata checks for absent lifecycle/dev tooling and an independently copied standalone CLI. Consumers do not build, install pnpm/TypeScript or initialize Git hooks. Uncommitted local builds remain marked `dirty: true`; none of these assets is an npm publication or approved public release.
 
 Source installation/development requires Node 22.13+ or 24; the library floor remains Node 20.10. Node 20.19 compatibility jobs install development dependencies on Node 24 before switching runtimes. `prepare` is absent, `pnpm hooks:install` is opt-in. The root `prepack` remains a maintainer build step; shipped tarballs omit repository lifecycle metadata.
 
@@ -45,7 +47,20 @@ Historical runs `40927079982` / `40927652020` passed the earlier 532-case revisi
 
 The revised workflow uses verified Node-24 official action SHAs, explicit Ubuntu 24.04/macOS 15/Windows 2025 labels, current supported dependencies and an exact pnpm bootstrap. No `NODE_NO_WARNINGS`, log filtering, forced runtime override or silent fallback is used. It runs nine Node compatibility jobs, three real-browser jobs and a separate minimum-runtime installed-consumer job; a fourteenth delivery/docs job depends on all of them. See [.github/PIPELINES.md](.github/PIPELINES.md).
 
-**Pending:** commit/push this revision, execute the revised hosted matrix, inspect annotations and raw logs, verify uploaded reports and download/validate the actual prebuilt assets. Local passing tests/YAML checks alone cannot prove remote zero-warning status. GitHub capacity/queue notices are infrastructure information and cannot honestly be "fixed" by suppressing them.
+[Hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243), exact source `45a5b5f3ba186bed283036da074e3c697931ffea`: **14/14 jobs passed**.
+
+| Hosted acceptance                   | Observed result                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------ |
+| Ubuntu 24.04 × Node 20.19 / 22 / 24 | 849/849 tests on each runtime, zero skips                                      |
+| macOS 15 × Node 20.19 / 22 / 24     | 849/849 tests on each runtime, zero skips                                      |
+| Windows 2025 × Node 20.19 / 22 / 24 | 848 passed plus one expected POSIX-only SIGINT skip per runtime; zero failures |
+| Installed consumer × Node 20.10.0   | 30/30 passed                                                                   |
+| Chromium / Firefox / WebKit         | 12/12 each; zero skips, retries or flaky results                               |
+| Delivery and generated API          | Consumer assets and TypeDoc uploaded successfully; downloaded and verified     |
+
+All 14 check runs' annotations and all 14 complete raw logs (751,594 bytes / 7,750 lines) were inspected. There were **zero warning/failure annotations**, no deprecation, unknown-config, npm warning/error or browser pre-transform/failed-import diagnostics. Three macOS **capacity notices** remain; these are GitHub infrastructure information, not hidden technical warnings.
+
+Earlier runs found and drove real fixes: Windows ESM loaders now use `file:` URLs; the TypeScript virtual host canonicalizes separators/case; the ctime-only mutation test observes an actual filesystem timestamp change instead of assuming every same-tick write changes it; and Playwright's server command completes the build before launching Vite/readiness requests. The obsolete browser global-setup script was removed. A clean local browser-output deletion followed by Playwright also passed 36/36 with zero startup diagnostics. Logs are retained under ignored `test-results/hosted-45a5b5f/`; hosted test reports are available from the run's artifacts.
 
 ## Reproduction
 

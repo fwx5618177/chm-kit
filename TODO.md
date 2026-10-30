@@ -31,7 +31,7 @@ This file records concrete acceptance criteria, not an open-ended promise to imp
 
 These are deliberately not marked complete merely because the implementation exists. They require a recorded execution, independently licensed input, a real application environment or a maintainer decision.
 
-- [ ] Execute the revised hosted CI and inspect its annotations/logs and downloadable artifacts. The earlier passing run is historical evidence, not proof for these changes; record the new result in `VALIDATION.md`.
+- [x] Execute the revised hosted CI and inspect its annotations/logs and downloadable artifacts. Run [41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243) passed 14/14 jobs; all logs/annotations were reviewed and actual consumer/API downloads verified. Windows-only path/timestamp test failures and the browser build/readiness race were fixed rather than retried away. See `VALIDATION.md`.
 - [ ] Obtain legally redistributable **normal upstream ITSF v2**, GBK/UTF-16 and additional window/long-reset/E8 archives. Existing synthetic cases and malformed v2 inputs do not satisfy this real-corpus evidence gap.
 - [ ] Run the Electron example inside an actual supported Electron application. Structural IPC tests and browser Workers do not establish native Electron runtime acceptance.
 - [ ] Independently review and authorize a public release; configure protected reviewers, choose/create the tag and publish approved GitHub assets. No tag, release, npm publication or environment-permission change is performed implicitly by implementing the workflow.

@@ -73,9 +73,17 @@ at source revision `a67ffe9`:
   zero future notices or warnings from external services.
 
 No `NODE_NO_WARNINGS`, `--no-warnings`, forced action-runtime overrides, log
-filtering or warning suppression is part of the pipeline. A fresh hosted run is
-still necessary after these changes are committed by the maintainer; local YAML
-validation is not evidence that the revised hosted matrix has passed.
+filtering or warning suppression is part of the pipeline.
+
+[Revised hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243)
+at exact source `45a5b5f3ba186bed283036da074e3c697931ffea` passed **14/14 jobs**.
+All completed checks' annotations and all complete raw logs were inspected:
+zero technical warning/error matches or warning/failure annotations; only three
+macOS capacity notices remain. Consumer/API artifacts were actually downloaded,
+and source identity, clean manifest and all asset checksums verified. See
+[`VALIDATION.md`](../VALIDATION.md) for counts, Windows-only POSIX skips and the
+concrete failures repaired before this acceptance. Future code changes still
+require their own hosted run; local YAML validation does not substitute for it.
 
 ## Downloadable assets: no consumer build
 

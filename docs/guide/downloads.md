@@ -27,6 +27,23 @@ Do not assume the current workspace has already been uploaded to Actions.
 An approved GitHub Release can provide durable anonymous assets later. No
 particular release/tag/download URL is represented here as already existing.
 
+### Verified prebuilt snapshot
+
+On 2026-10-30, version **1.1.0** from source
+`45a5b5f3ba186bed283036da074e3c697931ffea` passed all 14 jobs in
+[run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243).
+These are actual uploaded and downloaded artifacts, not example URLs:
+
+- [Prebuilt CLI, npm tarball and browser ESM/types](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243/artifacts/12954945785).
+- [Generated TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243/artifacts/12954796076).
+
+The downloaded source manifest reports `dirty: false`; all hashes and inventory
+were verified. Ordinary npm installation outside the repository and a standalone
+CLI run were also verified. This is a fixed acceptance snapshot, not an automatic
+latest-release link. GitHub sign-in/retention limits still apply; if it expires,
+select another successful run above and inspect its manifest. Exact evidence is
+in [VALIDATION.md](../../VALIDATION.md).
+
 ## Select an asset
 
 The commands below use `VERSION` as a filename placeholder. Substitute the exact

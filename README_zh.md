@@ -10,6 +10,8 @@
 
 **公共 npm registry 当前对 `chmkit` 返回 404，目前也不计划 npm 发布。**
 请使用以下预编译下载；使用者不需要源码仓库、pnpm 或编译器。
+已有[验证通过的 1.1.0 预构建快照及直接下载链接](docs/guide/downloads.md#verified-prebuilt-snapshot)，
+下载仍受 GitHub 登录和产物保留期限限制。
 
 1. 打开 [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)，
    选择所需修订对应的成功 **CI** 运行。
