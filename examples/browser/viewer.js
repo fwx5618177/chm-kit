@@ -1,8 +1,12 @@
 import { CHMReader, packFiles } from '../../dist/browser/index.mjs';
+import {
+  ArchivePathResolver,
+  createArchivePreview,
+} from '../../dist/browser/resources.mjs';
 
 const $ = selector => document.querySelector(selector);
-let reader, source, previewUrl;
-
+let reader, source, preview, resolver;
+const downloads = new Set();
 const encoder = new TextEncoder();
 const status = (message, error = false) => {
   $('#status').textContent = message;
@@ -14,127 +18,37 @@ const cache = () => {
   $('#cache-size').textContent = bytes(reader?.getCacheStats().bytes ?? 0);
 };
 function revokeResources() {
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = undefined;
+  $('#preview').removeAttribute('src');
+  preview?.dispose();
+  preview = undefined;
 }
-function internalPath(value, base) {
-  if (/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(value)) return null;
+function select(value, kind = 'auto') {
   try {
-    const url = new URL(value, `https://archive.invalid${base}`);
-    if (url.origin !== 'https://archive.invalid') return null;
-    return decodeURIComponent(url.pathname);
-  } catch {
-    return null;
-  }
-}
-function resource(value, base, depth = 0) {
-  const path = internalPath(value, base);
-  if (!path || !reader.exists(path) || depth > 8) return '';
-  const type = reader.getMimeType(path);
-  // Never create navigable HTML/script blobs from resource URLs.
-  if (!/^(?:image\/|font\/|text\/css)/.test(type)) return '';
-  const data =
-    type === 'text/css'
-      ? reader
-          .readText(path)
-          .replace(/@import\s+[^;]+;?/gi, '')
-          .replace(
-            /url\(\s*['"]?([^'"()]+)['"]?\s*\)/gi,
-            (_, url) => `url("${resource(url.trim(), path, depth + 1)}")`,
-          )
-      : reader.readFile(path);
-  // Opaque sandbox origins cannot dereference parent-origin blob resources.
-  // Embed bytes instead of weakening the sandbox with allow-same-origin.
-  const buffer = typeof data === 'string' ? encoder.encode(data) : data;
-  const chunks = [];
-  for (let offset = 0; offset < buffer.length; offset += 32768)
-    chunks.push(
-      String.fromCharCode(...buffer.subarray(offset, offset + 32768)),
-    );
-  return `data:${type};base64,${btoa(chunks.join(''))}`;
-}
-function renderHTML(html, path) {
-  // Template contents are inert: even same-origin image/event-handler probes
-  // must not run while untrusted markup is being parsed and rewritten.
-  const template = document.createElement('template');
-  template.innerHTML = html;
-  const content = template.content;
-  content
-    .querySelectorAll(
-      'script,iframe,frame,frameset,object,embed,form,base,meta[http-equiv]',
-    )
-    .forEach(node => node.remove());
-  for (const element of content.querySelectorAll('*')) {
-    for (const attribute of [...element.attributes]) {
-      if (
-        /^on/i.test(attribute.name) ||
-        ['srcdoc', 'srcset', 'ping', 'action', 'formaction'].includes(
-          attribute.name,
-        )
-      )
-        element.removeAttribute(attribute.name);
-    }
-  }
-  for (const element of content.querySelectorAll('[src]'))
-    element.setAttribute('src', resource(element.getAttribute('src'), path));
-  for (const element of content.querySelectorAll('link')) {
-    if (element.getAttribute('rel')?.toLowerCase() !== 'stylesheet')
-      element.remove();
-    else
-      element.setAttribute(
-        'href',
-        resource(element.getAttribute('href') ?? '', path),
-      );
-  }
-  for (const anchor of content.querySelectorAll('a[href]')) {
-    anchor.setAttribute('href', '#');
-    anchor.removeAttribute('target');
-  }
-  const preview = document.implementation.createHTMLDocument('');
-  preview.body.append(content);
-  const policy = preview.createElement('meta');
-  policy.httpEquiv = 'Content-Security-Policy';
-  policy.content =
-    "default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:; base-uri 'none'; form-action 'none'; script-src 'none'; connect-src 'none'";
-  preview.head.prepend(policy);
-  return '<!doctype html>' + preview.documentElement.outerHTML;
-}
-function archiveTarget(target) {
-  // Prefer the longest real filename: '#' and '%' may be literal filename bytes.
-  const boundaries = [target.length];
-  for (let index = target.length - 1; index >= 0; index--)
-    if (target[index] === '#' || target[index] === '?') boundaries.push(index);
-  for (const boundary of boundaries) {
-    const path = target.slice(0, boundary);
-    if (!reader.exists(path)) continue;
-    const suffix = target.slice(boundary);
-    const fragment = suffix.indexOf('#');
-    return { path, hash: fragment < 0 ? '' : suffix.slice(fragment) };
-  }
-  const suffix = target.search(/[?#]/);
-  const fragment = target.indexOf('#');
-  return {
-    path: suffix < 0 ? target : target.slice(0, suffix),
-    hash: fragment < 0 ? '' : target.slice(fragment),
-  };
-}
-function select(target) {
-  try {
-    const { path, hash } = archiveTarget(target);
+    // File-list buttons use raw paths. TOC/default topics and HTML links have URL semantics.
+    const target =
+      typeof value === 'string' ? resolver.resolve(value, '/', kind) : value;
+    if (!target) throw new Error('归档中不存在此导航目标，或链接不安全');
+    const { path, query, fragment } = target;
     revokeResources();
-    $('#selected').textContent = target;
+    $('#document-links').replaceChildren();
+    $('#selected').textContent = path + query + fragment;
     $('#empty').hidden = true;
     $('#preview').hidden = true;
     $('#binary').hidden = true;
     const type = reader.getMimeType(path);
     if (type === 'text/html') {
-      previewUrl = URL.createObjectURL(
-        new Blob([renderHTML(reader.readHTML(path), path)], {
-          type: 'text/html',
-        }),
-      );
-      $('#preview').src = previewUrl + hash;
+      preview = createArchivePreview(reader, path);
+      $('#preview').src = preview.createObjectURL() + fragment;
       $('#preview').hidden = false;
+      // Opaque sandbox documents cannot call into the host. Cross-page links are
+      // deliberately surfaced here instead of enabling scripts/same-origin.
+      for (const link of preview.links) {
+        const button = document.createElement('button');
+        button.textContent = link.label;
+        button.title = link.path + link.query + link.fragment;
+        button.addEventListener('click', () => select(link));
+        $('#document-links').append(button);
+      }
     } else {
       $('#binary').textContent =
         type.startsWith('text/') ||
@@ -168,8 +82,10 @@ function open(data) {
   source = data;
   revokeResources();
   const files = reader.listFiles();
+  resolver = new ArchivePathResolver(files);
   $('#files').replaceChildren();
   $('#results').replaceChildren();
+  $('#document-links').replaceChildren();
   for (const path of files) {
     const button = document.createElement('button');
     button.className = 'file';
@@ -179,7 +95,7 @@ function open(data) {
     const size = document.createElement('small');
     size.textContent = bytes(reader.getFileSize(path));
     button.append(label, size);
-    button.addEventListener('click', () => select(path));
+    button.addEventListener('click', () => select(path, 'raw'));
     $('#files').append(button);
   }
   $('#archive-title').textContent = reader.getMetadata().title ?? '未命名 CHM';
@@ -246,11 +162,15 @@ $('#download').addEventListener('click', () => {
   const url = URL.createObjectURL(
     new Blob([source], { type: 'application/vnd.ms-htmlhelp' }),
   );
+  downloads.add(url);
   const link = document.createElement('a');
   link.href = url;
   link.download = 'chmkit-demo.chm';
   link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    downloads.delete(url);
+  }, 1000);
 });
 $('#search-button').addEventListener('click', () => {
   if (!reader) return status('请先打开文档', true);
@@ -260,7 +180,7 @@ $('#search-button').addEventListener('click', () => {
     for (const result of results) {
       const button = document.createElement('button');
       button.textContent = `${result.path} · ${result.matches.length} 处匹配`;
-      button.addEventListener('click', () => select(result.path));
+      button.addEventListener('click', () => select(result.path, 'raw'));
       $('#results').append(button);
     }
     status(`搜索完成 · ${results.length} 个匹配文件`);
@@ -277,10 +197,11 @@ $('#toc-button').addEventListener('click', () => {
   $('#results').replaceChildren();
   const add = entries => {
     for (const entry of entries) {
-      if (entry.local && reader.exists(archiveTarget(entry.local).path)) {
+      const target = entry.local && resolver.resolve(entry.local, '/', 'auto');
+      if (target) {
         const button = document.createElement('button');
         button.textContent = entry.name;
-        button.addEventListener('click', () => select(entry.local));
+        button.addEventListener('click', () => select(target));
         $('#results').append(button);
       }
       if (entry.children) add(entry.children);
@@ -301,4 +222,6 @@ $('#clear-cache').addEventListener('click', () => {
 window.addEventListener('pagehide', () => {
   reader?.close();
   revokeResources();
+  for (const url of downloads) URL.revokeObjectURL(url);
+  downloads.clear();
 });

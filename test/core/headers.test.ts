@@ -127,11 +127,18 @@ test('ITSF: rejects every unsafe uint64 and overflowing range sum', () => {
     { directoryOffset: Number.MAX_SAFE_INTEGER, directoryLength: 84 },
     { directoryOffset: -1 },
     { directoryLength: NaN },
-    { unknown4: 0 },
+    { unknown4: -1 },
     { unknown2: 1.5 },
     { directoryOffset: 10 },
   ])
     ok(!ITSFHeaderParser.validate({ ...header, ...changes }));
+});
+
+test('ITSF: accepts explicit v3 zero/early data bases without inventing directory ordering', () => {
+  const header = ITSFHeaderParser.parse(new BitReader(createITSFBuffer()));
+  for (const unknown4 of [0, 96, 220, 4316]) {
+    ok(ITSFHeaderParser.validate({ ...header, unknown4 }));
+  }
 });
 
 test('ITSP: parses actual 0x54 layout including PMGL indices and unsigned sentinel', () => {

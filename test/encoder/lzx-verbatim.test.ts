@@ -109,7 +109,8 @@ test('default level 6 performs real VERBATIM/LZ77/Huffman compression', () => {
     `${result.compressedSize}/${input.length}`,
   );
   assert.ok(result.compressedSize < stored.compressedSize * 0.1);
-  for (const frame of result.frames) assert.equal(blockType(frame), 1);
+  for (const frame of result.frames)
+    assert.ok([1, 2].includes(blockType(frame)));
 });
 
 test('all 256 byte values, E8 operands and odd tails round-trip without clearing high bits', () => {
@@ -161,7 +162,7 @@ test('mixed fallback keeps previous tree lengths and R0/R1/R2 across frames', ()
     const result = roundTrip(input, { resetInterval: resetFrames * FRAME });
     assert.deepEqual(
       result.frames.map((frame, index) => blockType(frame, index === 0)),
-      [3, 1, 3, 1],
+      [3, 2, 3, 1],
     );
     const stored = result.frames[2]!;
     assert.deepEqual(
@@ -185,7 +186,7 @@ test('stored fallback retains LZ77 history for the next compressed frame', () =>
   });
   assert.deepEqual(
     result.frames.map((frame, index) => blockType(frame, index === 0)),
-    [3, 1],
+    [3, 2],
   );
   assert.ok(result.frames[1]!.length < FRAME * 0.1);
 });
@@ -199,7 +200,7 @@ test('the last 32 KiB position slot encodes distance 32765 without overflow', ()
   ]);
   const result = roundTrip(input, { resetInterval: 2 * FRAME });
   assert.equal(blockType(result.frames[0]!), 3);
-  assert.equal(blockType(result.frames[1]!, false), 1);
+  assert.equal(blockType(result.frames[1]!, false), 2);
   assert.ok(result.frames[1]!.length < FRAME * 0.1);
 });
 
@@ -209,7 +210,7 @@ test('large position slots encode 17-bit distance suffixes for up to 2 MiB windo
     const input = Buffer.concat([history, history.subarray(0, FRAME)]);
     const result = roundTrip(input, { windowSize, resetInterval: windowSize });
     const last = result.frames[result.frames.length - 1]!;
-    assert.equal(blockType(last, false), 1);
+    assert.equal(blockType(last, false), 2);
     assert.ok(last.length < FRAME * 0.1);
   }
 });

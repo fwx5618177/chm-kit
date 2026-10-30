@@ -5,7 +5,7 @@ import { once } from 'events';
 import { packFiles } from '../../src/encoder/archive-builder';
 import { CHMParser } from '../../src/core/parser/chm-parser';
 import { BitReader } from '../../src/utils/io/bit-reader';
-import { existsSync, promises as fs } from 'fs';
+import { existsSync, readFileSync, promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 
@@ -83,7 +83,10 @@ test('CLI help, version and invalid commands are actually checked', () => {
   const help = success('--help').stdout.toString();
   ok(help.includes('Usage:'));
   ok(help.includes('read'));
-  ok(success('--version').stdout.toString().includes('1.0.0'));
+  const metadata = JSON.parse(
+    readFileSync(resolve('package.json'), 'utf8'),
+  ) as { version: string };
+  equal(success('--version').stdout.toString().trim(), metadata.version);
   failure('invalid-command');
 });
 

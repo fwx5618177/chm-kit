@@ -1,6 +1,6 @@
 {
   "name": "chmkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A TypeScript library for reading, parsing, and compressing .chm files with command-line tools",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.mjs",
@@ -49,6 +49,64 @@
         "default": "./dist/cjs/reader.js"
       }
     },
+    "./worker": {
+      "browser": {
+        "types": "./dist/types/worker.d.mts",
+        "default": "./dist/browser/worker.mjs"
+      },
+      "import": {
+        "types": "./dist/types/worker.d.mts",
+        "default": "./dist/esm/worker.mjs"
+      },
+      "require": {
+        "types": "./dist/types/worker.d.cts",
+        "default": "./dist/cjs/worker.js"
+      }
+    },
+    "./browser-resources": {
+      "browser": {
+        "types": "./dist/types/browser-resources.d.mts",
+        "default": "./dist/browser/resources.mjs"
+      },
+      "import": {
+        "types": "./dist/types/browser-resources.d.mts",
+        "default": "./dist/esm/browser-resources.mjs"
+      },
+      "require": {
+        "types": "./dist/types/browser-resources.d.cts",
+        "default": "./dist/cjs/browser-resources.js"
+      }
+    },
+    "./electron": {
+      "import": {
+        "types": "./dist/types/electron.d.mts",
+        "default": "./dist/esm/electron.mjs"
+      },
+      "require": {
+        "types": "./dist/types/electron.d.cts",
+        "default": "./dist/cjs/electron.js"
+      }
+    },
+    "./electron/main": {
+      "import": {
+        "types": "./dist/types/electron-main.d.mts",
+        "default": "./dist/esm/electron-main.mjs"
+      },
+      "require": {
+        "types": "./dist/types/electron-main.d.cts",
+        "default": "./dist/cjs/electron-main.js"
+      }
+    },
+    "./electron/preload": {
+      "import": {
+        "types": "./dist/types/electron-preload.d.mts",
+        "default": "./dist/esm/electron-preload.mjs"
+      },
+      "require": {
+        "types": "./dist/types/electron-preload.d.cts",
+        "default": "./dist/cjs/electron-preload.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "sideEffects": false,
@@ -69,15 +127,19 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "dev": "tsx watch src/cli/index.ts",
-    "lint": "eslint src test \"*.config.*ts\" --ext .ts,.mts",
-    "lint:fix": "eslint src test \"*.config.*ts\" --ext .ts,.mts --fix",
+    "lint": "eslint src test scripts \"*.config.{js,mjs,ts,mts}\" .prettierrc.js --max-warnings 0",
+    "lint:fix": "pnpm lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky install",
+    "hooks:install": "husky",
     "test": "vitest run",
     "test:unit": "vitest run --project node",
     "test:browser": "playwright test",
     "test:package": "vitest run --project package",
+    "test:delivery": "vitest run --project node test/delivery",
+    "test:bench": "vitest bench --project node --run",
+    "docs:build": "typedoc",
+    "package:artifacts": "pnpm build && node scripts/package.mjs",
     "test:all": "pnpm test && pnpm test:browser",
     "demo": "pnpm build && node scripts/demo.mjs",
     "prepack": "pnpm build",
@@ -97,50 +159,74 @@
     "compression"
   ],
   "author": "CHMKit Team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fwx5618177/chm-kit.git"
+  },
+  "homepage": "https://github.com/fwx5618177/chm-kit#readme",
+  "bugs": "https://github.com/fwx5618177/chm-kit/issues",
   "license": "MIT",
   "engines": {
     "node": ">=20.10.0"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.34.9",
   "devDependencies": {
-    "@commitlint/cli": "^18.4.3",
-    "@commitlint/config-conventional": "^18.4.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "1.64.1",
-    "@typescript-eslint/eslint-plugin": "^6.11.0",
-    "@typescript-eslint/parser": "^6.11.0",
-    "esbuild": "^0.25.0",
-    "eslint": "^8.54.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.1",
-    "husky": "^8.0.3",
-    "lint-staged": "^15.1.0",
-    "prettier": "^3.1.0",
-    "rimraf": "^5.0.5",
-    "rollup": "^4.0.0",
-    "rollup-plugin-dts": "^6.2.3",
-    "tsx": "^4.5.0",
+    "esbuild": "^0.25.12",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.9.10",
+    "rimraf": "^6.1.3",
+    "rollup": "^4.66.0",
+    "rollup-plugin-dts": "~6.4.1",
+    "tsx": "^4.23.15",
+    "typedoc": "0.28.20",
     "typescript": "~5.2.2",
-    "vite": "^5.4.0",
-    "vitest": "^3.2.4"
+    "typescript-eslint": "^8.72.1",
+    "vite": "^7.3.7",
+    "vitest": "4.1.12"
   },
   "dependencies": {
-    "@types/node": "^20.19.6",
+    "@types/node": "^20.19.43",
     "buffer": "^6.0.3",
-    "chalk": "^5.4.1",
+    "chalk": "^5.6.2",
     "commander": "^11.1.0"
   },
   "lint-staged": {
-    "*.ts": [
-      "eslint --fix",
+    "*.{ts,mts,cts}": [
+      "eslint --fix --max-warnings 0",
       "prettier --write"
     ],
-    "*.{json,md}": [
+    "{src,test,scripts}/**/*.{js,mjs,cjs}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.config.{js,mjs,cjs}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    ".prettierrc.js": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
       "prettier --write"
     ]
   },
   "commitlint": {
     "extends": [
       "@commitlint/config-conventional"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
     ]
   }
 }

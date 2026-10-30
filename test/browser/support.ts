@@ -1,12 +1,33 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test as base, expect } from '@playwright/test';
+
 import type { PackFilesOptions } from '../../src/encoder/archive-builder';
 import manifest from '../fixtures/pychm-example/manifest.json';
 
 const root = resolve(__dirname, '../..');
 export const browserModulePath = '/dist/browser/index.mjs';
+export const workerModulePath = '/dist/browser/worker.mjs';
+export const resourcesModulePath = '/dist/browser/resources.mjs';
+
+async function requireBrowserArtifacts(): Promise<void> {
+  for (const modulePath of [
+    browserModulePath,
+    workerModulePath,
+    resourcesModulePath,
+  ]) {
+    try {
+      await access(resolve(root, modulePath.slice(1)));
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'ENOENT') throw error;
+      throw new Error(
+        `Missing browser build artifact: ${modulePath}. Run pnpm build with all browser entries configured; source fallbacks are not permitted.`,
+        { cause: error },
+      );
+    }
+  }
+}
 export type OracleFile = [name: string, bytes: number[]];
 
 interface BrowserActivity {
@@ -31,6 +52,7 @@ export const test = base.extend<BrowserFixtures>({
       if (!baseURL) throw new Error('Browser tests require a baseURL');
       const origin = new URL(baseURL).origin;
       const consoleErrors: string[] = [];
+      await requireBrowserArtifacts();
       testInfo.annotations.push({
         type: 'browser-version',
         description: browser.version(),
@@ -49,7 +71,7 @@ export const test = base.extend<BrowserFixtures>({
           activity.external.push(url);
           return route.abort();
         }
-        return route.continue();
+        return route.fallback();
       });
       await page.goto('/examples/browser/index.html', {
         waitUntil: 'networkidle',
@@ -68,16 +90,14 @@ export const test = base.extend<BrowserFixtures>({
   // eslint-disable-next-line no-empty-pattern
   expectedFiles: async ({}, use) => {
     const files = await Promise.all(
-      manifest.files.map(
-        async (entry): Promise<OracleFile> => [
-          entry.name,
-          [
-            ...(await readFile(
-              resolve(root, 'test/fixtures/pychm-example', entry.expectedFile),
-            )),
-          ],
+      manifest.files.map(async (entry): Promise<OracleFile> => [
+        entry.name,
+        [
+          ...(await readFile(
+            resolve(root, 'test/fixtures/pychm-example', entry.expectedFile),
+          )),
         ],
-      ),
+      ]),
     );
     await use(files);
   },

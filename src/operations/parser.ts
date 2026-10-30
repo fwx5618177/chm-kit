@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { BitReader } from '../utils/io/bit-reader';
 import { CHMParserFactory } from '../core/parser/parser-factory';
 import { CHMParserValidator } from '../core/parser/parser-validator';
@@ -13,10 +13,14 @@ export class ParserOperations {
    * @param filePath CHM 文件路径
    * @returns 解析后的 CHM 对象
    */
-  static async parse(filePath: string): Promise<ParsedCHM> {
+  static async parse(
+    filePath: string,
+    signal?: AbortSignal,
+  ): Promise<ParsedCHM> {
     try {
       // 读取文件
-      const fileBuffer = readFileSync(filePath);
+      const fileBuffer = await readFile(filePath, { signal });
+      signal?.throwIfAborted();
       const reader = new BitReader(fileBuffer);
 
       // 创建解析器并解析
@@ -30,8 +34,10 @@ export class ParserOperations {
 
       return parsedCHM;
     } catch (error) {
+      if (signal?.aborted) throw error;
       throw new Error(
         `CHM 文件解析失败: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

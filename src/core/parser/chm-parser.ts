@@ -9,7 +9,12 @@ import { BitReader } from '../../utils/io/bit-reader';
 import { ITSFHeaderParser } from '../headers/itsf-header';
 import { ITSPHeaderParser } from '../headers/itsp-header';
 import { LZXCHeaderParser } from '../headers/lzxc-header';
-import { checkedEnd, requireRange } from '../headers/binary';
+import { checkedEnd } from '../headers/binary';
+import {
+  MemoryByteSource,
+  requireSourceRange,
+  type ByteSource,
+} from '../files/byte-source';
 import { DirectoryParser } from '../directory/directory-parser';
 import { ResetTableProcessor } from '../lzx/reset-table';
 
@@ -19,11 +24,33 @@ const CONTROL = `${STORAGE}ControlData`;
 const RESET = `${STORAGE}Transform/{7FC28940-9D31-11D0-9B27-00A0C91E9C7C}/InstanceData/ResetTable`;
 
 export class CHMParser {
+  /** Fixed per-ITSF-header allocation budget, for memory and random-access input. */
+  static readonly MAX_HEADER_BYTES = 1024 * 1024;
+  /** Fixed allocation budget for the complete ITSP/PMGL/PMGI directory. */
+  static readonly MAX_DIRECTORY_BYTES = 64 * 1024 * 1024;
+  /** Per-stream allocation budget for ControlData and ResetTable, not Content. */
+  static readonly MAX_METADATA_STREAM_BYTES = 16 * 1024 * 1024;
+
   private resetTableProcessor = new ResetTableProcessor();
 
   parse(reader: BitReader): ParsedCHM {
+    reader.setPosition(0, 0);
+    const parsed = this.parseSource(new MemoryByteSource(reader.buffer));
+    reader.setPosition(
+      checkedEnd(
+        parsed.header.itsf.directoryOffset,
+        parsed.header.itsf.directoryLength,
+        'ITSF directory',
+      ),
+      0,
+    );
+    return parsed;
+  }
+
+  /** Reads only structural metadata; validates payload ranges without loading them. */
+  parseSource(source: ByteSource): ParsedCHM {
     this.reset();
-    const parsed = this.parseStructure(reader);
+    const parsed = this.parseStructure(source);
     const resetEntry = this.findEntry(parsed.directory, RESET);
     let resetTable: ResetTable = {
       version: 2,
@@ -38,7 +65,7 @@ export class CHMParser {
     if (resetEntry) {
       const base = this.dataOffset(parsed);
       resetTable = this.resetTableProcessor.parseResetTable(
-        this.entryReader(reader, base, resetEntry),
+        this.entryReader(source, base, resetEntry),
       );
       const content = this.findEntry(parsed.directory, CONTENT)!;
       if (resetTable.compressedLength !== content.length)
@@ -58,17 +85,43 @@ export class CHMParser {
     return { ...parsed, resetTable };
   }
 
-  private parseStructure(reader: BitReader): Omit<ParsedCHM, 'resetTable'> {
-    reader.setPosition(0, 0);
-    const itsf = ITSFHeaderParser.parse(reader);
-    requireRange(
-      reader.buffer,
+  private parseStructure(source: ByteSource): Omit<ParsedCHM, 'resetTable'> {
+    // Validate the fixed prefix before trusting its declared allocation size.
+    const prefix = this.readMetadata(
+      source,
+      0,
+      Math.min(12, source.size),
+      CHMParser.MAX_HEADER_BYTES,
+      'ITSF header',
+    );
+    if (prefix.length < 12)
+      throw new Error('ITSF header: truncated or out of bounds');
+    const version = prefix.readUInt32LE(4);
+    if (
+      prefix.toString('ascii', 0, 4) !== 'ITSF' ||
+      (version !== 2 && version !== 3)
+    )
+      throw new Error('Invalid ITSF signature or version');
+    const headerLength = prefix.readUInt32LE(8);
+    const itsf = ITSFHeaderParser.parse(
+      new BitReader(
+        this.readMetadata(
+          source,
+          0,
+          headerLength,
+          CHMParser.MAX_HEADER_BYTES,
+          'ITSF header',
+        ),
+      ),
+    );
+    requireSourceRange(
+      source,
       itsf.unknown2,
       itsf.unknown3,
       'ITSF auxiliary header section 0',
     );
-    requireRange(
-      reader.buffer,
+    requireSourceRange(
+      source,
       itsf.directoryOffset,
       itsf.directoryLength,
       'ITSF directory',
@@ -78,11 +131,18 @@ export class CHMParser {
       itsf.directoryLength,
       'ITSF directory',
     );
-    // v3 explicitly stores the data base; zero is corruption, not a fallback.
+    // v3 explicitly stores the data base, including a valid zero. Never replace
+    // it with directoryEnd: some producers append the directory after content.
     const base = itsf.version === 3 ? itsf.unknown4 : directoryEnd;
-    requireRange(reader.buffer, base, 0, 'ITSF data section');
+    requireSourceRange(source, base, 0, 'ITSF data section');
     const directoryReader = new BitReader(
-      reader.buffer.subarray(itsf.directoryOffset, directoryEnd),
+      this.readMetadata(
+        source,
+        itsf.directoryOffset,
+        itsf.directoryLength,
+        CHMParser.MAX_DIRECTORY_BYTES,
+        'ITSF directory',
+      ),
     );
     const itsp = ITSPHeaderParser.parse(directoryReader);
     const chunkBytes = itsf.directoryLength - itsp.headerLength;
@@ -92,11 +152,11 @@ export class CHMParser {
     const directory = DirectoryParser.parse(directoryReader, itsp, numChunks);
     if (!DirectoryParser.validate(directory))
       throw new Error('目录结构验证失败');
-    reader.setPosition(directoryEnd, 0);
+
     for (const entry of directory.entries.values()) {
       if (entry.section === 0) {
-        requireRange(
-          reader.buffer,
+        requireSourceRange(
+          source,
           checkedEnd(base, entry.offset, entry.name),
           entry.length,
           entry.name,
@@ -130,7 +190,7 @@ export class CHMParser {
             `Compression metadata must be in section 0: ${entry.name}`,
           );
       }
-      lzxc = LZXCHeaderParser.parse(this.entryReader(reader, base, control));
+      lzxc = LZXCHeaderParser.parse(this.entryReader(source, base, control));
     }
     const contentOffset = content
       ? checkedEnd(base, content.offset, CONTENT)
@@ -160,7 +220,7 @@ export class CHMParser {
   }
 
   private entryReader(
-    reader: BitReader,
+    source: ByteSource,
     base: number,
     entry: DirectoryEntry,
   ): BitReader {
@@ -169,8 +229,31 @@ export class CHMParser {
         `Compression metadata must be in section 0: ${entry.name}`,
       );
     const start = checkedEnd(base, entry.offset, entry.name);
-    requireRange(reader.buffer, start, entry.length, entry.name);
-    return new BitReader(reader.buffer.subarray(start, start + entry.length));
+    return new BitReader(
+      this.readMetadata(
+        source,
+        start,
+        entry.length,
+        CHMParser.MAX_METADATA_STREAM_BYTES,
+        entry.name,
+      ),
+    );
+  }
+
+  private readMetadata(
+    source: ByteSource,
+    offset: number,
+    length: number,
+    maxBytes: number,
+    label: string,
+  ): Buffer {
+    // Preserve safe-integer/overflow/EOF validation before the allocation limit.
+    requireSourceRange(source, offset, length, label);
+    if (length > maxBytes)
+      throw new RangeError(
+        `${label}: metadata budget exceeded (${length} bytes > ${maxBytes} bytes)`,
+      );
+    return source.read(offset, length);
   }
 
   /** Omit ResetTable from the result, but never hide corrupt compression metadata. */

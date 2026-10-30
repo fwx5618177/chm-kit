@@ -75,6 +75,7 @@ export class InfoOperations {
     } catch (error) {
       throw new Error(
         `获取 CHM 文件信息失败: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

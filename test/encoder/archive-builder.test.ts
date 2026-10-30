@@ -55,7 +55,7 @@ function metadata(archive: Buffer): Map<number, string> {
   const data = storedEntry(archive, entries.get('/#SYSTEM')!);
   assert.equal(data.readUInt32LE(0), 3);
   const fields = new Map<number, string>();
-  for (let offset = 4; offset < data.length; ) {
+  for (let offset = 4; offset < data.length;) {
     const code = data.readUInt16LE(offset);
     const length = data.readUInt16LE(offset + 2);
     assert.ok(offset + 4 + length <= data.length);

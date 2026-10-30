@@ -1,9 +1,10 @@
 import { CHMParser } from '../core/parser/chm-parser';
 import { FileReconstructor } from '../core/files/file-reconstructor';
-import { BitReader } from '../utils/io/bit-reader';
+import { MemoryByteSource, type ByteSource } from '../core/files/byte-source';
 import type { DirectoryEntry, ParsedCHM } from '../core/types';
 import {
   CacheStrategy,
+  type AdaptivePreloadOptions,
   type CacheLayerStats,
   type CacheStats,
   type CHMFileInfo,
@@ -50,12 +51,14 @@ function nonnegative(value: number, name: string): number {
 }
 
 /**
- * In-memory CHM reader. All operations are synchronous (and may also be awaited),
+ * Portable CHM reader over owned memory or a synchronous byte source.
+ * All operations are synchronous (and may also be awaited),
  * except the WHATWG stream's normal asynchronous consumption. No filesystem,
  * process, logger or Node stream dependency belongs in this module.
  */
 export class CHMArchive {
-  private buffer?: Buffer;
+  private source?: ByteSource;
+  private readonly activeStreams = new Set<() => void>();
   private parsed?: ParsedCHM;
   private reconstructor?: FileReconstructor;
   private readonly paths = new Map<string, DirectoryEntry>();
@@ -67,46 +70,109 @@ export class CHMArchive {
   private readonly maxFileSize: number;
   private readonly defaultEncoding?: string;
   private strategy: CacheStrategy;
+  private readonly adaptivePreload?: AdaptivePreloadOptions;
+  private readonly preloadOrder: DirectoryEntry[] = [];
+  private readonly preloadIndices = new Map<string, number>();
+  private preloadTimer?: ReturnType<typeof setTimeout>;
+  private preloadQueue: DirectoryEntry[] = [];
+  private preloadPrevious = -1;
+  private preloadTransitions = 0;
+  private preloadFailure?: Error;
 
-  constructor(input: Uint8Array | ArrayBuffer, options: ReaderOptions = {}) {
-    this.maxCacheBytes = nonnegative(
-      options.maxCacheBytes ?? DEFAULT_CACHE_BYTES,
-      'maxCacheBytes',
-    );
-    this.maxFileSize = nonnegative(
-      options.maxFileSize ?? DEFAULT_FILE_SIZE,
-      'maxFileSize',
-    );
-    this.defaultEncoding = options.defaultEncoding;
-    this.strategy = options.cacheStrategy ?? CacheStrategy.LRU;
-    this.validateStrategy(this.strategy);
-    // Own the input: caller mutations and Buffer views cannot invalidate parsing.
-    this.buffer = Buffer.from(
-      input instanceof Uint8Array ? input : new Uint8Array(input),
-    );
-    this.parsed = new CHMParser().parse(new BitReader(this.buffer));
-    for (const entry of this.parsed.directory.entries.values()) {
-      const key = normalizePath(entry.name).toLowerCase();
-      if (this.paths.has(key))
-        throw new Error(`Ambiguous case-insensitive CHM path: ${entry.name}`);
-      this.paths.set(key, entry);
+  /** A byte source transfers ownership, including close(), even if parsing fails. */
+  constructor(
+    input: Uint8Array | ArrayBuffer | ByteSource,
+    options: ReaderOptions = {},
+  ) {
+    this.source =
+      input instanceof Uint8Array || input instanceof ArrayBuffer
+        ? new MemoryByteSource(
+            Buffer.from(
+              input instanceof Uint8Array ? input : new Uint8Array(input),
+            ),
+          )
+        : input;
+    try {
+      this.maxCacheBytes = nonnegative(
+        options.maxCacheBytes ?? DEFAULT_CACHE_BYTES,
+        'maxCacheBytes',
+      );
+      this.maxFileSize = nonnegative(
+        options.maxFileSize ?? DEFAULT_FILE_SIZE,
+        'maxFileSize',
+      );
+      this.defaultEncoding = options.defaultEncoding;
+      this.strategy = options.cacheStrategy ?? CacheStrategy.LRU;
+      this.validateStrategy(this.strategy);
+      if (
+        options.readAhead !== undefined &&
+        typeof options.readAhead !== 'boolean'
+      )
+        throw new TypeError('readAhead must be a boolean');
+      if (options.adaptivePreload !== undefined) {
+        const config = options.adaptivePreload;
+        if (!config || typeof config !== 'object' || Array.isArray(config))
+          throw new TypeError('adaptivePreload must be an options object');
+        nonnegative(config.maxFiles, 'adaptivePreload.maxFiles');
+        nonnegative(config.maxBytes, 'adaptivePreload.maxBytes');
+        if (config.maxFiles < 1 || config.maxFiles > 32 || config.maxBytes < 1)
+          throw new RangeError(
+            'adaptivePreload requires maxFiles in [1, 32] and positive maxBytes',
+          );
+        this.adaptivePreload = {
+          maxFiles: config.maxFiles,
+          maxBytes: config.maxBytes,
+        };
+      }
+      this.source.cache?.setReadAhead?.(options.readAhead ?? true);
+      this.parsed = new CHMParser().parseSource(this.source);
+      for (const entry of this.parsed.directory.entries.values()) {
+        const key = normalizePath(entry.name).toLowerCase();
+        if (this.paths.has(key))
+          throw new Error(`Ambiguous case-insensitive CHM path: ${entry.name}`);
+        this.paths.set(key, entry);
+      }
+      this.reconstructor = new FileReconstructor(this.parsed, {
+        maxCacheBytes: this.blockCacheLimit(),
+        maxOutputBytes: this.maxFileSize,
+      });
+      this.source.cache?.setLimit(this.sourceCacheLimit());
+      if (this.adaptivePreload) {
+        const ordered = [...this.paths.values()]
+          .filter(
+            entry => !entry.name.endsWith('/') && !isInternalPath(entry.name),
+          )
+          .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+        for (const entry of ordered) {
+          this.preloadIndices.set(entry.name, this.preloadOrder.length);
+          this.preloadOrder.push(entry);
+        }
+      }
+    } catch (error) {
+      this.source.close?.();
+      this.source = undefined;
+      throw error;
     }
-    this.reconstructor = new FileReconstructor(this.parsed, {
-      maxCacheBytes: this.blockCacheLimit(),
-      maxOutputBytes: this.maxFileSize,
-    });
   }
 
   isOpen(): boolean {
-    return this.buffer !== undefined;
+    return this.source !== undefined;
   }
 
   close(): void {
-    this.clearCache();
-    this.paths.clear();
-    this.reconstructor = undefined;
-    this.parsed = undefined;
-    this.buffer = undefined;
+    try {
+      for (const release of this.activeStreams) release();
+      this.clearCache();
+    } finally {
+      const source = this.source;
+      this.paths.clear();
+      this.preloadOrder.length = 0;
+      this.preloadIndices.clear();
+      this.reconstructor = undefined;
+      this.parsed = undefined;
+      this.source = undefined;
+      source?.close?.();
+    }
   }
 
   listFiles(pattern?: string): string[] {
@@ -213,11 +279,17 @@ export class CHMArchive {
 
   readFile(path: string): Buffer {
     const entry = this.fileEntry(path);
+    const data = this.readEntry(entry);
+    this.observePreloadAccess(entry);
+    return data;
+  }
+
+  private readEntry(entry: DirectoryEntry, copyForCaller = true): Buffer {
     const size = this.entrySize(entry);
     this.checkOutputSize(size);
     const key = entry.name;
     const cached = this.cachedFile(key);
-    if (cached) return Buffer.from(cached);
+    if (cached) return copyForCaller ? Buffer.from(cached) : cached;
     this.cacheMisses++;
     const data = this.reconstruct(entry, 0, size);
     const limit = this.fileCacheLimit();
@@ -229,7 +301,7 @@ export class CHMArchive {
       while (this.cacheBytes + data.length > limit) this.evictOldest();
       this.cache.set(key, data);
       this.cacheBytes += data.length;
-      return Buffer.from(data);
+      return copyForCaller ? Buffer.from(data) : data;
     }
     return data;
   }
@@ -250,6 +322,7 @@ export class CHMArchive {
     } catch (error) {
       throw new SyntaxError(
         `Invalid JSON in CHM file "${path}": ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }
@@ -306,6 +379,7 @@ export class CHMArchive {
     let position = 0;
     let cancelled = false;
     const release = () => {
+      this.activeStreams.delete(release);
       iterator?.return(undefined);
       iterator = undefined;
     };
@@ -321,11 +395,12 @@ export class CHMArchive {
             }
             iterator ??= this.reconstructor!.iterateFileChunks(
               entry.name,
-              new BitReader(this.buffer!),
+              this.source!,
               chunkSize,
               start,
               until,
             );
+            this.activeStreams.add(release);
             const next = iterator.next();
             if (next.done || next.value.length === 0)
               throw new Error(
@@ -413,7 +488,7 @@ export class CHMArchive {
     if (data.length < 4) throw new Error('Invalid /#SYSTEM: missing version');
     const records: { code: number; bytes: Buffer }[] = [];
     let languageId = this.parsed!.header.itsf.languageId;
-    for (let offset = 4; offset < data.length; ) {
+    for (let offset = 4; offset < data.length;) {
       if (offset + 4 > data.length)
         throw new Error('Invalid /#SYSTEM: truncated record header');
       const code = data.readUInt16LE(offset);
@@ -583,15 +658,22 @@ export class CHMArchive {
   /** Preloads only the paths explicitly requested, subject to normal LRU eviction. */
   preload(paths: readonly string[]): void {
     this.assertOpen();
-    for (const path of paths) this.readFile(path);
+    for (const path of paths) this.readEntry(this.fileEntry(path), false);
+  }
+
+  /** A background failure closes the archive and is also rethrown by the next data operation. */
+  getPreloadError(): Error | undefined {
+    return this.preloadFailure;
   }
 
   clearCache(): void {
+    this.cancelAdaptivePreload(true);
     this.cache.clear();
     this.cacheBytes = 0;
     this.cacheHits = 0;
     this.cacheMisses = 0;
     this.reconstructor?.clearCache();
+    this.source?.cache?.clear();
   }
 
   getCacheStats(): CacheStats {
@@ -609,15 +691,23 @@ export class CHMArchive {
       misses: 0,
       maxBytes: this.blockCacheLimit(),
     };
+    const source: CacheLayerStats = this.source?.cache?.getStats() ?? {
+      entries: 0,
+      bytes: 0,
+      hits: 0,
+      misses: 0,
+      maxBytes: this.sourceCacheLimit(),
+    };
     return {
-      entries: files.entries + blocks.entries,
-      bytes: files.bytes + blocks.bytes,
-      hits: files.hits + blocks.hits,
-      misses: files.misses + blocks.misses,
+      entries: files.entries + blocks.entries + source.entries,
+      bytes: files.bytes + blocks.bytes + source.bytes,
+      hits: files.hits + blocks.hits + source.hits,
+      misses: files.misses + blocks.misses + source.misses,
       maxBytes: this.maxCacheBytes,
       strategy: this.strategy,
       files,
       blocks,
+      source,
     };
   }
 
@@ -627,10 +717,18 @@ export class CHMArchive {
     this.strategy = strategy;
     this.clearCache();
     this.reconstructor!.setCacheLimit(this.blockCacheLimit());
+    this.source?.cache?.setLimit(this.sourceCacheLimit());
   }
 
   private assertOpen(): void {
-    if (!this.buffer) throw new Error('CHM archive is closed');
+    if (this.preloadFailure) throw this.preloadFailure;
+    if (!this.source) throw new Error('CHM archive is closed');
+    try {
+      this.source.validate?.();
+    } catch (error) {
+      this.close();
+      throw error;
+    }
   }
 
   private fileEntry(path: string): DirectoryEntry {
@@ -662,14 +760,111 @@ export class CHMArchive {
     if (start === end) return Buffer.alloc(0);
     const data = this.reconstructor!.reconstructRange(
       entry.name,
-      new BitReader(this.buffer!),
+      this.source!,
       start,
       end,
     );
     if (data.length !== end - start)
       throw new Error(`Incomplete CHM range reconstruction: ${entry.name}`);
-    // Do not leak an archive/block-cache view that the caller can mutate or retain.
-    return Buffer.from(data);
+    // Reconstructor returns owned copies; no second aggregate copy is needed.
+    return data;
+  }
+
+  private cancelAdaptivePreload(reset: boolean): void {
+    if (this.preloadTimer !== undefined) clearTimeout(this.preloadTimer);
+    this.preloadTimer = undefined;
+    this.preloadQueue = [];
+    if (reset) {
+      this.preloadPrevious = -1;
+      this.preloadTransitions = 0;
+    }
+  }
+
+  private observePreloadAccess(entry: DirectoryEntry): void {
+    if (!this.adaptivePreload || this.strategy === CacheStrategy.None) return;
+    const index = this.preloadIndices.get(entry.name);
+    if (index === undefined) return;
+    this.cancelAdaptivePreload(false);
+    this.preloadTransitions =
+      index === this.preloadPrevious + 1 && this.preloadPrevious >= 0
+        ? this.preloadTransitions + 1
+        : 0;
+    this.preloadPrevious = index;
+    if (this.preloadTransitions < 2) return;
+    let remaining = Math.min(
+      this.adaptivePreload.maxBytes,
+      this.fileCacheLimit() - this.cacheBytes,
+    );
+    const end = Math.min(
+      this.preloadOrder.length,
+      index + 1 + this.adaptivePreload.maxFiles,
+    );
+    for (let next = index + 1; next < end; next++) {
+      const candidate = this.preloadOrder[next]!;
+      if (this.cache.has(candidate.name)) continue;
+      const size = this.entrySize(candidate);
+      if (size === 0 || size > this.maxFileSize) continue;
+      const cost = this.preloadCost(candidate);
+      if (cost > remaining) continue;
+      remaining -= cost;
+      this.preloadQueue.push(candidate);
+    }
+    if (this.preloadQueue.length)
+      this.preloadTimer = setTimeout(() => this.runAdaptivePreload(), 0);
+  }
+
+  /** Conservative decode/input span: a tiny compressed file may need a large prefix. */
+  private preloadCost(entry: DirectoryEntry): number {
+    const size = this.entrySize(entry);
+    if (entry.section === 0) return size;
+    if (entry.section !== 1 || size === 0) return Infinity;
+    const table = this.parsed!.resetTable;
+    const reset = this.parsed!.header.lzxc.resetInterval;
+    const frame = table.blockSize;
+    if (!reset || !frame) return Infinity;
+    const start = Math.floor(entry.offset / reset) * reset;
+    const end = entry.offset + size;
+    const lastGroup = Math.floor((end - 1) / reset) * reset;
+    const groupSize = Math.min(reset, table.uncompressedLength - lastGroup);
+    const decodedEnd =
+      groupSize <= this.blockCacheLimit()
+        ? lastGroup + groupSize
+        : Math.min(table.uncompressedLength, Math.ceil(end / frame) * frame);
+    const first = table.entries[start / frame]?.compressedLength;
+    const last =
+      table.entries[Math.ceil(decodedEnd / frame)]?.compressedLength ??
+      table.compressedLength;
+    if (first === undefined || last < first) return Infinity;
+    return Math.max(size, decodedEnd - start, last - first);
+  }
+
+  private runAdaptivePreload(): void {
+    this.preloadTimer = undefined;
+    const entry = this.preloadQueue.shift();
+    if (!entry) return;
+    try {
+      this.assertOpen();
+      if (
+        this.strategy === CacheStrategy.LRU &&
+        !this.cache.has(entry.name) &&
+        this.entrySize(entry) <= this.fileCacheLimit() - this.cacheBytes
+      )
+        this.readEntry(entry, false);
+      if (this.preloadQueue.length)
+        this.preloadTimer = setTimeout(() => this.runAdaptivePreload(), 0);
+    } catch (error) {
+      let message = error instanceof Error ? error.message : String(error);
+      try {
+        this.close();
+      } catch (closeError) {
+        message += `; close failed: ${String(closeError)}`;
+      }
+      // Timer exceptions cannot be returned to a synchronous readFile caller.
+      // Retain a diagnostic and make subsequent foreground operations fail loudly.
+      this.preloadFailure = new Error(
+        `Adaptive preload failed for ${JSON.stringify(entry.name)}: ${message}`,
+      );
+    }
   }
 
   private cachedFile(key: string): Buffer | undefined {
@@ -688,16 +883,32 @@ export class CHMArchive {
     this.cache.delete(key);
   }
 
-  // Fixed partition guarantees aggregate retained buffers never exceed the budget.
-  private fileCacheLimit(): number {
-    return this.strategy === CacheStrategy.None
+  // Charge every retained layer. Pure section-0 archives need no LZX budget;
+  // compressed archives favor reusable reset groups over duplicate file bytes.
+  private sourceCacheLimit(): number {
+    return this.strategy === CacheStrategy.None || !this.source?.cache
       ? 0
-      : Math.floor(this.maxCacheBytes / 2);
+      : Math.min(256 * 1024, Math.floor(this.maxCacheBytes / 8));
+  }
+  private fileCacheLimit(): number {
+    if (this.strategy === CacheStrategy.None) return 0;
+    const available = this.maxCacheBytes - this.sourceCacheLimit();
+    if (!this.parsed?.header.lzxc.signature) return available;
+    const resetSize = Math.min(
+      this.parsed.header.lzxc.resetInterval,
+      this.parsed.resetTable.uncompressedLength,
+    );
+    const blocks = Math.max(
+      Math.ceil(available / 2),
+      resetSize <= available ? resetSize : 0,
+    );
+    return available - blocks;
   }
   private blockCacheLimit(): number {
-    return this.strategy === CacheStrategy.None
+    return this.strategy === CacheStrategy.None ||
+      !this.parsed?.header.lzxc.signature
       ? 0
-      : this.maxCacheBytes - this.fileCacheLimit();
+      : this.maxCacheBytes - this.sourceCacheLimit() - this.fileCacheLimit();
   }
 
   private validateStrategy(strategy: CacheStrategy): void {
@@ -715,6 +926,7 @@ export class CHMArchive {
     } catch (error) {
       throw new Error(
         `Cannot decode CHM file "${path}" (${encoding ?? this.defaultEncoding ?? 'auto'}): ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

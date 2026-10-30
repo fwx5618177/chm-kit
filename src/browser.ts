@@ -1,8 +1,18 @@
 import { CHMArchive } from './reader/chm-archive';
-import { packFiles as encodeFiles } from './encoder/archive-builder';
-import type { PackFilesOptions } from './encoder/types';
+import {
+  packFiles as encodeFiles,
+  packTemplate as encodeTemplate,
+  updateArchive as rebuildArchive,
+} from './encoder/archive-builder';
+import type {
+  PackFilesOptions,
+  UpdateArchiveOptions,
+  PackTOCEntry,
+  HTMLHelpMetadata,
+} from './encoder/types';
 import type {
   CacheStrategy,
+  AdaptivePreloadOptions,
   CacheLayerStats,
   CacheStats,
   CHMFileInfo,
@@ -19,6 +29,7 @@ import type {
 
 export { CacheStrategy } from './reader/types';
 export type {
+  AdaptivePreloadOptions,
   CacheLayerStats,
   CacheStats,
   CHMFileInfo,
@@ -31,6 +42,9 @@ export type {
   SearchOptions,
   SearchResult,
   PackFilesOptions,
+  UpdateArchiveOptions,
+  PackTOCEntry,
+  HTMLHelpMetadata,
 };
 
 export type CHMSource = Uint8Array | ArrayBuffer | Blob;
@@ -207,6 +221,9 @@ export class CHMReader {
   preload(paths: readonly string[]): void {
     this.archive.preload(paths);
   }
+  getPreloadError(): Error | undefined {
+    return this.archive.getPreloadError();
+  }
   clearCache(): void {
     this.archive.clearCache();
   }
@@ -224,6 +241,28 @@ export function packFiles(
   options?: PackFilesOptions,
 ): Uint8Array {
   return Uint8Array.from(encodeFiles(files, options));
+}
+
+export function packTemplate(
+  template: ReadonlyMap<string, Uint8Array>,
+  overrides: ReadonlyMap<string, Uint8Array | null>,
+  options?: PackFilesOptions,
+): Uint8Array {
+  return Uint8Array.from(encodeTemplate(template, overrides, options));
+}
+
+export function updateArchive(
+  existing: Uint8Array | ArrayBuffer,
+  changes: ReadonlyMap<string, Uint8Array | null>,
+  options?: UpdateArchiveOptions,
+): Uint8Array {
+  return Uint8Array.from(
+    rebuildArchive(
+      existing instanceof ArrayBuffer ? new Uint8Array(existing) : existing,
+      changes,
+      options,
+    ),
+  );
 }
 
 /** Source-based convenience API. One-shot operations always close their reader. */
@@ -244,6 +283,22 @@ export class CHMKit {
     options?: PackFilesOptions,
   ): Uint8Array {
     return packFiles(files, options);
+  }
+
+  static packTemplate(
+    template: ReadonlyMap<string, Uint8Array>,
+    overrides: ReadonlyMap<string, Uint8Array | null>,
+    options?: PackFilesOptions,
+  ): Uint8Array {
+    return packTemplate(template, overrides, options);
+  }
+
+  static updateArchive(
+    existing: Uint8Array | ArrayBuffer,
+    changes: ReadonlyMap<string, Uint8Array | null>,
+    options?: UpdateArchiveOptions,
+  ): Uint8Array {
+    return updateArchive(existing, changes, options);
   }
 
   static readFile(

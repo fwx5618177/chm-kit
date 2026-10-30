@@ -168,6 +168,15 @@
       #file-input {
         display: none;
       }
+      #document-links {
+        max-height: 100px;
+        overflow: auto;
+        padding: 0 24px;
+      }
+      #document-links button {
+        margin: 4px;
+        font-size: 12px;
+      }
       #results:empty {
         display: none;
       }
@@ -240,12 +249,19 @@
           ><span>缓存<strong id="cache-size">0 B</strong></span>
         </div>
         <div id="results"></div>
+        <nav id="document-links" aria-label="文档中的安全链接"></nav>
         <div id="empty">
           <h2>让 CHM 文档，在浏览器里重新打开。</h2>
           <p>选择本地文件，或加载内置演示。内容不离开当前浏览器。</p>
           <p>HTML 在无脚本、无同源权限的沙箱中预览。</p>
         </div>
-        <iframe id="preview" title="安全的文档预览" sandbox="" hidden></iframe>
+        <iframe
+          id="preview"
+          title="安全的文档预览"
+          sandbox=""
+          referrerpolicy="no-referrer"
+          hidden
+        ></iframe>
         <pre id="binary" hidden></pre>
       </section>
     </div>

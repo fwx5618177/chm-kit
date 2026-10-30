@@ -3,17 +3,28 @@ export const CacheStrategy = {
   None: 'none',
   LRU: 'lru',
 } as const;
-// eslint-disable-next-line no-redeclare -- TypeScript value/type namespaces intentionally share this API name.
+
 export type CacheStrategy = (typeof CacheStrategy)[keyof typeof CacheStrategy];
 
 export interface ReaderOptions {
-  /** Total file + reconstructed-block cache budget, excluding input and caller-owned output. */
+  /** Total file, reconstructed-block and file-input read-ahead cache budget; excludes metadata, decoder workspace, memory input and caller-owned output. */
   maxCacheBytes?: number;
   /** Maximum bytes materialized by one read; ranges/streams may read larger files. */
   maxFileSize?: number;
   cacheStrategy?: CacheStrategy;
+  /** Node file-input sequential window read-ahead (default true); no background file warmup. CacheStrategy.None disables the window entirely. */
+  readAhead?: boolean;
+  /** Opt-in adjacent-file warmup after two consecutive forward transitions; disabled by default and with cacheStrategy='none'. */
+  adaptivePreload?: AdaptivePreloadOptions;
   /** Used when no explicit encoding, BOM or HTML charset is present. */
   defaultEncoding?: string;
+}
+
+export interface AdaptivePreloadOptions {
+  /** At most this many following user files are considered per prediction (1..32). */
+  maxFiles: number;
+  /** Cumulative per-batch reconstruction cost limit; bounded by cache headroom. LZX history/reset groups count, not just file output. The independently bounded input window remains part of maxCacheBytes. */
+  maxBytes: number;
 }
 
 export interface CacheStats {
@@ -25,6 +36,15 @@ export interface CacheStats {
   strategy: CacheStrategy;
   files: CacheLayerStats;
   blocks: CacheLayerStats;
+  /** Positioned file-input read-ahead; empty for memory archives. */
+  source: CacheLayerStats;
+}
+
+/** Physical Node filesystem reads, including initialization and bounded read-ahead. */
+export interface ReaderIOStats {
+  readCalls: number;
+  bytesRead: number;
+  size: number;
 }
 
 export interface CacheLayerStats {

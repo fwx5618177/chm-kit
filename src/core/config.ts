@@ -201,7 +201,10 @@ function configSchema(): ConfigSchema {
         (value as number) <= 0x200000 &&
         Number.isInteger(Math.log2(value as number)),
       resetInterval: value =>
-        positiveInteger(value) && (value as number) % 0x8000 === 0,
+        positiveInteger(value) &&
+        (value as number) >= 0x8000 &&
+        (value as number) <= 256 * 1024 * 1024 &&
+        Number.isInteger(Math.log2(value as number)),
       compressionLevel: value =>
         nonNegativeInteger(value) && (value as number) <= 9,
     },
@@ -253,6 +256,7 @@ function validateConfig(
   value: unknown,
   schema: ConfigSchema,
   path = '',
+  onField?: (path: string) => void,
 ): Record<string, unknown> {
   if (!isPlainObject(value))
     throw new Error(`Invalid config object '${path || 'root'}'`);
@@ -269,8 +273,9 @@ function validateConfig(
     if (typeof rule === 'function') {
       if (!rule(item)) throw new Error(`Invalid config value '${field}'`);
       result[key] = cloneValue(item);
+      onField?.(field);
     } else {
-      result[key] = validateConfig(item, rule, field);
+      result[key] = validateConfig(item, rule, field, onField);
     }
   }
   return result;
@@ -280,6 +285,11 @@ function validateConfig(
  * 查找配置文件
  */
 function findConfigFile(options: ConfigLoadOptions = {}): string | null {
+  if (options.configPath !== undefined) {
+    const path = resolve(options.configPath);
+    if (!existsSync(path)) throw new Error(`Config file not found: ${path}`);
+    return path;
+  }
   const {
     searchPaths = [process.cwd()],
     configFileName = 'chmkit.config.json',
@@ -298,15 +308,26 @@ function findConfigFile(options: ConfigLoadOptions = {}): string | null {
 /**
  * 从文件加载配置
  */
-function loadConfigFromFile(configPath: string): CHMKitConfig | null {
+function loadConfigFromFile(
+  configPath: string,
+  options: ConfigLoadOptions,
+): CHMKitConfig | null {
   try {
     const configContent = readFileSync(configPath, 'utf-8');
     // Safety/type checks are mandatory, even with validateConfig: false.
     return validateConfig(
       JSON.parse(configContent),
       configSchema(),
+      '',
+      options.onField,
     ) as CHMKitConfig;
   } catch (error) {
+    if (options.strict) {
+      throw new Error(
+        `Failed to load config file ${configPath}: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
     logger.error(`Failed to load config file: ${configPath}`, error);
     return null;
   }
@@ -323,7 +344,7 @@ export function loadConfig(options: ConfigLoadOptions = {}): CHMKitConfig {
     return cloneValue(defaultFullConfig);
   }
 
-  const userConfig = loadConfigFromFile(configPath);
+  const userConfig = loadConfigFromFile(configPath, options);
 
   if (!userConfig) {
     // 配置文件加载失败，使用默认配置

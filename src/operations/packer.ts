@@ -20,6 +20,7 @@ export class PackerOperations {
       const { CHMEncoder } = await import('../encoder/chm-encoder');
 
       const packOptions: PackOptions = {
+        ...options,
         inputDir,
         outputPath,
         compression: options.compression ?? true,

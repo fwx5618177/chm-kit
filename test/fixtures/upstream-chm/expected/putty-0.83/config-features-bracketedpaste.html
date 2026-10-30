@@ -1,0 +1,30 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Disabling bracketed paste mode</title>
+<link rel="previous" href="config-features-bidi.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="config-window.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="S4.6.12"></a>4.6.12 Disabling <a name="i0"></a>bracketed paste mode</h1>
+<p>
+By default, when you paste text into the terminal window, it's sent to the server as terminal input, exactly as if you'd typed the same text into the terminal window using the keyboard (except that it's all sent at once, much faster than you could type it).
+</p>
+<p>
+However, a terminal application can change that, by asking the terminal to enable &#8216;bracketed paste mode&#8217;. In this mode, pasted data is marked in the input stream, by sending a special control sequence before the paste, and another one at the end.
+</p>
+<p>
+A terminal application can use this information to treat pasted data differently from keyboard input. For example, a terminal-based text editor can treat the input as literal data, even if some of its characters would normally trigger special editor functions. A shell can treat pasted input as less trusted, in case another application somehow sneaked a malicious shell command into your clipboard: modern versions of <code>bash</code> will highlight pasted data on the command line, and not run it until you've confirmed it by pressing Return, even if the pasted data contained a newline character.
+</p>
+<p>
+In edge cases, it's possible that bracketed paste mode introduces bigger problems than the ones it solves. So you can use this checkbox to turn it off completely. If you do that, then PuTTY will always send your paste data exactly as if it had been typed at the keyboard, whether or not the server asked for bracketed paste mode.
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

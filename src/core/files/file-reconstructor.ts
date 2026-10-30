@@ -2,7 +2,12 @@ import type { DirectoryEntry, CHMFile, ParsedCHM } from '../types';
 import type { BitReader } from '../../utils/io/bit-reader';
 import { LZXDecoder } from '../lzx/lzx-decoder';
 import { CHMFileManager } from './file-manager';
-import { checkedEnd, requireRange } from '../headers/binary';
+import { checkedEnd } from '../headers/binary';
+import {
+  asByteSource,
+  requireSourceRange,
+  type ByteSource,
+} from './byte-source';
 
 export interface ReconstructorOptions {
   maxCacheBytes?: number;
@@ -31,7 +36,7 @@ export class FileReconstructor {
     this.setCacheLimit(options.maxCacheBytes ?? 8 * 1024 * 1024);
   }
 
-  reconstructFile(fileName: string, reader: BitReader): CHMFile {
+  reconstructFile(fileName: string, reader: BitReader | ByteSource): CHMFile {
     const entry = this.requireEntry(fileName);
     const data = this.reconstructRange(fileName, reader);
     return {
@@ -45,10 +50,11 @@ export class FileReconstructor {
 
   reconstructRange(
     fileName: string,
-    reader: BitReader,
+    reader: BitReader | ByteSource,
     start = 0,
     end?: number,
   ): Buffer {
+    asByteSource(reader).validate?.();
     const entry = this.requireEntry(fileName);
     const limit = end ?? entry.length;
     if (
@@ -83,8 +89,9 @@ export class FileReconstructor {
         start,
         entry.name,
       );
-      requireRange(reader.buffer, absolute, length, entry.name);
-      return Buffer.from(reader.buffer.subarray(absolute, absolute + length));
+      const source = asByteSource(reader);
+      requireSourceRange(source, absolute, length, entry.name);
+      return Buffer.from(source.read(absolute, length));
     }
     if (entry.section !== 1)
       throw new Error(`Unsupported CHM section: ${entry.section}`);
@@ -110,6 +117,26 @@ export class FileReconstructor {
       group < absoluteEnd;
       group += resetBytes
     ) {
+      const groupSize = Math.min(resetBytes, table.uncompressedLength - group);
+      if (groupSize > this.maxCacheBytes) {
+        // A group we cannot retain has no reuse benefit. Decode its necessary
+        // history lazily, without fetching the unused suffix or materializing
+        // the prefix before the requested range.
+        this.misses++;
+        const from = Math.max(absoluteStart, group) - entry.offset;
+        const to = Math.min(absoluteEnd, group + groupSize) - entry.offset;
+        for (const chunk of this.iterateFileChunks(
+          fileName,
+          reader,
+          64 * 1024,
+          from,
+          to,
+        )) {
+          chunk.copy(output, written);
+          written += chunk.length;
+        }
+        continue;
+      }
       const data = this.readResetGroup(group, reader);
       const from = Math.max(absoluteStart, group) - group;
       const to = Math.min(absoluteEnd, group + data.length) - group;
@@ -133,13 +160,15 @@ export class FileReconstructor {
    */
   *iterateFileChunks(
     fileName: string,
-    reader: BitReader,
+    reader: BitReader | ByteSource,
     chunkSize: number,
     start = 0,
     end?: number,
   ): Generator<Buffer> {
     if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0)
       throw new RangeError('chunkSize must be a positive safe integer');
+    const source = asByteSource(reader);
+    source.validate?.();
     const entry = this.requireEntry(fileName);
     const until = end ?? entry.length;
     if (
@@ -172,15 +201,11 @@ export class FileReconstructor {
               'ITSF data base',
             );
       const absolute = checkedEnd(base, absoluteStart, entry.name);
-      requireRange(reader.buffer, absolute, length, entry.name);
-      for (let position = 0; position < length; ) {
+      const source = asByteSource(reader);
+      requireSourceRange(source, absolute, length, entry.name);
+      for (let position = 0; position < length;) {
         const size = Math.min(limit, length - position);
-        yield Buffer.from(
-          reader.buffer.subarray(
-            absolute + position,
-            absolute + position + size,
-          ),
-        );
+        yield Buffer.from(source.read(absolute + position, size));
         position += size;
       }
       return;
@@ -205,50 +230,61 @@ export class FileReconstructor {
       startFrame,
       endFrame,
     );
-    let decoded: Generator<Buffer> | undefined = new LZXDecoder(
-      this.parsedCHM.header.lzxc,
-    ).iterateFrames(
-      compressed,
-      absoluteEnd - startFrame * frameSize,
-      startFrame,
-      frameSize,
+    // Delegation keeps decoder/frame/buffer locals out of the caller's suspended
+    // scope; completion or return() releases the entire buffering scope.
+    yield* this.iterateDecodedChunks(
+      new LZXDecoder(this.parsedCHM.header.lzxc).iterateFrames(
+        compressed,
+        absoluteEnd - startFrame * frameSize,
+        startFrame,
+        frameSize,
+      ),
+      source,
+      absoluteStart - startFrame * frameSize,
+      length,
+      limit,
     );
+  }
+
+  private *iterateDecodedChunks(
+    decoded: Generator<Buffer>,
+    source: ByteSource,
+    skip: number,
+    remaining: number,
+    limit: number,
+  ): Generator<Buffer> {
     let chunk: Buffer | undefined;
     let filled = 0;
-    let remaining = length;
-    let frameStart = startFrame * frameSize;
-    try {
-      for (const frame of decoded) {
-        let position = Math.max(0, absoluteStart - frameStart);
-        frameStart += frameSize;
-        while (position < frame.length) {
-          chunk ??= Buffer.alloc(Math.min(limit, remaining));
-          const count = Math.min(
-            chunk.length - filled,
-            frame.length - position,
-          );
-          frame.copy(chunk, filled, position, position + count);
-          filled += count;
-          position += count;
-          remaining -= count;
-          if (filled === chunk.length) {
-            const ready = chunk;
-            chunk = undefined;
-            filled = 0;
-            yield ready;
-          }
+    // Transfer output in a synchronous scope so no `ready` buffer local survives
+    // a yield/resume while the next chunk or frame is being allocated.
+    const takeChunk = (): Buffer => {
+      const ready = chunk!;
+      chunk = undefined;
+      filled = 0;
+      return ready;
+    };
+    // for-of closes decoded on return(), throw() or a validation/copy failure.
+    for (const frame of decoded) {
+      let position = Math.min(skip, frame.length);
+      skip -= position;
+      while (position < frame.length) {
+        chunk ??= Buffer.alloc(Math.min(limit, remaining));
+        const count = Math.min(chunk.length - filled, frame.length - position);
+        frame.copy(chunk, filled, position, position + count);
+        filled += count;
+        position += count;
+        remaining -= count;
+        if (filled === chunk.length) {
+          source.validate?.();
+          yield takeChunk();
         }
       }
-      if (remaining !== 0) throw new Error('Incomplete file reconstruction');
-    } finally {
-      decoded.return(undefined);
-      decoded = undefined;
-      chunk = undefined;
     }
+    if (remaining !== 0) throw new Error('Incomplete file reconstruction');
   }
 
   private *iterateCompressedFrames(
-    reader: BitReader,
+    reader: BitReader | ByteSource,
     start: number,
     end: number,
   ): Generator<Uint8Array> {
@@ -256,7 +292,10 @@ export class FileReconstructor {
       yield this.readCompressedFrame(index, reader);
   }
 
-  private readCompressedFrame(index: number, reader: BitReader): Uint8Array {
+  private readCompressedFrame(
+    index: number,
+    reader: BitReader | ByteSource,
+  ): Uint8Array {
     const table = this.parsedCHM.resetTable;
     const offset = table.entries[index]?.compressedLength;
     const next =
@@ -275,11 +314,15 @@ export class FileReconstructor {
       offset,
       'LZX frame',
     );
-    requireRange(reader.buffer, absolute, next - offset, 'LZX frame');
-    return reader.buffer.subarray(absolute, absolute + next - offset);
+    const source = asByteSource(reader);
+    requireSourceRange(source, absolute, next - offset, 'LZX frame');
+    return source.read(absolute, next - offset);
   }
 
-  private readResetGroup(group: number, reader: BitReader): Buffer {
+  private readResetGroup(
+    group: number,
+    reader: BitReader | ByteSource,
+  ): Buffer {
     const cached = this.cache.get(group);
     if (cached) {
       this.hits++;
@@ -296,17 +339,22 @@ export class FileReconstructor {
     if (size <= 0) throw new Error('LZX reset group is outside the stream');
     const startFrame = group / LZXDecoder.FRAME_SIZE;
     const frameCount = Math.ceil(size / LZXDecoder.FRAME_SIZE);
-    const frames: Uint8Array[] = [];
-    for (let index = startFrame; index < startFrame + frameCount; index++)
-      frames.push(this.readCompressedFrame(index, reader));
+    const frames = this.iterateCompressedFrames(
+      reader,
+      startFrame,
+      startFrame + frameCount,
+    );
     // Decode the complete physical frames, not merely a file prefix: E8's
     // ten-byte tail exemption and dictionary state depend on the real frame end.
-    const data = new LZXDecoder(this.parsedCHM.header.lzxc).decodeFrames(
-      frames,
-      size,
-      startFrame,
-      LZXDecoder.FRAME_SIZE,
-    );
+    const data = Buffer.alloc(size);
+    let position = 0;
+    for (const frame of new LZXDecoder(
+      this.parsedCHM.header.lzxc,
+    ).iterateFrames(frames, size, startFrame, LZXDecoder.FRAME_SIZE)) {
+      frame.copy(data, position);
+      position += frame.length;
+    }
+    if (position !== size) throw new Error('Incomplete LZX reset group');
     if (data.length <= this.maxCacheBytes) {
       this.cache.set(group, data);
       this.cacheBytes += data.length;
@@ -317,14 +365,14 @@ export class FileReconstructor {
 
   reconstructFiles(
     fileNames: string[],
-    reader: BitReader,
+    reader: BitReader | ByteSource,
   ): Map<string, CHMFile> {
     return new Map(
       fileNames.map(name => [name, this.reconstructFile(name, reader)]),
     );
   }
 
-  reconstructAllFiles(reader: BitReader): Map<string, CHMFile> {
+  reconstructAllFiles(reader: BitReader | ByteSource): Map<string, CHMFile> {
     return this.reconstructFiles(this.fileManager.getFileList(), reader);
   }
 

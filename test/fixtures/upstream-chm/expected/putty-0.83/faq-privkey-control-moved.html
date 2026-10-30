@@ -1,0 +1,24 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Since 0.78, I can't find where to configure my SSH private key.</title>
+<link rel="previous" href="faq-iutf8.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="faq-secure.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="QA.7.24"></a>A.7.24 Since 0.78, I can't find where to configure my SSH private key.</h1>
+<p>
+In PuTTY 0.78, the &#8216;<a name="i0"></a>Private key file for authentication&#8217; control, where you specify a <code>.<a name="i1"></a>PPK</code> file for SSH public key authentication, moved to a new &#8216;Credentials&#8217; panel in the configuration dialog. You can find this by opening the &#8216;SSH&#8217; category in the tree view on the left, then opening the &#8216;Auth&#8217; subcategory under that, then clicking on &#8216;Credentials&#8217;. On this page you'll find the &#8216;Browse...&#8217; button you need to select a <code>.PPK</code> file for authentication, as described in <a href="config-ssh-privkey.html#S4.22.1">section 4.22.1</a>.
+</p>
+<p>
+(This control had previously been on the &#8216;Auth&#8217; panel since public key authentication was first released in 2002, so many online how-to guides still describe it there. The configuration controls were reorganised to make room for features added in 0.78, such as OpenSSH certificates.)
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

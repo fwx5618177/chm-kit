@@ -1,0 +1,23 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "CHMKit API",
+  "entryPointStrategy": "resolve",
+  "entryPoints": [
+    "src/index.ts",
+    "src/browser.ts",
+    "src/browser-resources.ts",
+    "src/worker/index.ts",
+    "src/electron/index.ts",
+    "src/core/config.ts"
+  ],
+  "out": "dist/api",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "treatWarningsAsErrors": true,
+  "navigationLinks": {
+    "Guides": "https://github.com/fwx5618177/chm-kit/tree/main/docs",
+    "Downloads": "https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml"
+  }
+}

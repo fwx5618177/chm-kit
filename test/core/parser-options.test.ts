@@ -177,8 +177,8 @@ for (const strictValidation of [false, true]) {
 test('strict options really invoke deep validation for parse and inherited quickParse', () => {
   const parsed = original();
   const invalid = { ...parsed, contentOffset: parsed.contentOffset + 1 };
-  const baseParse = CHMParser.prototype.parse;
-  CHMParser.prototype.parse = () => invalid;
+  const baseParse = CHMParser.prototype.parseSource;
+  CHMParser.prototype.parseSource = () => invalid;
   try {
     equal(
       CHMParserFactory.createWithOptions({ strictValidation: false }).parse(
@@ -198,7 +198,7 @@ test('strict options really invoke deep validation for parse and inherited quick
       /Strict CHM validation failed/,
     );
   } finally {
-    CHMParser.prototype.parse = baseParse;
+    CHMParser.prototype.parseSource = baseParse;
   }
 });
 

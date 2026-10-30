@@ -1,0 +1,82 @@
+name: Approved release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package.json version, for example 1.1.0 or 1.1.0-rc.1
+        required: true
+        type: string
+      tag:
+        description: Existing v<version> tag pointing to the dispatched main commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate version, existing tag and approval policy
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Fail closed unless release prerequisites exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release.mjs validate
+
+  checks:
+    name: Complete cross-platform and browser acceptance
+    needs: validate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Approved GitHub draft release (never npm publish)
+    needs: [validate, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: release
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2; node24
+        with:
+          name: chmkit-${{ github.sha }}
+          path: dist/package
+      - name: Recheck policy, tag and asset hashes; create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/release.mjs publish

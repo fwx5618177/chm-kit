@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>-legacy-stdio-prompts: handle Windows console prompts like older versions of PuTTY</title>
+<link rel="previous" href="using-cmdline-host-ca.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="using-cmdline-legacy-charset-handling.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="S3.11.3.30"></a>3.11.3.30 <a name="i0"></a><code>-legacy-stdio-prompts</code>: handle Windows console prompts like older versions of PuTTY</h1>
+<p>
+This option applies to all of PSCP, PSFTP and Plink on Windows: all the tools in the PuTTY suite that run in a Windows console and make SSH connections.
+</p>
+<p>
+These tools use the Windows console to prompt for various information: usernames, passwords, answers to questions about host keys, and so on.
+</p>
+<p>
+In current versions of PuTTY, these prompts work by direct access to the Windows console. This means that even if you redirect the standard input or output of the tool, prompts will <em>still</em> be sent to the console (and not where you've redirected your output), and the user's responses will be read from the console (and not from where you've redirected your input).
+</p>
+<p>
+Another advantage of reading directly from the Windows console is that the tools can read input as <a name="i1"></a>Unicode. So this also allows you to enter usernames and passwords that contain characters not in the Windows system's default character set.
+</p>
+<p>
+In versions of the PuTTY tools up to and including 0.81, the prompts used the tool's ordinary I/O handles, so prompt output and user responses could be redirected.
+</p>
+<p>
+We think the new behaviour is more likely to be useful. For example, if you have a local command that generates output, and you want to pipe that output into a command running remotely via Plink, you can run a command line such as
+</p>
+<pre><code>local_command | plink hostname remote_command
+</code></pre>
+<p>
+and the data piped into the remote command will be the same whether or not Plink has to stop to ask for a password. With the old behaviour you would have had to include the password in Plink's input, which is more awkward.
+</p>
+<p>
+However, we recognise that people may have customised complicated workflows around the old behaviour. So if you need to switch back to it, you can do so by specifying <code>-legacy-stdio-prompts</code> on the command-line.
+</p>
+<p>
+To fully revert to the previous behaviour, you'd also need to specify <code>-legacy-charset-handling</code> (see the next section). (Even without that option, prompt handling with <code>-legacy-stdio-prompts</code> may not be fully Unicode-clean.)
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

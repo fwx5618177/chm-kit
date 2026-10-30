@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Host key cache</title>
+<link rel="previous" href="privacy-local.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="privacy-savedsessions.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="SI.1.1"></a>I.1.1 Host key cache</h1>
+<p>
+If you use the SSH protocol, then PuTTY stores a list of the SSH servers you have connected to, together with their host keys.
+</p>
+<p>
+This is known as the &#8216;host key cache&#8217;. It is used to detect network attacks, by notifying you if a server you've connected to before doesn't look like the same one you thought it was. (See <a href="gs-hostkey.html#S2.2">section 2.2</a> for a basic introduction to host keys.)
+</p>
+<p>
+The host key cache is optional. An entry is only saved in the host key cache if you select the &#8216;Accept&#8217; action at one of the PuTTY suite's host key verification prompts. So if you want to make an SSH connection without PuTTY saving any trace of where you connected to, you can press &#8216;Connect Once&#8217; instead of &#8216;Accept&#8217;, which does not store the host key in the cache.
+</p>
+<p>
+However, if you do this, PuTTY can't automatically detect the host key changing in the future, so you should check the key fingerprint yourself every time you connect. <strong>This is vitally important.</strong> If you don't let PuTTY cache host keys <em>and</em> don't check them yourself, then it becomes easy for an attacker to interpose a listener between you and the server you're connecting to. The entire cryptographic system of SSH depends on making sure the host key is right.
+</p>
+<p>
+The host key cache is only used by SSH. No other protocol supported by PuTTY has any analogue of it.
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

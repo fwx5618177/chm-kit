@@ -1,5 +1,8 @@
 // 导出核心类型定义
 export * from './core/types';
+export type { BitReader as BitReaderContract } from './core/types';
+export type { Logger, LogLevel } from './logger/types';
+export type { ReconstructorOptions } from './core/files/file-reconstructor';
 
 // 导出工具类
 export { BitReader } from './utils/io/bit-reader';
@@ -41,8 +44,20 @@ export { CHMArchive } from './reader/chm-archive';
 export { CHMReader } from './reader/chm-reader';
 export type { FileWithMetadata } from './reader/chm-reader';
 export * from './reader/types';
-export { packFiles } from './encoder/archive-builder';
-export type { PackFilesOptions } from './encoder/archive-builder';
+export {
+  packFiles,
+  packTemplate,
+  updateArchive,
+} from './encoder/archive-builder';
+export type {
+  PackFilesOptions,
+  UpdateArchiveOptions,
+  PackTOCEntry,
+  HTMLHelpMetadata,
+} from './encoder/types';
+export type { LZXEncoderOptions } from './encoder/lzx-encoder';
+export { MemoryByteSource } from './core/files/byte-source';
+export type { ByteSource, SourceCacheStats } from './core/files/byte-source';
 
 // 默认导出
 export { CHMKit as default } from './chm-kit';

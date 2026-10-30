@@ -93,7 +93,7 @@ function lengths(
   runs: boolean,
 ): void {
   for (const length of PRE) w.put(length, 4);
-  for (let i = first; i < end; ) {
+  for (let i = first; i < end;) {
     let run = 1;
     while (i + run < end && next[i + run] === next[i]) run++;
     if (runs && run >= 4) {
@@ -1041,7 +1041,7 @@ test('compressed table/body errors and successful prefix calls never poison late
 });
 
 for (const windowSize of [FRAME, FRAME * 2, 0x100000, 0x200000]) {
-  for (const compressionLevel of [0, 6]) {
+  for (const compressionLevel of [0, 1, 2, 3, 4, 6, 9]) {
     test(`production encoder roundtrip: window ${windowSize}, level ${compressionLevel}, reset 64 KiB`, () => {
       const noise = Buffer.alloc(FRAME);
       let state = 0x12345678;
@@ -1103,10 +1103,31 @@ for (const windowSize of [FRAME, FRAME * 2, 0x100000, 0x200000]) {
         d.decodeFrames(frames.slice(2), source.length - FRAME * 2, 2, FRAME),
         source.subarray(FRAME * 2),
       );
-      if (compressionLevel !== 0) {
-        equal((frames[0]!.readUInt16LE(0) >>> 12) & 7, 3); // incompressible stored fallback
-        equal((frames[1]!.readUInt16LE(0) >>> 13) & 7, 1); // real Huffman/match frame, no reset flag
-        equal(frames[1]!.length < FRAME / 2, true);
+      equal((frames[0]!.readUInt16LE(0) >>> 12) & 7, 3);
+      // This rotated noise has long-distance matches with a strongly biased
+      // low-three-bit suffix: levels 4+ must really choose ALIGNED, while
+      // fixed/adaptive VERBATIM remain exercised independently at levels 1–3.
+      equal(
+        (frames[1]!.readUInt16LE(0) >>> 13) & 7,
+        compressionLevel === 0 ? 3 : compressionLevel < 4 ? 1 : 2,
+      );
+      if (compressionLevel !== 0) equal(frames[1]!.length < FRAME / 2, true);
+      else {
+        equal(frames[0]!.subarray(16), source.subarray(0, FRAME));
+        equal(frames[1]!.subarray(16), source.subarray(FRAME, FRAME * 2));
+      }
+      if (compressionLevel >= 4) {
+        const verbatim = new LZXEncoder({
+          ...config,
+          compressionLevel: 3,
+        }).compress(source);
+        const start = Number(verbatim.resetTable.readBigUInt64LE(48));
+        const end = Number(verbatim.resetTable.readBigUInt64LE(56));
+        equal(
+          frames[1]!.length < end - start,
+          true,
+          'ALIGNED must pay for its tree and still beat VERBATIM',
+        );
       }
       equal(source, original);
     });

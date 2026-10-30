@@ -1,7 +1,7 @@
 import { CHMParser } from './chm-parser';
 import { CHMParserValidator } from './parser-validator';
 import type { ParsedCHM } from '../types';
-import type { BitReader } from '../../utils/io/bit-reader';
+import type { ByteSource } from '../files/byte-source';
 
 type ParserOptions = {
   enableResetTable?: boolean;
@@ -13,13 +13,13 @@ class ConfiguredCHMParser extends CHMParser {
     super();
   }
 
-  override parse(reader: BitReader): ParsedCHM {
-    const parsed = super.parse(reader);
+  override parseSource(source: ByteSource): ParsedCHM {
+    const parsed = super.parseSource(source);
     if (
       this.strictValidation &&
       !CHMParserValidator.validate(parsed, {
         strict: true,
-        fileSize: reader.buffer.length,
+        fileSize: source.size,
       })
     ) {
       this.reset();

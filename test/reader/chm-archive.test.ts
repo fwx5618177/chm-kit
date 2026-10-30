@@ -461,7 +461,7 @@ for (const compression of [false, true]) {
           data,
           inspectDirectory(data).entries.get('/#SYSTEM')!,
         );
-        for (let offset = 4; offset < system.length; ) {
+        for (let offset = 4; offset < system.length;) {
           const code = system.readUInt16LE(offset);
           const length = system.readUInt16LE(offset + 2);
           if (code === 3 && typeof title !== 'string') {
@@ -639,7 +639,9 @@ describe('CHMArchive limits and LRU', () => {
         ]),
         { compression },
       );
-      const archive = new CHMArchive(data, { maxCacheBytes: 16 });
+      const archive = new CHMArchive(data, {
+        maxCacheBytes: compression ? 16 : 8,
+      });
       archive.readFile('a.txt');
       archive.readFile('b.txt');
       archive.readFile('a.txt');

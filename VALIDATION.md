@@ -1,82 +1,55 @@
-# CHMKit 工程化审计与当前验证记录
+# Validation record
 
-日期：2026-10-30。本记录为本轮提交前验收，提交与推送状态以 Git 历史和远端为准；本轮未发布 npm。此前的 459 项结果是上一轮记录，**当前结果如下**，不再使用旧的自定义执行器和报告。
+Date: 2026-10-30. This records the current delivery acceptance, not an assurance of universal CHM compatibility. Git history/remote state determine commit and push status. No npm publication, GitHub Release, tag creation or deployment was performed.
 
-## 当前实测结果
+## Current local acceptance
 
-| 检查                                              | 结果                                                                      |
-| ------------------------------------------------- | ------------------------------------------------------------------------- |
-| `pnpm install --frozen-lockfile --ignore-scripts` | 锁文件一致，安装成功                                                      |
-| `pnpm typecheck`                                  | 源码、测试及测试配置全部通过                                              |
-| `pnpm lint`                                       | 源码、测试及测试配置零错误、零警告                                        |
-| `pnpm format:check`                               | 通过；不可变第三方 fixture 不参与格式化                                   |
-| `pnpm test`                                       | **532/532，33 个测试文件，0 失败、0 跳过**                                |
-| Node project                                      | **507 项**源码单元/集成测试；包含真正执行并检查输出的日志测试             |
-| Package project                                   | **25 项**构建参数、已安装 tarball、入口、CLI、声明及浏览器打包验收        |
-| `pnpm test:browser`                               | **21/21**，Chromium/Firefox/WebKit 各 7 项；0 跳过、0 flaky               |
-| Node 20.10.0 包验收                               | **25/25**；构建和实际隔离消费者运行均通过                                 |
-| `pnpm demo`                                       | 4 个源文件提取后逐字节一致；131,344 字节源内容生成 10,012 字节 CHM        |
-| `git diff --check`                                | 通过                                                                      |
-| GitHub 托管 CI（`0274c2c`）                       | **12/12 任务通过**；9 个 Node 任务各 532/532、0 跳过，三浏览器各 7 项通过 |
+Environment: macOS / Darwin 24.6.0 arm64, Node 24.15.0, pnpm 10.34.9. Tool versions are pinned by the lockfile: Vitest 4.1.12, Vite 7.3.7, Playwright Test 1.64.1, TypeScript 5.2.2, TypeDoc 0.28.20, ESLint 10.13.0. Independent 7-Zip 26.05 is installed.
 
-本机为 macOS / Darwin 24.6.0 arm64，默认 Node 24.15.0、pnpm 9.0.0。Vitest 3.2.7、Vite 5.4.21、Playwright Test 1.64.1；本轮三引擎为 Chromium 156.0.8078.4、Firefox 157.0、WebKit 27.2。外部 7-Zip 26.05 已安装，相关互通性用例没有跳过。
+| Check                                              | Observed result                                                                                                                                                         |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen development install                         | Node 24 clean isolated install with strict engines passed; no deprecated dependency warnings                                                                            |
+| `pnpm typecheck` / `pnpm lint`                     | Source, tests, scripts and configuration passed; lint requires zero warnings                                                                                            |
+| `pnpm format:check` / `git diff --check`           | Passed; immutable third-party oracle bytes are excluded from formatting/whitespace normalization                                                                        |
+| `pnpm test:all`                                    | **847/847 Vitest tests in 56 files**, zero failures/skips; **36/36 Playwright cases**, zero skips/flaky                                                                 |
+| Minimum Node 20.10 consumer                        | **30/30 package acceptance cases**; build/runner/compiler remain on development Node, installed runtime exports/CLI/Worker roundtrip execute in a real Node 20.10 child |
+| `pnpm test:bench`                                  | Five native Vitest benchmarks executed against real PuTTY data; fixed runner version, finite durations, independent expected-byte preconditions                         |
+| `pnpm docs:build`                                  | Actual API HTML generated in `dist/api/`, zero TypeDoc warnings with warnings treated as errors                                                                         |
+| `pnpm audit --registry=https://registry.npmjs.org` | **0 known vulnerabilities** across the dependency graph; no overrides or warning suppression                                                                            |
+| `pnpm demo`                                        | Four source files byte-identical after extraction; 131,344 source bytes → **7,034 CHM bytes**; range/search/metadata/CLI JSON verified                                  |
+| `node scripts/package.mjs`                         | Actual prebuilt tarball, standalone CLI, browser archive, notices, source manifest and SHA-256 inventory generated and verified                                         |
 
-Node 20.10.0 验收会显示宿主 npm 11 自身的引擎警告，但测试成功；这不是 CHMKit 运行失败。开发工具版本与库运行时兼容性应分别验证，不能仅凭最新工具是否能在旧 Node 运行判断库兼容性。
+The full native reports are `test-results/vitest.json`, `test-results/package-node20.json`, and `test-results/browser/results.json`. Browser HTML/attachments are under `test-results/browser/`. Performance, RSS calibration and differential evidence are under `test-results/bench/`; timings and process peaks are machine-specific, not performance promises. These ignored outputs are generated evidence, not source fixtures.
 
-## 本轮发现与处理
+## What the tests now establish
 
-| 问题                                                     | 处理                                                                                          |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| uvu + 手写发现、子进程调度、解析 stdout 计数             | 迁移为原生 Vitest，删除旧执行脚本；没有兼容层                                                 |
-| 手写浏览器启动、HTTP 服务、顺序依赖和成功报告            | 迁移为 Playwright Test；独立 page、三引擎项目、runner 管理 Vite 生命周期、原生报告/trace/截图 |
-| 巨型包验收脚本和内联消费代码                             | 变为 Vitest package project、独立断言、可审阅消费源文件与临时配置矩阵                         |
-| 消费者位于仓库下，可能继承祖先依赖                       | 移到系统真实临时目录；独立安装 tarball，无版本 overrides；干净 Node 子进程验证依赖解析        |
-| Node 公开声明依赖 `@types/node` 却仅声明为 devDependency | 改为正式依赖，并验证实际安装与解析位置                                                        |
-| 浏览器声明靠字符串删除 Node reference                    | 分离便携 reader/pack 类型和 Node 特化；删除输出修补，构建遇到泄露直接失败                     |
-| 根入口在浏览器与 Node 的默认导出身份不同                 | 根入口统一为 CHMKit；显式 `chmkit/browser` 默认仍为 CHMReader                                 |
-| 浏览器流返回 Buffer 子类                                 | 每块转普通 Uint8Array，保留背压、取消及逐帧状态；断言构造器、JSON 与 slice 语义               |
-| 部分构建命令可静默接受错误参数，JS/声明可能混用          | 删除部分构建入口，只保留完整构建；非法/多余参数非零退出并有回归                               |
-| 完整构建删除演示和测试报告                               | 只重建正式产物子目录，保留 demo 和证据                                                        |
-| `ok(() => {...})` 日志断言不执行被测函数                 | 16 个用例保留，改为实际调用并验证 console、级别、时间戳、参数及前缀                           |
-| Packer 门面丢弃两个验证选项及显式空元数据                | 正确转发并新增行为测试                                                                        |
-| 旧公开通用 Huffman 接受无效树                            | 校验码长、过订阅、前缀、符号及码值边界，覆盖 32-bit 码                                        |
-| 旧 LZX 专用 helper 使用伪模型                            | 明确弃用并显式拒绝，指向真正 LZXDecoder；不再返回假结果                                       |
-| TOCBuilder 丢失没有父项的深层 HTML                       | 保留为根项，并修复目录前缀误匹配                                                              |
-| 未接入/重复资产                                          | 删除闲置 BinaryDataReader/barrel、未接入的手工 sample-chm 和空配置示例                        |
+- Normal corpus: PuTTY 0.83, official 7-Zip 23.01 help, Inno MyProg and PyCHM variants, preserving independent provenance/licenses/hashes. The new corpus has 721 independently extracted resource expectations plus 11 libmspack malformed/CVE inputs; original PyCHM data remains immutable. See [coverage and limitations](test/conformance/README.md).
+- Deterministic bounded mutations, complete resource comparisons, 200 seeded resource ranges and 50 corresponding streams, independent 7-Zip checks, output/metadata/cache/iteration limits. No unbounded fuzz worker runs in CI.
+- Real fixed/adaptive/ALIGNED/stored output is checked by external extraction across writer options. The official 7-Zip file revealed and now covers valid zero data base / end-of-file directory ordering.
+- File-backed reader/extractor tests include >4 GiB positioned reads, structural budget rejection before allocation, changed/truncated input, cache validation, descriptor cleanup and cancelled/failed output cleanup. Prediction/close tests use actual scheduled work and verify bounded I/O, not only option validation.
+- Worker/Electron tests exercise actual client/host and injected IPC, permission rejection, limits, transfer ownership, retryable close, cancelled opens, transport failure and lifecycle disposal. Playwright consumes **built** browser/Worker/resources modules; there is no source-bundle fallback. Native Electron itself has not been run.
+- Installed-package tests consume the **same staged tarball produced by the delivery packager**, outside the repository dependency ancestry. They cover CJS/ESM, all platform subpaths, plain browser bytes, templates/updates, portable declarations without DOM/Node, CLI and absent consumer lifecycle/dev tooling.
+- Documentation relative links are checked by Vitest. User docs separate prebuilt consumption from contributor builds; TypeDoc derives exact signatures rather than duplicating a manually maintained API list.
 
-### 保留不是妥协
+## Delivery and migration
 
-- `test/fixtures/pychm-example/` 是不可变的真实 CHM 与 **独立 7-Zip 提取的 14 个资源**，有来源、SHA-256、清单和 GPL 通知。删除它会失去发现“本库读写同时犯同一种错”的能力。
-- 合成字节、独立 ENCINT/PMGL 检查和 LZX 位流构造属于测试支持，不是生产 fallback；不能为了去重而改成全部调用被测实现。
-- `src/encoder/archive-validation.ts` 是生产写入流程的本库读回校验，不是第三方 oracle。
-- `src/browser-buffer.ts` 是构建期显式注入的内部 Buffer 适配，不安装全局 Buffer；内部解析实现仍使用 buffer 包。浏览器公开类型和值是原生 Uint8Array。
-- 正式发布包的内容白名单与 tarball 测试确保 **test、fixtures、消费工程、报告和 demo 不进入 npm**。
+`dist/package/` currently contains `chmkit-1.1.0.tgz`, `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`, usage, notices, `manifest.json` and `SHA256SUMS`. Local uncommitted builds are honestly marked `dirty: true`; they are not official published releases. The packager performs a real npm install without disabling consumer scripts, confirms repository scripts/devDependencies are absent, and runs an independently copied standalone CLI. Consumers do not build, install pnpm/TypeScript or initialize Git hooks.
 
-## 唯一入口和配置职责
+Source installation/development requires Node 22.13+ or 24; the library floor remains Node 20.10. Node 20.19 compatibility jobs install development dependencies on Node 24 before switching runtimes. `prepare` is absent, `pnpm hooks:install` is opt-in. The root `prepack` remains a maintainer build step; shipped tarballs omit repository lifecycle metadata.
 
-| 命令                                   | 职责                                                         |
-| -------------------------------------- | ------------------------------------------------------------ |
-| `pnpm test`                            | Vitest 一次性执行 Node + package 两项目                      |
-| `pnpm test:unit`                       | 仅源码 Node 测试，无预构建要求                               |
-| `pnpm test:watch`                      | Vitest 原生源码监听；CLI 测试启动当前 TS 源码，不使用旧 dist |
-| `pnpm test:package`                    | 包验收，globalSetup 构建一次                                 |
-| `pnpm test:browser`                    | 三引擎 UI/浏览器验收，globalSetup 构建一次                   |
-| `pnpm test:browser --project=chromium` | 选择一个引擎，不另建配置                                     |
-| `pnpm test:all`                        | Node + 包验收 + 三引擎验收                                   |
-| `pnpm build`                           | 完整 Node CJS/ESM、CLI、browser、声明构建                    |
-| `pnpm demo`                            | 生成可比较的 CHM、提取内容和演示报告                         |
+See the [migration guide](docs/guide/migration.md) for changed compression/TOC behavior, strict path/config/error semantics, preserved error causes and file-input immutability. Fixed parser metadata ceilings are 1 MiB header, 64 MiB directory and 16 MiB per ControlData/ResetTable stream. They do not cap ordinary file/Content length or total process memory; valid larger metadata is explicitly rejected.
 
-只有一份 `vitest.config.mts` 和一份 `playwright.config.ts`。前者负责 Node/消费包项目；后者负责真实浏览器自动化，不能用 jsdom 或 Node 测试冒充。`tsconfig.json` 负责源码声明，`tsconfig.test.json` 负责测试和配置的 no-emit 检查，职责不同。四种消费类型场景使用测试矩阵，在临时消费者内生成配置，不再保留五份消费 tsconfig。
+## Hosted CI and warnings
 
-`scripts/` 只保留 `build.mjs` 和 `demo.mjs` 两个有明确命令入口的工程工作流；所有测试都由标准 runner 发现和报告。
+Historical runs `40927079982` / `40927652020` passed the earlier 532-case revision. They are **not evidence for this revision**.
 
-## 证据与重跑
+The revised workflow uses verified Node-24 official action SHAs, explicit Ubuntu 24.04/macOS 15/Windows 2025 labels, current supported dependencies and an exact pnpm bootstrap. No `NODE_NO_WARNINGS`, log filtering, forced runtime override or silent fallback is used. It runs nine Node compatibility jobs, three real-browser jobs and a separate minimum-runtime installed-consumer job; a fourteenth delivery/docs job depends on all of them. See [.github/PIPELINES.md](.github/PIPELINES.md).
 
-- `test-results/vitest.json`：Vitest 原生结果，包含 532 项。
-- `test-results/package-node20.json`：Node 20.10.0 的 25 项独立包验收。
-- `test-results/browser/results.json`：Playwright 原生三引擎结果与版本注解。
-- `test-results/browser/html/`：HTML 报告；`artifacts/` 内有截图与测试附件，失败时保留 trace。
-- `dist/demo/{sample.chm,input,extracted,report.json,info.json,toc.json,search.json}`：实际数据演示。
+**Pending:** commit/push this revision, execute the revised hosted matrix, inspect annotations and raw logs, verify uploaded reports and download/validate the actual prebuilt assets. Local passing tests/YAML checks alone cannot prove remote zero-warning status. GitHub capacity/queue notices are infrastructure information and cannot honestly be "fixed" by suppressing them.
+
+## Reproduction
+
+Contributor-only commands (ordinary users choose [prebuilt downloads](docs/guide/downloads.md)):
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
@@ -85,33 +58,17 @@ pnpm typecheck
 pnpm lint
 pnpm format:check
 pnpm test:all
+pnpm test:bench
+pnpm docs:build
 pnpm demo
+pnpm package:artifacts
+pnpm audit --registry=https://registry.npmjs.org
 ```
 
-最低运行时验收（单独输出，避免覆盖完整报告）：
+For minimum-runtime acceptance, resolve an actual Node 20.10 executable, then run the package project under the development Node with `CHM_TEST_NODE` set to that executable and a distinct JSON output path. Do not try to run modern Vite on Node 20.10 or interpret a tool-engine warning as a library-runtime failure.
 
-```sh
-pnpm dlx node@20.10.0 node_modules/vitest/vitest.mjs run --project package --outputFile.json=test-results/package-node20.json
-```
+Browser installation, isolated consumer dependency installation and registry auditing require network access. Parsing/reading local archives does not upload their content. Build/delivery operations do not publish or deploy.
 
-浏览器安装会联网；隔离消费包安装允许访问 registry。两者都不是发布操作。可设置 `CHM_7Z` 指定外部 oracle，`CHM_REQUIRE_7Z=1` 强制工具缺失时报错。
+## Remaining independent evidence / authorization
 
-### 实际预览
-
-![真实 Chromium 中运行的 CHM 阅读器](examples/browser/preview.png)
-
-手动启动静态服务器后访问 http://127.0.0.1:8080/examples/browser/，点击“加载演示文档”或打开 `dist/demo/sample.chm`：
-
-```sh
-python3 -m http.server 8080 --bind 127.0.0.1
-```
-
-服务器供手动本地使用，Ctrl+C 停止。自动化验收不依赖手动启动它。
-
-## 行为变化和未验证事项
-
-- 旧部分构建命令已删除，调用者应使用 `pnpm build`；旧测试脚本改为上述正式 runner 命令。
-- `Huffman.createLZXDecoder/readCodeLengths/buildPredefinedTree` 等旧伪 LZX helper 现在明确弃用/抛错，不保留看似成功的伪实现。真正的 CHM/LZXDecoder 解码不受影响。
-- 输入归档仍完整载入内存；普通随机范围可能解码整个相关 reset 组，顺序范围流则逐帧复用。目录展开及单次输出有安全限制。
-- [首次托管 CI](https://github.com/fwx5618177/chm-kit/actions/runs/40925496021) 已执行：三浏览器及 macOS Node 24 通过，但其余 Node 任务失败。发现并修复 Windows 提取时对盘符根执行 `mkdir` 的 EPERM、测试符号链接类型/归档路径的平台假设，以及 npm 10 prepare 输出污染 `npm pack --json`。Linux 移除硬编码 `7zz` 探针，由测试统一探测 `7zz/7z`，仍强制独立 oracle 可用。新增根目录和打包输出回归，本机重新通过上述全部检查；[修复后的托管 CI](https://github.com/fwx5618177/chm-kit/actions/runs/40927079982) 在 `0274c2c` 全部通过：Ubuntu/macOS/Windows × Node 20.19/22/24 的 9 个任务各 532/532、0 跳过，以及 Ubuntu 的 Chromium/Firefox/WebKit 各 7 项。已下载核对 9 份原生 Vitest 报告，位于本机 `test-results/hosted-0274c2c/`；GitHub artifacts 按 CI 保留策略到期。CI 仍提示现有 actions 的 Node 20 runtime 已弃用并由 runner 强制改为 Node 24，不影响本次任务结果，也不等同于被测库最低运行时变化。
-- 更多真实 CHM 语料、自适应压缩、文件系统随机读取、Electron IPC 等仍见 [TODO.md](TODO.md)。测试通过不代表穷尽全部输入、最优压缩或所有生产工具兼容。
+[TODO.md](TODO.md) retains the genuinely unresolved gates: legally redistributable normal ITSF v2/other encoding/window/reset/E8 corpus, native Electron runtime acceptance, independent release approval/tag/environment policy, and separately authorized public npm/API-site publication. Code support, synthetic input, a protected workflow and a local artifact are not substitutes for those facts.

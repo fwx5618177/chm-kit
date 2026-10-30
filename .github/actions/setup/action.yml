@@ -1,0 +1,33 @@
+name: Set up the locked development toolchain
+description: Install the locked development dependencies on Node 24, then select the compatibility test runtime.
+inputs:
+  node-version:
+    description: Node version used for project commands (not the action runtime).
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+      with:
+        node-version: '24'
+        package-manager-cache: false
+    - name: Install the packageManager-pinned pnpm without lifecycle scripts
+      shell: bash
+      run: node scripts/setup-pnpm.mjs
+    # Development tooling requires Node 22.13+ (or 24); install on Node 24
+    # before switching to the requested runtime, including Node 20.19.
+    # Only enable the store cache after the pinned pnpm exists.
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+      with:
+        node-version: '24'
+        cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
+        package-manager-cache: false
+    - name: Install locked dependencies without lifecycle scripts
+      shell: bash
+      run: pnpm install --frozen-lockfile --ignore-scripts
+    - name: Select the compatibility test runtime after dependency installation
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+      with:
+        node-version: ${{ inputs.node-version }}
+        package-manager-cache: false

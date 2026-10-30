@@ -4,6 +4,10 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join, parse, relative, sep } from 'path';
 import type { ParsedCHM } from '../../src/core/types';
+import { CHMParser } from '../../src/core/parser/chm-parser';
+import { CHMParserValidator } from '../../src/core/parser/parser-validator';
+import { MemoryByteSource } from '../../src/core/files/byte-source';
+import { FileByteSource } from '../../src/reader/file-byte-source';
 import { ParserOperations } from '../../src/operations/parser';
 import { ExtractorOperations } from '../../src/operations/extractor';
 import { FileManagerOperations } from '../../src/operations/file-manager';
@@ -19,64 +23,72 @@ function entry(name: string, length = payload.length, section = 0) {
   return { name, length, section, offset: 0, isCompressed: section === 1 };
 }
 
+// Independent minimal ITSF v3 + ITSP + empty PMGL + section-0 payload.
+// Do not use the production packer: its path validation must not remove our
+// deliberately malformed names before extractor destination checks run.
+function minimalInput(): Buffer {
+  const directoryOffset = 128;
+  const directoryLength = 84 + 512;
+  const base = directoryOffset + directoryLength;
+  const bytes = Buffer.alloc(base + payload.length);
+  bytes.write('ITSF');
+  bytes.writeUInt32LE(3, 4);
+  bytes.writeUInt32LE(96, 8);
+  Buffer.from(
+    '10fd017caa7bd0119e0c00a0c922e6ec11fd017caa7bd0119e0c00a0c922e6ec',
+    'hex',
+  ).copy(bytes, 24);
+  bytes.writeBigUInt64LE(96n, 56);
+  bytes.writeBigUInt64LE(24n, 64);
+  bytes.writeBigUInt64LE(BigInt(directoryOffset), 72);
+  bytes.writeBigUInt64LE(BigInt(directoryLength), 80);
+  bytes.writeBigUInt64LE(BigInt(base), 88);
+  const itsp = bytes.subarray(directoryOffset, directoryOffset + 84);
+  itsp.write('ITSP');
+  itsp.writeUInt32LE(1, 4);
+  itsp.writeUInt32LE(84, 8);
+  itsp.writeUInt32LE(10, 12);
+  itsp.writeUInt32LE(512, 16);
+  itsp.writeUInt32LE(2, 20);
+  itsp.writeUInt32LE(1, 24);
+  itsp.writeInt32LE(-1, 28);
+  itsp.writeUInt32LE(0xffffffff, 40);
+  itsp.writeUInt32LE(1, 44);
+  Buffer.from('6a92025d2e21d0119df900a0c922e6ec', 'hex').copy(itsp, 52);
+  const leaf = bytes.subarray(directoryOffset + 84, base);
+  leaf.write('PMGL');
+  leaf.writeUInt32LE(512 - 20, 4);
+  leaf.writeInt32LE(-1, 12);
+  leaf.writeInt32LE(-1, 16);
+  payload.copy(bytes, base);
+  return bytes;
+}
+
 beforeEach(async () => {
   root = await fs.mkdtemp(join(await fs.realpath(tmpdir()), 'chm-operations-'));
   archive = join(root, 'input.chm');
-  await fs.writeFile(archive, payload);
-  parsed = {
-    header: {
-      itsf: {
-        signature: 'ITSF',
-        version: 3,
-        headerLength: 96,
-        unknown1: 0,
-        timestamp: 0,
-        languageId: 0x409,
-        unknown2: 0,
-        unknown3: 0,
-        directoryOffset: 220,
-        directoryLength: 4096,
-        unknown4: 0,
-      },
-      itsp: {
-        signature: 'ITSP',
-        version: 1,
-        headerLength: 84,
-        unknown1: 0,
-        chunkSize: 4096,
-        density: 2,
-        depth: 1,
-        rootIndex: 0,
-        firstPMGI: 0,
-        lastPMGI: 0,
-        unknown2: 0,
-      },
-      lzxc: {
-        signature: 'LZXC',
-        version: 2,
-        resetInterval: 32768,
-        windowSize: 32768,
-        cacheSize: 0,
-        unknown: 0,
-      },
-    },
-    directory: { entries: new Map(), rootPath: '/' },
-    resetTable: {
-      version: 2,
-      blockCount: 0,
-      entrySize: 8,
-      tableOffset: 0,
-      uncompressedLength: 0,
-      compressedLength: 0,
-      blockSize: 32768,
-      entries: [],
-    },
-    contentOffset: 0,
-  };
+  const input = minimalInput();
+  await fs.writeFile(archive, input);
+  const parseSource = CHMParser.prototype.parseSource;
+  parsed = new CHMParser().parseSource(new MemoryByteSource(input));
+  // Still parse real bytes from the new extractor's real file-backed source.
+  // Inject only the directory boundary so NULs/case collisions (which a real
+  // format parser rejects) can independently exercise extractor defenses.
+  vi.spyOn(CHMParser.prototype, 'parseSource').mockImplementation(function (
+    this: CHMParser,
+    source,
+  ) {
+    ok(source instanceof FileByteSource);
+    parseSource.call(this, source);
+    return parsed;
+  });
+  vi.spyOn(CHMParserValidator, 'validate').mockReturnValue(true);
+  // FileManager/Info retain their separate parsed-data test boundary.
   ParserOperations.parse = async () => parsed;
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   ParserOperations.parse = originalParse;
   await fs.rm(root, { recursive: true, force: true });
 });
@@ -146,6 +158,35 @@ test('unsafe paths fail independently before reconstruction or directory creatio
     equal(await fs.readdir(output), ['safe.txt']);
   }
   equal((await fs.readdir(root)).sort(), ['flat', 'input.chm', 'structured']);
+});
+
+test('excessively deep archive paths fail per-file before prefix expansion or mkdir, even when flattened', async () => {
+  const deep = `/${'d/'.repeat(1024)}file.txt`;
+  files(deep, '/safe.txt');
+  const output = join(root, 'deep');
+  const result = await ExtractorOperations.extract(archive, output, {
+    concurrency: 2,
+  });
+  equal(result.files, ['/safe.txt']);
+  equal(result.errors.length, 1);
+  equal(await fs.readdir(output), ['safe.txt']);
+});
+
+test('prefix conflicts are deterministic in both archive orders under parallel extraction', async () => {
+  for (const names of [
+    ['/a', '/a/b.txt'],
+    ['/a/b.txt', '/a'],
+  ]) {
+    parsed.directory.entries.clear();
+    files(...names, '/safe.txt');
+    const output = join(root, names[0] === '/a' ? 'file-first' : 'dir-first');
+    const result = await ExtractorOperations.extract(archive, output, {
+      preserveStructure: true,
+      concurrency: 3,
+    });
+    equal(result.files, [names[0], '/safe.txt']);
+    equal(result.errors.length, 1);
+  }
 });
 
 test('Windows ADS, device names, trailing dots/spaces and invalid characters are rejected before flattening', async () => {

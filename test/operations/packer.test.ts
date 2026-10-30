@@ -37,6 +37,35 @@ test('preserves explicit empty metadata instead of silently choosing defaults', 
   });
 });
 
+test('forwards portable encoder controls and keeps positional paths authoritative', async () => {
+  const encode = vi.spyOn(CHMEncoder.prototype, 'encode').mockResolvedValue();
+  const controls = {
+    compressionLevel: 8,
+    windowBits: 17,
+    resetInterval: 65536,
+    blockSize: 4096,
+    languageId: 0x804,
+    contentsFile: 'contents.hhc',
+    indexFile: 'index.hhk',
+    tocEntries: [{ name: 'Root', local: 'index.html' }],
+    tocTemplate: '<ul>{{entries}}</ul>',
+    htmlHelp: { compiler: 'CHMKit' },
+  };
+  const result = await PackerOperations.pack('source', 'target.chm', {
+    ...controls,
+    inputDir: 'ignored',
+    outputPath: 'ignored.chm',
+  });
+  expect(result.success).toBe(true);
+  expect(encode).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      ...controls,
+      inputDir: 'source',
+      outputPath: 'target.chm',
+    }),
+  );
+});
+
 test('returns a failed packing result when the encoder rejects', async () => {
   vi.spyOn(CHMEncoder.prototype, 'encode').mockRejectedValue(
     new Error('invalid archive input'),

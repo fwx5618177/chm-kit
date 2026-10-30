@@ -1,0 +1,40 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Using Plink with Git</title>
+<link rel="previous" href="plink-batch.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="plink-cvs.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="S7.4"></a>7.4 Using Plink with <a name="i0"></a>Git</h1>
+<p>
+To use Plink for Git operations performed over SSH, you can set the environment variable <a name="i1"></a><code>GIT_SSH_COMMAND</code> to point to Plink.
+</p>
+<p>
+For example, if you've run PuTTY's full Windows installer and it has installed Plink in the default location, you might do this:
+</p>
+<pre><code>set GIT_SSH_COMMAND="C:\Program Files\PuTTY\plink.exe"
+</code></pre>
+<p>
+or if you've put Plink somewhere else then you can do a similar thing with a different path.
+</p>
+<p>
+This environment variable accepts a whole command line, not just an executable file name. So you can add Plink options to the end of it if you like. For example, if you're using Git in a batch-mode context, where your Git jobs are running unattended and nobody is available to answer interactive prompts, you might also append the &#8216;<code>-batch</code>&#8217; option (<a href="plink-option-batch.html#S7.2.3.1">section 7.2.3.1</a>):
+</p>
+<pre><code>set GIT_SSH_COMMAND="C:\Program Files\PuTTY\plink.exe" -batch
+</code></pre>
+<p>
+and then if Plink unexpectedly prints a prompt of some kind (for example, because the SSH server's host key has changed), your batch job will terminate with an error message, instead of stopping and waiting for user input that will never arrive.
+</p>
+<p>
+(However, you don't <em>always</em> want to do this with Git. If you're using Git interactively, you might <em>want</em> Plink to stop for interactive prompts &#8211; for example, to let you enter a password for the SSH server.)
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

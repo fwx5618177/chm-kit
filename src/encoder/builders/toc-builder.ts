@@ -222,7 +222,7 @@ ${indent}\t</OBJECT>\n`;
       }
 
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -257,7 +257,7 @@ ${indent}\t</OBJECT>\n`;
       }
 
       return [...new Set(keywords)]; // 去重
-    } catch (error) {
+    } catch {
       return [];
     }
   }

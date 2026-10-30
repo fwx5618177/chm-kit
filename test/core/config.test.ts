@@ -3,6 +3,7 @@ import {
   deepStrictEqual as equal,
   ok,
   strictEqual as is,
+  throws,
 } from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -105,7 +106,11 @@ const invalidFields: [string, string, unknown[]][] = [
   ],
   ['default', 'logger', [{}, { error: 'function' }]],
   ['lzx', 'windowSize', [0, 0x4000, 0x9000, 0x400000, '32768']],
-  ['lzx', 'resetInterval', [0, -0x8000, 1, 0x8000 + 1, 0.5]],
+  [
+    'lzx',
+    'resetInterval',
+    [0, -0x8000, 1, 0x8000 + 1, 0.5, 3 * 0x8000, 512 * 1024 * 1024],
+  ],
   ['lzx', 'compressionLevel', [-1, 10, 1.5, '6']],
   ['format', 'itsfSignature', ['NOPE', 1]],
   ['format', 'itsfVersion', [1, 4, '3']],
@@ -232,6 +237,45 @@ test('config cache stays singleton until reset, without aliasing default templat
   ok(getConfig() !== first);
   ok(!getConfig().format!.supportedExtensions!.includes('.cache-only'));
   ok(!defaultFullConfig.format!.supportedExtensions!.includes('.cache-only'));
+});
+
+test('explicit configuration paths override discovery and missing paths never silently fall back', () => {
+  const explicit = join(directory, 'explicit.json');
+  writeFileSync(explicit, JSON.stringify({ cli: { maxConcurrency: 7 } }));
+  writeFileSync(join(directory, 'chmkit.config.json'), '{invalid');
+  equal(
+    loadConfig({ searchPaths: [directory], configPath: explicit, strict: true })
+      .cli!.maxConcurrency,
+    7,
+  );
+  throws(
+    () => loadConfig({ configPath: join(directory, 'absent.json') }),
+    /not found/,
+  );
+});
+
+test('strict loading rejects invalid configuration and reports supplied known leaves without defaults', () => {
+  writeFileSync(join(directory, 'chmkit.config.json'), '{invalid');
+  throws(
+    () => loadConfig({ searchPaths: [directory], strict: true }),
+    /Failed to load/,
+  );
+  const fields: string[] = [];
+  writeFileSync(
+    join(directory, 'chmkit.config.json'),
+    JSON.stringify({
+      cli: { maxConcurrency: 3 },
+      performance: { maxFileSize: 1024 },
+    }),
+  );
+  const loaded = loadConfig({
+    searchPaths: [directory],
+    strict: true,
+    onField: field => fields.push(field),
+  });
+  equal(fields, ['cli.maxConcurrency', 'performance.maxFileSize']);
+  equal(loaded.cli!.maxConcurrency, 3);
+  equal(loaded.cli!.showProgress, true);
 });
 
 test('logger catches failed ESM-only chalk loading in a CommonJS build', async () => {

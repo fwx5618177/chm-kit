@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Jump list</title>
+<link rel="previous" href="privacy-savedsessions.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="privacy-logfiles.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="SI.1.3"></a>I.1.3 Jump list</h1>
+<p>
+On Windows, the operating system provides a feature called a &#8216;jump list&#8217;. This is a menu that pops up from an application's icon in the Windows taskbar, and the application can configure entries that appear in it. Applications typically include menu items to re-launch recently used documents or configurations.
+</p>
+<p>
+PuTTY updates its jump list whenever a saved session is loaded, either to launch it immediately or to load it within the configuration dialog box. So if you have a collection of saved sessions, the jump list will contain a record of which ones you have recently used.
+</p>
+<p>
+An exception is that saved sessions are not included in the jump list if they are not &#8216;launchable&#8217;, meaning that they actually specify a host name or serial port to connect to. A non-launchable session can specify all the other configuration details (such as fonts, window size, keyboard setup, SSH features, etc), but leave out the hostname.
+</p>
+<p>
+If you want to avoid leaving any evidence of having made a particular connection, then make the connection without creating a launchable saved session for it: either make no saved session at all, or create a non-launchable one which sets up every detail <em>except</em> the destination host name. Then it won't appear in the jump list.
+</p>
+<p>
+(The saved session itself would also be evidence, of course, as discussed in the previous section.)
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

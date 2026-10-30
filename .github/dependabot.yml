@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      development-tooling:
+        patterns:
+          - '@commitlint/*'
+          - '@eslint/*'
+          - 'eslint*'
+          - typescript-eslint
+          - husky
+          - lint-staged
+        update-types: [minor, patch]
+    # Review Node requirements and test-runner interfaces before major upgrades.
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']

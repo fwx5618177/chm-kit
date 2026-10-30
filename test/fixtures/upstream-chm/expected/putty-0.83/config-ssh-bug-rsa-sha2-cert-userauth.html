@@ -1,0 +1,24 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>&#8216;Old RSA/SHA2 cert algorithm naming&#8217;</title>
+<link rel="previous" href="config-ssh-bug-filter-kexinit.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="config-ssh-bug-sig.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="S4.27.8"></a>4.27.8 &#8216;Old RSA/SHA2 cert algorithm naming&#8217;</h1>
+<p>
+If PuTTY is trying to do SSH-2 user authentication using an RSA key, and the server is using one of the newer SHA-2 based versions of the SSH RSA protocol, and the user's key is also a certificate, then earlier versions of OpenSSH (up to 7.7) disagree with later versions about the right key algorithm string to send in the <code>SSH2_MSG_USERAUTH_REQUEST</code> packet. Modern versions send a string that indicates both the SHA-2 nature and the certificate nature of the key, such as &#8216;<code>rsa-sha2-512-cert-v01@openssh.com</code>&#8217;. Earlier versions would reject that, and insist on seeing &#8216;<code>ssh-rsa-cert-v01@openssh.com</code>&#8217; followed by a SHA-2 based signature.
+</p>
+<p>
+PuTTY should auto-detect the presence of this bug in earlier OpenSSH and adjust to send the right string.
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

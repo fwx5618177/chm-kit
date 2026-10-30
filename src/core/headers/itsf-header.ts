@@ -65,13 +65,15 @@ export class ITSFHeaderParser {
     if (![header.unknown2, header.unknown3, header.unknown4].every(isUInt))
       return false;
     try {
-      const directoryEnd = checkedEnd(
+      checkedEnd(
         header.directoryOffset,
         header.directoryLength,
         'ITSF directory',
       );
       checkedEnd(header.unknown2, header.unknown3, 'ITSF header section 0');
-      if (header.version === 3 && header.unknown4 < directoryEnd) return false;
+      // v3 uses an absolute data base, including zero; the directory may follow
+      // the payload (for example official 7-Zip help). Entries are bounded by
+      // the parser against the actual source, not by an assumed section order.
     } catch {
       return false;
     }

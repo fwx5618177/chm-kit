@@ -1,0 +1,77 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Public keys</title>
+<link rel="previous" href="pgpkeys.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="pgpkeys-security.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="SF.1"></a>F.1 Public keys</h1>
+<p>
+We maintain multiple keys, stored with different levels of security due to being used in different ways. See <a href="pgpkeys-security.html#SF.2">section F.2</a> below for details.
+</p>
+<p>
+The keys we provide are:
+</p>
+<dl><dt>
+Snapshot Key
+</dt>
+<dd>
+Used to sign routine development builds of PuTTY: nightly snapshots, pre-releases, and sometimes also custom diagnostic builds we send to particular users.
+</dd>
+<dt>
+Release Key
+</dt>
+<dd>
+Used to sign manually released versions of PuTTY.
+</dd>
+<dt>
+Secure Contact Key
+</dt>
+<dd>
+An encryption-capable key suitable for people to send confidential messages to the PuTTY team, e.g. reports of vulnerabilities.
+</dd>
+<dt>
+Master Key
+</dt>
+<dd>
+Used to tie all the above keys into the GPG web of trust. The Master Key signs all the other keys, and other GPG users have signed it in turn.
+</dd>
+</dl>
+<p>
+The current issue of those keys are available for download from the PuTTY website, and are also available on PGP keyservers using the key IDs listed below.
+</p>
+<dl><dt>
+<a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/keys/master-2023.asc"><strong>Master Key</strong> (2023)</a>
+</dt>
+<dd>
+RSA, 4096-bit. Key ID: <code>B15D9EFC216B06A1</code>. Fingerprint: <code>28D4&nbsp;7C46&nbsp;55E7&nbsp;65A6&nbsp;D827&nbsp;AC66&nbsp;B15D&nbsp;9EFC&nbsp;216B&nbsp;06A1</code>
+</dd>
+<dt>
+<a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/keys/release-2023.asc"><strong>Release Key</strong> (2023)</a>
+</dt>
+<dd>
+RSA, 3072-bit. Key ID: <code>1993D21BCAD1AA77</code>. Fingerprint: <code>F412&nbsp;BA3A&nbsp;A30F&nbsp;DC0E&nbsp;77B4&nbsp;E387&nbsp;1993&nbsp;D21B&nbsp;CAD1&nbsp;AA77</code>
+</dd>
+<dt>
+<a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/keys/snapshot-2023.asc"><strong>Snapshot Key</strong> (2023)</a>
+</dt>
+<dd>
+RSA, 3072-bit. Key ID: <code>10625E553F53FAAD</code>. Fingerprint: <code>74CC&nbsp;6DD9&nbsp;ABA7&nbsp;31D4&nbsp;C5A0&nbsp;C2D0&nbsp;1062&nbsp;5E55&nbsp;3F53&nbsp;FAAD</code>
+</dd>
+<dt>
+<a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/keys/contact-2023.asc"><strong>Secure Contact Key</strong> (2023)</a>
+</dt>
+<dd>
+RSA, 3072-bit. Key ID: <code>1559F6A8929F5EFC</code>. Fingerprint: <code>01F5&nbsp;A2B1&nbsp;1388&nbsp;D64B&nbsp;707F&nbsp;897F&nbsp;1559&nbsp;F6A8&nbsp;929F&nbsp;5EFC</code>
+</dd>
+</dl>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

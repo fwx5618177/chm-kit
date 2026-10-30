@@ -8,12 +8,7 @@
  * success: 成功日志, 用于记录成功信息
  */
 export type LogLevel =
-  | 'error'
-  | 'warn'
-  | 'info'
-  | 'debug'
-  | 'success'
-  | 'verbose';
+  'error' | 'warn' | 'info' | 'debug' | 'success' | 'verbose';
 
 /**
  * Logger 接口定义

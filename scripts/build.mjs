@@ -20,6 +20,11 @@ const nodeEntries = {
   index: 'src/index.ts',
   config: 'src/core/config.ts',
   reader: 'src/reader/chm-reader.ts',
+  worker: 'src/worker/index.ts',
+  'browser-resources': 'src/browser-resources.ts',
+  electron: 'src/electron/index.ts',
+  'electron-main': 'src/electron/main.ts',
+  'electron-preload': 'src/electron/preload.ts',
 };
 for (const format of ['esm', 'cjs']) {
   await build({
@@ -39,7 +44,12 @@ for (const format of ['esm', 'cjs']) {
 }
 await chmod('dist/cjs/cli/index.js', 0o755);
 const browser = await build({
-  entryPoints: { index: 'src/browser.ts', root: 'src/browser-root.ts' },
+  entryPoints: {
+    index: 'src/browser.ts',
+    root: 'src/browser-root.ts',
+    worker: 'src/worker/index.ts',
+    resources: 'src/browser-resources.ts',
+  },
   outdir: 'dist/browser',
   outExtension: { '.js': '.mjs' },
   chunkNames: 'chunks/[name]-[hash]',
@@ -83,6 +93,11 @@ try {
     'browser-root': 'browser-root',
     config: 'core/config',
     reader: 'reader/chm-reader',
+    worker: 'worker/index',
+    'browser-resources': 'browser-resources',
+    electron: 'electron/index',
+    'electron-main': 'electron/main',
+    'electron-preload': 'electron/preload',
   };
   for (const [name, path] of Object.entries(entries)) {
     const bundle = await rollup({
@@ -99,7 +114,11 @@ try {
     } finally {
       await bundle.close();
     }
-    if (name.startsWith('browser')) {
+    if (
+      name.startsWith('browser') ||
+      name === 'worker' ||
+      name.startsWith('electron')
+    ) {
       const declarations = await readFile(`dist/types/${name}.d.ts`, 'utf8');
       const surface = declarations.replace(/\/\*[\s\S]*?\*\//g, '');
       if (

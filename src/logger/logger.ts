@@ -68,7 +68,7 @@ export class CHMLogger implements Logger {
     }
     try {
       return colorFn(text);
-    } catch (error) {
+    } catch {
       return text;
     }
   }

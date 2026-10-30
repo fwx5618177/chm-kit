@@ -1,0 +1,30 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Log files</title>
+<link rel="previous" href="privacy-jumplist.html">
+<link rel="ToC" href="index.html">
+<link rel="next" href="privacy-randomseed.html">
+<link rel="stylesheet" type="text/css" href="chm.css"></head>
+<body>
+<h1><a name="SI.1.4"></a>I.1.4 Log files</h1>
+<p>
+PuTTY can be configured to save a log file of your entire session to the computer you run it on. By default it does not do so: the content of your session is not saved.
+</p>
+<p>
+See <a href="config-logging.html#S4.2">section 4.2</a> for details of the logging features. Some logging modes store only output sent by the server and printed in PuTTY's terminal window. Other more thorough modes also store your input that PuTTY sends <em>to</em> the server.
+</p>
+<p>
+If the logging feature is enabled, then by default, PuTTY will avoid saving data in the log file that it knows to be sensitive, such as passwords. However, it cannot reliably identify <em>all</em> passwords. If you use a password for your initial login to an SSH server, PuTTY knows that is a password, and will omit it from the log file. But if after login you type a password into an application on the server, then PuTTY will not know that <em>that</em> is a password, so it will appear in the log file, if PuTTY is writing a type that includes keyboard input.
+</p>
+<p>
+PuTTY can also be configured to include all passwords in its log files, even the ones it would normally leave out. This is intended for debugging purposes, for example if a server is refusing your password and you need to check whether the password is being sent correctly. We do not recommend enabling this option routinely.
+</p>
+
+<!-- version IDs:
+PuTTY release 0.83
+-->
+</body>
+</html>

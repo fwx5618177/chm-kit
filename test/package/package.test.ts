@@ -29,10 +29,16 @@ interface PackedTarball {
 interface InstalledManifest {
   dependencies: Record<string, string>;
   bin: Record<string, string>;
+  scripts?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  packageManager?: string;
 }
 
 const html = '<title>Package</title>中文';
 const binary = Buffer.from([0, 128, 255]);
+// The runner/build stays on the supported development Node; consumers may use
+// an explicitly supplied older library runtime without executing Vite there.
+const runtime = process.env.CHM_TEST_NODE ?? process.execPath;
 // npm 10's prepare hook can ignore --ignore-scripts and pollute JSON stdout.
 const packOptions = [
   '--ignore-scripts',
@@ -47,7 +53,7 @@ let installed: InstalledManifest;
 
 function cli(...args: string[]): Buffer {
   return invoke(
-    process.execPath,
+    runtime,
     [join(consumer, 'node_modules/chmkit', installed.bin.chmkit), ...args],
     consumer,
   );
@@ -125,17 +131,17 @@ describe('installed npm tarball', () => {
     directory = await mkdtemp(
       join(await realpath(tmpdir()), 'chmkit-package-'),
     );
-    const archives = JSON.parse(
-      invokePackageManager(
-        'npm',
-        ['pack', ...packOptions, '--pack-destination', directory],
-        packageRoot,
-        20_000,
-      ),
-    ) as PackedTarball[];
-    if (archives.length !== 1)
-      throw new Error(`Expected one npm tarball, received ${archives.length}`);
-    packed = archives[0];
+    const delivery = JSON.parse(
+      await readFile(join(packageRoot, 'dist/package/manifest.json'), 'utf8'),
+    ) as { version: string; packageFiles: string[] };
+    packed = {
+      filename: `chmkit-${delivery.version}.tgz`,
+      files: delivery.packageFiles.map(path => ({ path })),
+    };
+    await cp(
+      join(packageRoot, 'dist/package', packed.filename),
+      join(directory, packed.filename),
+    );
 
     consumer = join(directory, 'consumer');
     // The .mts/.cts files are compile-only consumer examples, not runtime tests.
@@ -193,6 +199,12 @@ describe('installed npm tarball', () => {
     expect(packed.files.filter(file => forbidden.test(file.path))).toEqual([]);
   });
 
+  it('delivers consumer metadata without build/install hooks or development tools', () => {
+    expect(installed.scripts).toBeUndefined();
+    expect(installed.devDependencies).toBeUndefined();
+    expect(installed.packageManager).toBeUndefined();
+  });
+
   it('ships @types/node as an actual installed runtime dependency', async () => {
     expect(installed.dependencies['@types/node']).toBeTruthy();
     // Resolve in a clean Node process, outside Vitest/Vite's module hooks.
@@ -216,8 +228,20 @@ describe('installed npm tarball', () => {
       ['CommonJS reader subpath exposes CHMReader.open', 'cjs-reader'],
       ['native ESM reader subpath exposes CHMReader.open', 'esm-reader'],
       ['browser subpath returns plain Uint8Array bytes', 'browser'],
+      [
+        'Worker and Electron conditional subpaths expose importable modules',
+        'platforms',
+      ],
+      [
+        'installed Worker client/host exchange actual CHM bytes',
+        'worker-roundtrip',
+      ],
+      [
+        'root and browser Map templates/update keep byte types and version consistent',
+        'advanced',
+      ],
     ])('%s', (_description, mode) => {
-      invoke(process.execPath, ['smoke.cjs', mode], consumer);
+      invoke(runtime, ['smoke.cjs', mode], consumer);
     });
   });
 
@@ -268,6 +292,7 @@ describe('installed npm tarball', () => {
       ['NodeNext CommonJS root/config', 'node.cts'],
       ['browser subpath without Node globals', 'browser.mts'],
       ['root browser condition without Node globals', 'browser-root.mts'],
+      ['portable Worker/Electron without DOM or Node globals', 'portable.mts'],
     ])('typechecks %s', async (_description, file) => {
       // These are consumer test cases, not additional repository configurations.
       await writeFile(
@@ -281,9 +306,14 @@ describe('installed npm tarball', () => {
               strict: true,
               noEmit: true,
               skipLibCheck: false,
-              lib: ['ES2020', 'DOM', 'DOM.Iterable'],
+              lib:
+                file === 'portable.mts'
+                  ? ['ES2020']
+                  : ['ES2020', 'DOM', 'DOM.Iterable'],
               typeRoots: ['./node_modules/@types'],
-              ...(file.startsWith('browser') ? { types: [] } : {}),
+              ...(file.startsWith('browser') || file === 'portable.mts'
+                ? { types: [] }
+                : {}),
               ...(file === 'browser-root.mts'
                 ? { customConditions: ['browser'] }
                 : {}),
@@ -319,6 +349,6 @@ describe('installed npm tarball', () => {
         output.imports.filter(item => item.external),
       ),
     ).toEqual([]);
-    invoke(process.execPath, ['browser-root.mjs'], consumer);
+    invoke(runtime, ['browser-root.mjs'], consumer);
   });
 });

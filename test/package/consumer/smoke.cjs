@@ -89,6 +89,83 @@ async function run(mode) {
       }
       break;
     }
+    case 'platforms': {
+      for (const [subpath, symbol] of [
+        ['worker', 'createWorkerClient'],
+        ['electron', 'registerElectronArchiveHandler'],
+        ['electron/main', 'registerElectronArchiveHandler'],
+        ['electron/preload', 'createElectronRendererApi'],
+        ['browser-resources', 'ArchivePathResolver'],
+      ]) {
+        assert.equal(typeof require(`chmkit/${subpath}`)[symbol], 'function');
+        assert.equal(
+          typeof (await import(`chmkit/${subpath}`))[symbol],
+          'function',
+        );
+      }
+      break;
+    }
+    case 'worker-roundtrip': {
+      const { MessageChannel } = require('node:worker_threads');
+      const { CHMArchive } = require('chmkit');
+      const { createWorkerClient, serveWorker } = require('chmkit/worker');
+      const { port1, port2 } = new MessageChannel();
+      port1.start();
+      port2.start();
+      const host = serveWorker(
+        port1,
+        (source, options) => new CHMArchive(source, options),
+      );
+      const client = createWorkerClient(port2);
+      try {
+        const reader = await client.open(readFileSync('smoke.chm'));
+        assert.deepEqual(
+          await reader.read('/binary.bin'),
+          Uint8Array.from(binary),
+        );
+        assert.ok((await reader.list()).includes('/index.html'));
+        await reader.close();
+      } finally {
+        await client.dispose();
+        await host.dispose();
+        port1.close();
+        port2.close();
+      }
+      break;
+    }
+    case 'advanced': {
+      const node = require('chmkit');
+      assert.equal(node.VERSION, require('chmkit/package.json').version);
+      const source = new Map([['a.txt', Buffer.from('original')]]);
+      const data = node.CHMKit.packTemplate(
+        source,
+        new Map([['a.txt', Buffer.from('updated')]]),
+      );
+      assert.ok(Buffer.isBuffer(data));
+      const input = data.buffer.slice(
+        data.byteOffset,
+        data.byteOffset + data.byteLength,
+      );
+      const updated = node.CHMKit.updateArchive(
+        input,
+        new Map([['b.txt', binary]]),
+      );
+      const reader = node.CHMKit.from(updated);
+      try {
+        assert.equal(reader.readText('/a.txt'), 'updated');
+        assert.deepEqual(reader.readFile('/b.txt'), binary);
+      } finally {
+        reader.close();
+      }
+      const browser = await import('chmkit/browser');
+      const rebuilt = browser.CHMKit.updateArchive(updated, new Map());
+      assert.equal(rebuilt.constructor, Uint8Array);
+      assert.equal(
+        browser.CHMKit.packTemplate(source, new Map()).constructor,
+        Uint8Array,
+      );
+      break;
+    }
     default:
       throw new Error(`Unknown package smoke case: ${mode}`);
   }

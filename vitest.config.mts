@@ -20,7 +20,11 @@ export default defineConfig({
         test: {
           ...node,
           name: 'node',
-          include: ['test/**/*.test.ts'],
+          include: ['test/**/*.test.{ts,mjs}'],
+          benchmark: {
+            include: ['test/bench/**/*.bench.ts'],
+            outputJson: 'test-results/bench/vitest-benchmark.json',
+          },
           exclude: ['test/package/**', 'test/browser/**'],
         },
       },

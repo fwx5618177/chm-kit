@@ -3,6 +3,7 @@
  */
 
 import type { LogLevel, Logger } from '../logger/types';
+import type { PackFilesOptions } from '../encoder/types';
 
 export interface ITSFHeader {
   signature: string; // 'ITSF'
@@ -94,14 +95,40 @@ export interface ParsedCHM {
   contentOffset: number;
 }
 
-export interface ExtractOptions {
-  outputDir: string;
-  filter?: (fileName: string) => boolean;
-  preserveStructure?: boolean;
-  verbose?: boolean;
+export interface ExtractProgress {
+  totalFiles: number;
+  completedFiles: number;
+  succeededFiles: number;
+  failedFiles: number;
+  /** Bytes successfully written, including an in-flight file. */
+  bytesWritten: number;
+  totalBytes: number;
+  currentFile?: string;
 }
 
-export interface PackOptions {
+export interface ExtractResult {
+  files: string[];
+  totalFiles: number;
+  errors: string[];
+  /** Completed files are retained; unfinished exclusive-created files are removed. */
+  cancelled: boolean;
+}
+
+export interface ExtractOptions {
+  outputDir: string;
+  filter?: (fileName: string, entry: Readonly<DirectoryEntry>) => boolean;
+  preserveStructure?: boolean;
+  verbose?: boolean;
+  /** Bounded asynchronous file I/O, not parallel CPU decompression. Default: 4. */
+  concurrency?: number;
+  /** Maximum output chunk size per worker. Default: 64 KiB. */
+  chunkSize?: number;
+  signal?: AbortSignal;
+  /** Synchronous observer. Exceptions reject extraction after workers drain. */
+  onProgress?: (progress: Readonly<ExtractProgress>) => void;
+}
+
+export interface PackOptions extends PackFilesOptions {
   inputDir: string;
   outputPath: string;
   title?: string;
@@ -219,7 +246,10 @@ export interface ExtractCommandOptions {
   verbose: boolean;
 }
 
-export interface PackCommandOptions {
+export interface PackCommandOptions extends Pick<
+  PackFilesOptions,
+  'compressionLevel' | 'windowBits' | 'resetInterval' | 'blockSize'
+> {
   output: string;
   title?: string;
   defaultTopic?: string;
@@ -316,5 +346,12 @@ export interface CHMKitConfig {
 export interface ConfigLoadOptions {
   searchPaths?: string[];
   configFileName?: string;
+  /** Explicit path wins over discovery, and must exist. */
+  configPath?: string;
+  /** Throw on invalid configuration instead of falling back (used by the CLI). */
+  strict?: boolean;
+  /** Receives supplied fields, allowing consumers to report unsupported settings. */
+  onField?: (path: string) => void;
+  /** @deprecated Safety validation cannot be disabled. */
   validateConfig?: boolean;
 }

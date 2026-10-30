@@ -4,5 +4,6 @@ test/fixtures/** -text
 # Preserve upstream license whitespace and byte-exact extracted oracle data.
 test/fixtures/pychm-example/COPYING -whitespace
 test/fixtures/pychm-example/expected/** -whitespace
+test/fixtures/upstream-chm/** -whitespace
 *.chm binary
 *.png binary

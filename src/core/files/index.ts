@@ -4,5 +4,7 @@
  */
 
 export { FileReconstructor } from './file-reconstructor';
+export { MemoryByteSource } from './byte-source';
+export type { ByteSource, SourceCacheStats } from './byte-source';
 export { CHMFileManager } from './file-manager';
 export { CHMFileStatistics } from './file-statistics';

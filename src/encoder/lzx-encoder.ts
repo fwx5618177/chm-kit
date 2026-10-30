@@ -1,4 +1,10 @@
 import type { LZXConfig } from '../core/types';
+import { CanonicalHuffman } from './canonical-huffman';
+
+export interface LZXEncoderOptions extends LZXConfig {
+  /** Power-of-two block size from 256 to 32768; CHM frames stay 32768 bytes. */
+  blockSize?: number;
+}
 
 export const LZX_FRAME_SIZE = 0x8000;
 
@@ -24,37 +30,31 @@ class WordWriter {
     }
   }
 
+  get bitLength(): number {
+    return this.bytes.length * 8 + this.used;
+  }
+
+  clone(): WordWriter {
+    const copy = new WordWriter();
+    copy.bytes.push(...this.bytes);
+    copy.word = this.word;
+    copy.used = this.used;
+    return copy;
+  }
+
+  raw(data: Uint8Array): void {
+    // Raw blocks discard 1..16 bits, unlike frame alignment (0..15).
+    this.write(0, 16 - this.used);
+    for (const byte of data) this.bytes.push(byte);
+  }
+
   finish(): Buffer {
     if (this.used) this.write(0, 16 - this.used);
     return Buffer.from(this.bytes);
   }
 }
 
-/** A balanced, complete canonical tree: no decoder-specific empty-tree cases. */
-class FixedTree {
-  readonly lengths: Uint8Array;
-  private readonly codes: Uint16Array;
-
-  constructor(count: number) {
-    const bits = Math.floor(Math.log2(count));
-    const shortCount = 2 ** (bits + 1) - count;
-    this.lengths = new Uint8Array(count).fill(bits + 1);
-    this.lengths.fill(bits, 0, shortCount);
-    this.codes = new Uint16Array(count);
-    let shortCode = 0;
-    let longCode = shortCount * 2;
-    for (let symbol = 0; symbol < count; symbol++) {
-      this.codes[symbol] = symbol < shortCount ? shortCode++ : longCode++;
-    }
-  }
-
-  write(writer: WordWriter, symbol: number): void {
-    writer.write(this.codes[symbol]!, this.lengths[symbol]!);
-  }
-}
-
-const PRETREE = new FixedTree(20);
-const LENGTH_TREE = new FixedTree(249);
+const LENGTH_TREE = CanonicalHuffman.fixed(249);
 
 /** Bounded hash chains retain dictionary history even when a frame is stored. */
 class MatchFinder {
@@ -66,6 +66,7 @@ class MatchFinder {
     private readonly data: Uint8Array,
     private readonly windowSize: number,
     private readonly searchDepth: number,
+    private readonly paddedLength: number,
   ) {
     this.previous = new Float64Array(windowSize);
   }
@@ -75,16 +76,20 @@ class MatchFinder {
     this.resetStart = position;
   }
 
+  private byte(position: number): number {
+    return this.data[position] ?? 0;
+  }
+
   private hash(position: number): number {
     const value =
-      (this.data[position]! << 16) |
-      (this.data[position + 1]! << 8) |
-      this.data[position + 2]!;
+      (this.byte(position) << 16) |
+      (this.byte(position + 1) << 8) |
+      this.byte(position + 2);
     return (Math.imul(value, 0x1e35a7bd) >>> 16) & 0xffff;
   }
 
   private insert(position: number): void {
-    if (position + 2 >= this.data.length) return;
+    if (position + 2 >= this.paddedLength) return;
     const hash = this.hash(position);
     this.previous[position % this.windowSize] = this.heads[hash]!;
     this.heads[hash] = position;
@@ -110,13 +115,13 @@ class MatchFinder {
           searched++
         ) {
           if (
-            this.data[candidate + bestLength] ===
-            this.data[position + bestLength]
+            this.byte(candidate + bestLength) ===
+            this.byte(position + bestLength)
           ) {
             let length = 0;
             while (
               length < maximum &&
-              this.data[candidate + length] === this.data[position + length]
+              this.byte(candidate + length) === this.byte(position + length)
             )
               length++;
             if (length > bestLength) {
@@ -136,7 +141,7 @@ class MatchFinder {
           this.insert(position + index);
         position += bestLength;
       } else {
-        tokens.push(this.data[position]!);
+        tokens.push(this.byte(position));
         this.insert(position++);
       }
     }
@@ -145,22 +150,40 @@ class MatchFinder {
 }
 
 /**
- * Lossless LZX VERBATIM (type 1): greedy LZ77 plus complete canonical Huffman
- * trees. Each frame falls back to type 3 stored blocks if they are smaller.
- * Level 0 is stored-only; levels 1–9 control bounded hash-chain search depth.
+ * Lossless LZX with length-limited canonical trees and actual bit-cost selection.
+ * 0: stored; 1: fixed VERBATIM; 2–3: also adaptive VERBATIM; 4–9: also ALIGNED.
+ * Levels 1–9 search 2**level hash-chain candidates. Blocks never cross frames.
  */
 export class LZXEncoder {
   private readonly windowSize: number;
   private readonly resetInterval: number;
   private readonly compressionLevel: number;
-  private readonly mainTree: FixedTree;
+  private readonly mainTree: CanonicalHuffman;
+  private readonly blockSize: number;
   private readonly positionBases: number[] = [];
   private readonly extraBits: number[] = [];
 
-  constructor(config: LZXConfig = {}) {
+  constructor(config: LZXEncoderOptions = {}) {
+    for (const key of [
+      'windowSize',
+      'resetInterval',
+      'compressionLevel',
+      'blockSize',
+    ] as const) {
+      if (config[key] !== undefined && typeof config[key] !== 'number')
+        throw new Error(`LZX ${key} must be a number`);
+    }
     this.windowSize = config.windowSize ?? LZX_FRAME_SIZE;
     this.resetInterval = config.resetInterval ?? LZX_FRAME_SIZE;
     this.compressionLevel = config.compressionLevel ?? 6;
+    this.blockSize = config.blockSize ?? LZX_FRAME_SIZE;
+    if (
+      !Number.isInteger(this.blockSize) ||
+      this.blockSize < 256 ||
+      this.blockSize > LZX_FRAME_SIZE ||
+      (this.blockSize & (this.blockSize - 1)) !== 0
+    )
+      throw new Error('LZX blockSize must be a power of two from 256 to 32768');
     if (
       !Number.isInteger(this.windowSize) ||
       this.windowSize < LZX_FRAME_SIZE ||
@@ -190,7 +213,7 @@ export class LZXEncoder {
     const slots = [30, 32, 34, 36, 38, 42, 50][
       Math.log2(this.windowSize) - 15
     ]!;
-    this.mainTree = new FixedTree(256 + slots * 8);
+    this.mainTree = CanonicalHuffman.fixed(256 + slots * 8);
     let base = 0;
     for (let slot = 0; slot < slots; slot++) {
       const extra = slot < 4 ? 0 : Math.min(17, Math.floor(slot / 2) - 1);
@@ -213,15 +236,17 @@ export class LZXEncoder {
     // ResetTable retains the logical length, so zero fill is never file content.
     const paddedSize =
       Math.ceil(inputBuffer.length / LZX_FRAME_SIZE) * LZX_FRAME_SIZE;
-    const data = Buffer.alloc(paddedSize);
-    data.set(inputBuffer);
+    // MatchFinder reads the final zero fill virtually. A long reset does not
+    // require a reset-sized buffer, nor a padded copy of the complete input.
+    const data = inputBuffer;
     const finder =
-      this.compressionLevel === 0
+      this.compressionLevel === 0 || paddedSize === 0
         ? undefined
         : new MatchFinder(
             data,
             this.windowSize,
-            Math.min(256, 2 ** this.compressionLevel),
+            2 ** this.compressionLevel,
+            paddedSize,
           );
     const previousMain = new Uint8Array(this.mainTree.lengths.length);
     const previousLength = new Uint8Array(LENGTH_TREE.lengths.length);
@@ -236,30 +261,104 @@ export class LZXEncoder {
         previousLength.fill(0);
         recent = [1, 1, 1];
       }
-      const stored = this.storedFrame(
-        data.subarray(position, position + length),
-        reset,
-        recent,
-      );
-      let selected = stored;
-      if (finder) {
-        const tokens = finder.tokenize(position, position + LZX_FRAME_SIZE);
-        const encoded = this.verbatimFrame(
-          tokens,
-          reset,
-          previousMain,
-          previousLength,
-          recent,
+      let writer = new WordWriter();
+      if (reset) writer.write(0, 1); // No Intel E8 preprocessing.
+      for (let offset = 0; offset < LZX_FRAME_SIZE; offset += this.blockSize) {
+        const start = position + offset;
+        const logicalLength = Math.max(
+          0,
+          Math.min(this.blockSize, length - offset),
         );
-        if (encoded.data.length < stored.length) {
-          selected = encoded.data;
-          recent = encoded.recent;
-          previousMain.set(this.mainTree.lengths);
-          previousLength.set(LENGTH_TREE.lengths);
+        let selected = writer.clone();
+        if (logicalLength > 0) {
+          this.storedBlock(
+            selected,
+            data.subarray(start, start + logicalLength),
+            recent,
+          );
         }
+        if (logicalLength < this.blockSize) {
+          this.storedBlock(
+            selected,
+            Buffer.alloc(this.blockSize - logicalLength),
+            recent,
+          );
+        }
+        let selectedMain: CanonicalHuffman | undefined;
+        let selectedLength: CanonicalHuffman | undefined;
+        if (finder) {
+          const tokens = finder.tokenize(start, start + this.blockSize);
+          const mainFrequencies = new Array<number>(
+            this.mainTree.lengths.length,
+          ).fill(0);
+          const lengthFrequencies = new Array<number>(249).fill(0);
+          const alignedFrequencies = new Array<number>(8).fill(0);
+          for (const token of tokens) {
+            if (typeof token === 'number') mainFrequencies[token]!++;
+            else {
+              const slot = this.slot(token.distance);
+              mainFrequencies[
+                256 + slot * 8 + Math.min(token.length - 2, 7)
+              ]!++;
+              if (token.length >= 9) lengthFrequencies[token.length - 9]!++;
+              if (this.extraBits[slot]! >= 3)
+                alignedFrequencies[
+                  (token.distance - (this.positionBases[slot]! - 2)) & 7
+                ]!++;
+            }
+          }
+          const trees: [CanonicalHuffman, CanonicalHuffman][] = [
+            [this.mainTree, LENGTH_TREE],
+          ];
+          if (this.compressionLevel >= 2)
+            trees.push([
+              CanonicalHuffman.fromFrequencies(mainFrequencies),
+              CanonicalHuffman.fromFrequencies(lengthFrequencies),
+            ]);
+          const aligned =
+            this.compressionLevel >= 4
+              ? CanonicalHuffman.fromFrequencies(alignedFrequencies, 7)
+              : undefined;
+          for (const [main, secondary] of trees) {
+            for (const alignment of aligned
+              ? [undefined, aligned]
+              : [undefined]) {
+              const candidate = writer.clone();
+              this.compressedBlock(
+                candidate,
+                tokens,
+                main,
+                secondary,
+                alignment,
+                previousMain,
+                previousLength,
+              );
+              // Only the final block pays frame word padding. Rounding each
+              // inner block separately discards sub-word ALIGNED savings.
+              const last = offset + this.blockSize === LZX_FRAME_SIZE;
+              const cost = (bits: number): number =>
+                last ? Math.ceil(bits / 16) : bits;
+              if (cost(candidate.bitLength) < cost(selected.bitLength)) {
+                selected = candidate;
+                selectedMain = main;
+                selectedLength = secondary;
+              }
+            }
+          }
+          if (selectedMain) {
+            previousMain.set(selectedMain.lengths);
+            previousLength.set(selectedLength!.lengths);
+            for (const token of tokens) {
+              if (typeof token !== 'number')
+                recent = [token.distance, recent[0], recent[1]];
+            }
+          }
+        }
+        writer = selected;
       }
-      chunks.push(selected);
-      compressedSize += selected.length;
+      const frame = writer.finish();
+      chunks.push(frame);
+      compressedSize += frame.length;
     }
 
     const resetTable = Buffer.alloc(0x28 + offsets.length * 8);
@@ -288,104 +387,113 @@ export class LZXEncoder {
     start: number,
     end: number,
   ): void {
-    for (const length of PRETREE.lengths) writer.write(length, 4);
-    for (let symbol = start; symbol < end; symbol++) {
-      PRETREE.write(writer, (previous[symbol]! - lengths[symbol]! + 17) % 17);
+    const operations: { symbol: number; extra?: number; bits?: number }[] = [];
+    for (let symbol = start; symbol < end;) {
+      let run = 0;
+      if (lengths[symbol] === 0) {
+        while (symbol + run < end && lengths[symbol + run] === 0 && run < 51)
+          run++;
+      }
+      if (run >= 4) {
+        const long = run >= 20;
+        operations.push({
+          symbol: long ? 18 : 17,
+          extra: run - (long ? 20 : 4),
+          bits: long ? 5 : 4,
+        });
+        symbol += run;
+      } else {
+        operations.push({
+          symbol: (previous[symbol]! - lengths[symbol]! + 17) % 17,
+        });
+        symbol++;
+      }
+    }
+    const frequencies = new Array<number>(20).fill(0);
+    for (const operation of operations) frequencies[operation.symbol]!++;
+    const pretree = CanonicalHuffman.fromFrequencies(frequencies, 15);
+    for (const length of pretree.lengths) writer.write(length, 4);
+    for (const operation of operations) {
+      pretree.write(writer, operation.symbol);
+      if (operation.bits) writer.write(operation.extra!, operation.bits);
     }
   }
 
-  private verbatimFrame(
+  private slot(distance: number): number {
+    let slot = this.positionBases.length - 1;
+    while (slot > 3 && distance < this.positionBases[slot]! - 2) slot--;
+    return slot;
+  }
+
+  private compressedBlock(
+    writer: WordWriter,
     tokens: readonly Token[],
-    reset: boolean,
+    main: CanonicalHuffman,
+    secondary: CanonicalHuffman,
+    aligned: CanonicalHuffman | undefined,
     previousMain: Uint8Array,
     previousLength: Uint8Array,
-    recent: RecentOffsets,
-  ): { data: Buffer; recent: RecentOffsets } {
-    const writer = new WordWriter();
-    if (reset) writer.write(0, 1); // No Intel E8 preprocessing.
-    writer.write(1, 3);
-    writer.write(LZX_FRAME_SIZE, 24);
-    this.writeTree(writer, previousMain, this.mainTree.lengths, 0, 256);
+  ): void {
+    writer.write(aligned ? 2 : 1, 3);
+    writer.write(this.blockSize, 24);
+    if (aligned) for (const length of aligned.lengths) writer.write(length, 3);
+    this.writeTree(writer, previousMain, main.lengths, 0, 256);
     this.writeTree(
       writer,
       previousMain,
-      this.mainTree.lengths,
+      main.lengths,
       256,
-      this.mainTree.lengths.length,
+      main.lengths.length,
     );
     this.writeTree(
       writer,
       previousLength,
-      LENGTH_TREE.lengths,
+      secondary.lengths,
       0,
-      LENGTH_TREE.lengths.length,
+      secondary.lengths.length,
     );
-    let nextRecent: RecentOffsets = [...recent];
     for (const token of tokens) {
       if (typeof token === 'number') {
-        this.mainTree.write(writer, token);
+        main.write(writer, token);
         continue;
       }
-      // Explicit position slots avoid cache-selection heuristics, but LZX still
-      // requires all three repeat offsets to advance after every explicit match.
-      let slot = this.positionBases.length - 1;
-      while (slot > 3 && token.distance < this.positionBases[slot]! - 2) slot--;
+      // Explicit offsets keep tokenization independent of the selected trees.
+      const slot = this.slot(token.distance);
       const lengthCode = token.length - 2;
-      this.mainTree.write(writer, 256 + slot * 8 + Math.min(lengthCode, 7));
-      if (lengthCode >= 7) LENGTH_TREE.write(writer, token.length - 9);
-      writer.write(
-        token.distance - (this.positionBases[slot]! - 2),
-        this.extraBits[slot]!,
-      );
-      nextRecent = [token.distance, nextRecent[0], nextRecent[1]];
+      main.write(writer, 256 + slot * 8 + Math.min(lengthCode, 7));
+      if (lengthCode >= 7) secondary.write(writer, token.length - 9);
+      const suffix = token.distance - (this.positionBases[slot]! - 2);
+      const extra = this.extraBits[slot]!;
+      if (aligned && extra >= 3) {
+        writer.write(suffix >>> 3, extra - 3);
+        aligned.write(writer, suffix & 7);
+      } else writer.write(suffix, extra);
     }
-    return { data: writer.finish(), recent: nextRecent };
-  }
-
-  private storedFrame(
-    data: Uint8Array,
-    reset: boolean,
-    recent: RecentOffsets,
-  ): Buffer {
-    const blocks = [this.storedBlock(data, data.length, reset, recent)];
-    if (data.length < LZX_FRAME_SIZE) {
-      blocks.push(
-        this.storedBlock(
-          new Uint8Array(0),
-          LZX_FRAME_SIZE - data.length,
-          false,
-          recent,
-        ),
-      );
-    }
-    return Buffer.concat(blocks);
   }
 
   private storedBlock(
+    writer: WordWriter,
     data: Uint8Array,
-    length: number,
-    reset: boolean,
     recent: RecentOffsets,
-  ): Buffer {
-    const writer = new WordWriter();
-    if (reset) writer.write(0, 1);
+  ): void {
     writer.write(3, 3);
-    writer.write(length, 24);
-    const block = Buffer.alloc(16 + length + (length & 1));
-    writer.finish().copy(block);
+    writer.write(data.length, 24);
+    const block = Buffer.alloc(12 + data.length + (data.length & 1));
     recent.forEach((distance, index) =>
-      block.writeUInt32LE(distance, 4 + index * 4),
+      block.writeUInt32LE(distance, index * 4),
     );
-    block.set(data, 16);
-    // An odd stored block has a raw zero pad byte before the next block.
-    return block;
+    block.set(data, 12);
+    writer.raw(block);
   }
 
-  getConfig(): LZXConfig {
+  getConfig(): LZXEncoderOptions {
     return {
       windowSize: this.windowSize,
       resetInterval: this.resetInterval,
       compressionLevel: this.compressionLevel,
+      ...(this.blockSize === LZX_FRAME_SIZE
+        ? {}
+        : { blockSize: this.blockSize }),
     };
   }
 }

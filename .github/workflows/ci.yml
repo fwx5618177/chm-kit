@@ -4,6 +4,7 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -20,26 +21,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-24.04, macos-15, windows-2025]
         node: ['20.19.0', '22', '24']
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
         with:
-          version: 9.0.0
-          run_install: false
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
-          cache: pnpm
-      - name: Install locked dependencies without lifecycle scripts
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting and delivery script regressions
+        if: matrix.os == 'ubuntu-24.04' && matrix.node == '24'
+        run: |
+          pnpm format:check
+          pnpm test:delivery
       - name: Install independent CHM oracle on Linux
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y 7zip
-          # The test suite probes 7zz/7z and requires a working oracle on Linux.
       - name: Typecheck
         run: pnpm typecheck
       - name: Lint
@@ -50,42 +50,105 @@ jobs:
         run: pnpm test
       - name: Upload Node test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2; node24
         with:
           name: node-${{ matrix.os }}-${{ matrix.node }}
           path: test-results/vitest.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
   browser:
-    name: ${{ matrix.browser }} / Ubuntu
-    runs-on: ubuntu-latest
+    name: ${{ matrix.browser }} / Ubuntu 24.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
         with:
-          version: 9.0.0
-          run_install: false
-      - uses: actions/setup-node@v4
+          persist-credentials: false
+      - uses: ./.github/actions/setup
         with:
           node-version: '22'
-          cache: pnpm
-      - name: Install locked dependencies without lifecycle scripts
-        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install browser and system dependencies
         run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - name: Run Playwright in a real browser
         run: pnpm test:browser --project=${{ matrix.browser }}
       - name: Upload browser reports and screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2; node24
         with:
-          name: browser-${{ matrix.browser }}-ubuntu
+          name: browser-${{ matrix.browser }}-ubuntu-24.04
           path: test-results/browser/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
+
+  minimum:
+    name: Installed consumer / Node 20.10.0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '24'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+        with:
+          node-version: '20.10.0'
+          package-manager-cache: false
+      - name: Locate the minimum consumer runtime
+        id: minimum
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'executable=' + process.execPath + '\n')"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Build on the development Node and run installed consumers on Node 20.10
+        env:
+          CHM_TEST_NODE: ${{ steps.minimum.outputs.executable }}
+        run: pnpm exec vitest run --project package --outputFile.json=test-results/package-node20.json
+      - name: Upload minimum-runtime consumer report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2; node24
+        with:
+          name: package-node-20.10.0
+          path: test-results/package-node20.json
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    name: Prebuilt consumer downloads
+    needs: [node, browser, minimum]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: '24'
+      - name: Build all public entries and package verified consumer assets
+        run: |
+          pnpm build
+          pnpm docs:build
+          node scripts/package.mjs
+      - name: Upload prebuilt npm tarball, standalone CLI, browser ESM and types
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2; node24
+        with:
+          name: chmkit-${{ github.sha }}
+          path: dist/package/*
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Upload generated public API documentation
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2; node24
+        with:
+          name: chmkit-api-${{ github.sha }}
+          path: dist/api/
+          if-no-files-found: error
+          retention-days: 30

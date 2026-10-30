@@ -28,6 +28,7 @@ export class FileManagerOperations {
     } catch (error) {
       throw new Error(
         `读取文件失败: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }
@@ -57,6 +58,7 @@ export class FileManagerOperations {
     } catch (error) {
       throw new Error(
         `列出文件失败: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

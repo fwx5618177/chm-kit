@@ -29,7 +29,7 @@ export function encodeEncInt(value: number): Buffer {
     value > 0;
     value = Math.floor(value / 128)
   ) {
-    bytes.unshift(value % 128 | 0x80);
+    bytes.unshift((value % 128) | 0x80);
   }
   return Buffer.from(bytes);
 }

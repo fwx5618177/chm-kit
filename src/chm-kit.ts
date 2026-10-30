@@ -3,10 +3,20 @@ import { ExtractorOperations } from './operations/extractor';
 import { PackerOperations } from './operations/packer';
 import { InfoOperations } from './operations/info';
 
-import type { ParsedCHM, ExtractOptions, PackOptions } from './core/types';
+import type {
+  ParsedCHM,
+  ExtractOptions,
+  ExtractResult,
+  PackOptions,
+} from './core/types';
 import { CHMReader } from './reader/chm-reader';
 import { CHMArchive } from './reader/chm-archive';
-import { packFiles, type PackFilesOptions } from './encoder/archive-builder';
+import {
+  packFiles,
+  packTemplate,
+  updateArchive,
+} from './encoder/archive-builder';
+import type { PackFilesOptions, UpdateArchiveOptions } from './encoder/types';
 import type {
   ReaderOptions,
   NavigationEntry,
@@ -39,7 +49,7 @@ export class CHMKit {
     filePath: string,
     outputDir: string,
     options: Partial<ExtractOptions> = {},
-  ): Promise<{ files: string[]; totalFiles: number; errors: string[] }> {
+  ): Promise<ExtractResult> {
     return ExtractorOperations.extract(filePath, outputDir, options);
   }
 
@@ -151,6 +161,26 @@ export class CHMKit {
     return packFiles(files, options);
   }
 
+  static packTemplate(
+    template: ReadonlyMap<string, Uint8Array>,
+    overrides: ReadonlyMap<string, Uint8Array | null>,
+    options?: PackFilesOptions,
+  ): Buffer {
+    return packTemplate(template, overrides, options);
+  }
+
+  static updateArchive(
+    existing: Uint8Array | ArrayBuffer,
+    changes: ReadonlyMap<string, Uint8Array | null>,
+    options?: UpdateArchiveOptions,
+  ): Buffer {
+    return updateArchive(
+      existing instanceof ArrayBuffer ? new Uint8Array(existing) : existing,
+      changes,
+      options,
+    );
+  }
+
   static readRange(
     chmPath: string,
     filePath: string,
@@ -191,7 +221,7 @@ export class CHMKit {
     chmPath: string,
     paths: readonly string[],
     outputDir: string,
-  ): Promise<{ files: string[]; totalFiles: number; errors: string[] }> {
+  ): Promise<ExtractResult> {
     const selected = new Set(
       paths.map(path =>
         path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase(),

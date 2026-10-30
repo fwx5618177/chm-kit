@@ -5,8 +5,16 @@ import { pipeline } from 'stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'stream/web';
 import { CHMReader } from '../../reader/chm-reader';
 import { decodeText } from '../../reader/reader-utils';
+import {
+  addFileFilters,
+  byteSize,
+  filePredicate,
+  type FileFilters,
+} from '../filters';
+import { runtimeConfig } from '../runtime';
 
-export interface ReadOptions {
+export interface ReadOptions extends FileFilters {
+  maxReadSize?: number;
   list?: boolean;
   toc?: boolean;
   index?: boolean;
@@ -126,16 +134,26 @@ export async function readArchive(
     throw new Error('结构化导航 JSON 不支持 --range；请使用 text/raw 源内容');
   }
 
+  const filtered =
+    options.filter !== undefined ||
+    options.type !== undefined ||
+    options.minSize !== undefined ||
+    options.maxSize !== undefined;
+  if (filtered && !options.list)
+    throw new Error('类型/大小/glob 过滤仅适用于 --list');
+  const accepts = filePredicate(options);
   const binaryEncoding = /^(?:base64(?:url)?|hex)$/i.test(encoding);
-  const reader = await CHMReader.open(
-    input,
-    options.encoding && !binaryEncoding
-      ? { defaultEncoding: encoding }
-      : undefined,
-  );
+  const reader = await CHMReader.open(input, {
+    ...(options.encoding && !binaryEncoding && { defaultEncoding: encoding }),
+    ...(options.maxReadSize !== undefined && {
+      maxFileSize: options.maxReadSize,
+    }),
+  });
   try {
     if (options.list) {
-      const files = reader.listFiles();
+      const files = reader
+        .listFiles()
+        .filter(path => accepts(reader.getFileInfo(path)));
       await emit(
         format === 'json'
           ? `${JSON.stringify(files, null, 2)}\n`
@@ -195,7 +213,7 @@ export async function readArchive(
   }
 }
 
-export const read = new Command('read')
+export const read = addFileFilters(new Command('read'), false)
   .description('读取 CHM 中的用户文件；raw/stream 输出保持原始字节')
   .argument('<input>', 'CHM 文件路径')
   .argument('[file-path]', '归档内的文件路径')
@@ -210,14 +228,25 @@ export const read = new Command('read')
   )
   .option('--range <start:end>', '按需读取字节范围 [start, end)')
   .option('--stream', '按需输出原始字节流，支持 --range/--output，不支持 json')
+  .option(
+    '--max-read-size <size>',
+    '单次物化读取上限（不限制流或输入大小）',
+    byteSize,
+  )
   .action(
     async (
       input: string,
       filePath: string | undefined,
       options: ReadOptions,
+      command: Command,
     ) => {
       try {
-        await readArchive(input, filePath, options);
+        await readArchive(input, filePath, {
+          ...options,
+          maxReadSize:
+            options.maxReadSize ??
+            runtimeConfig(command).performance!.maxFileSize,
+        });
       } catch (error) {
         process.stderr.write(
           `Error reading CHM file: ${error instanceof Error ? error.message : String(error)}\n`,
