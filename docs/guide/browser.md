@@ -2,8 +2,26 @@
 
 [Documentation](../index.md) · [Worker](worker.md) · [Security](../../SECURITY.md)
 
+## Use the local viewer
+
+Extract the current **`chmkit-1.1.0-browser.tar.gz`** and double-click
+**`dist/viewer/index.html`**. Choose a local `.chm`, or try the generated sample,
+to browse, search and preview pages. Keep the directory intact. The prebuilt
+`viewer.js` is a self-contained classic IIFE: ordinary viewers need **no Node,
+npm, build or local server**. Chromium, Firefox and WebKit have each opened this
+`file:` entry and loaded the sample preview with zero HTTP requests.
+
+The [download guide](downloads.md) distinguishes current bundle contents from
+the older verified hosted snapshot, which does not include this viewer. New
+hosted delivery is pending. The viewer retains the script-free sandbox, CSP,
+resource limits and cleanup described below; it is a restricted static preview,
+not full HTML Help browser compatibility.
+
+## Integrate the library
+
 Install the [prebuilt tarball](downloads.md) into your application, or serve the
-extracted browser archive over HTTP(S). No CHMKit source build is needed.
+extracted `dist/browser/` modules over HTTP(S). Library ESM and module Workers
+still require HTTP(S), unlike the standalone viewer's classic script.
 `chmkit/browser` defaults to `CHMReader`; root `chmkit` under the browser condition
 defaults to `CHMKit`. Prefer named imports. Do not import Node config/filesystem
 adapters into browser code.
@@ -43,7 +61,8 @@ the Worker RPC has a narrower option/method surface.
 For direct ESM hosting, replace package imports with relative URLs such as
 `./dist/browser/index.mjs` and `./dist/browser/resources.mjs`. Keep chunks and
 relative paths intact. Bare specifiers need a bundler/import map. The download
-contains library modules/types, not an automatically deployed application.
+contains both the local viewer and reusable library modules/types; it does not
+automatically deploy your application.
 
 ## Raw paths versus archive URLs
 
@@ -166,10 +185,10 @@ network-free: your own fetches, external navigation, hosting and any bypass of
 CSP/sandbox determine exposure. Do not advertise local parsing alone as complete
 privacy isolation. Never automatically open external links or extracted files.
 
-The [browser example](../../examples/browser/) shows local selection, generated
-sample, search/navigation and explicit preview/URL cleanup. The
-[Worker example](../../examples/worker/) shows remote reads separately. Their
-repository-relative imports target built outputs; consumers can use the installed
-package or browser archive without building CHMKit. Execution evidence and browser
-coverage are recorded in [VALIDATION.md](../../VALIDATION.md), not inferred from
-these example files existing.
+The [browser example](../../examples/browser/) is the source of the prebuilt
+viewer: local selection, generated sample, search/navigation and explicit
+preview/URL cleanup. Its source ESM page is a contributor integration example;
+ordinary users open the bundled `dist/viewer/index.html` instead. The
+[Worker example](../../examples/worker/) shows remote reads separately over
+HTTP(S). Execution evidence and browser coverage are recorded in
+[VALIDATION.md](../../VALIDATION.md), not inferred from these files existing.

@@ -67,8 +67,11 @@ Call `inspect(file)` from your application. This uses the application's bundler
 for its worker entry, not a CHMKit source build. With the browser archive and no
 bundler, use `.js` module entries and relative imports to
 `dist/browser/worker.mjs` and `dist/browser/index.mjs`; preserve chunks and host
-over HTTP(S). [The example](../../examples/worker/) includes the complete HTML,
-main script, Worker script, display and cleanup wiring.
+over HTTP(S). The browser archive also carries `dist/viewer/reader.worker.js`
+and `worker-client.js` for integration. The standalone viewer's classic-script
+`file:` support does **not** make module Workers work from disk.
+[The example](../../examples/worker/) includes the complete HTML, main script,
+Worker script, display and cleanup wiring.
 
 ## API differences from the local reader
 

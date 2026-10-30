@@ -4,7 +4,7 @@
 
 Examples use `chmkit` after installing the prebuilt tarball. For a local install,
 use `npx --no-install chmkit`; for the standalone download, use
-`node chmkit-VERSION-cli.cjs`. `chm` is an alias of the installed command.
+`node chmkit-1.1.0-cli.cjs` (check the download's manifest for its version). `chm` is an alias of the installed command.
 Use your own `manual.chm` and paths returned by its file list.
 
 ```sh

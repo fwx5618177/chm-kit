@@ -1,51 +1,52 @@
 # CHMKit
 
-Read, search, extract and create Microsoft HTML Help (`.chm`) archives with
-TypeScript. Use a prebuilt CLI, integrate the Node.js library, or read local
-archives in a browser without uploading them.
+Open local Microsoft HTML Help (`.chm`) files in a browser, explore them from a
+terminal, or integrate a TypeScript reader/writer into your application.
+Read, search, preview, extract and create archives without uploading your files.
 
 **English** | [中文](README_zh.md) · [Documentation](docs/index.md) ·
 [API reference](docs/api.md) · [Migration](docs/guide/migration.md)
 
-## Get started — no build required
+## Get started — choose your channel
 
-**The public npm registry currently returns 404 for `chmkit`.** A registry install
-is not an available distribution channel, and npm publication is not planned.
-Use the precompiled downloads below; no source checkout, pnpm or compiler is needed.
-A [verified 1.1.0 snapshot with direct download links](docs/guide/downloads.md#verified-prebuilt-snapshot)
-is available; GitHub sign-in and artifact retention limits apply.
+| Download                      | Use it for                                                       | Requirements                                          |
+| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
+| `chmkit-1.1.0-browser.tar.gz` | Ready-to-open local viewer, plus browser modules/types           | Modern browser; no Node, npm or server for the viewer |
+| `chmkit-1.1.0-cli.cjs`        | Inspect, search, extract and pack from a terminal                | Node.js 20.10+; no npm install                        |
+| `chmkit-1.1.0.tgz`            | Node library, installed CLI, browser/Worker/Electron integration | Node.js and npm for installation                      |
 
-1. Open [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)
-   and select a successful **CI** run for the revision you want.
-2. Download its **`chmkit-<commit-sha>`** artifact from **Artifacts** and unzip it.
-   GitHub normally requires **sign-in**; artifacts expire and a run without a
-   completed packaging job has no consumer download.
-3. Read `manifest.json` and the included versioned `USAGE.md`. Replace `VERSION`
-   in the commands below with that manifest's version, not a guessed release.
+Get the **`chmkit-<commit-sha>`** artifact from a successful
+[CI run](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml), or a
+maintainer-provided prebuilt bundle, and unzip it. These examples use the current
+version **1.1.0**; check `manifest.json` for the version and source of your download.
+Keep its notices and [verify checksums](docs/guide/downloads.md#verify-the-download).
 
-No existing public GitHub Release is assumed here. A maintainer-approved release
-can later provide durable anonymous downloads; see [delivery details](docs/guide/downloads.md).
+The [verified hosted snapshot](docs/guide/downloads.md#verified-prebuilt-snapshot)
+is an older 1.1.0 revision **without the standalone viewer**; hosted acceptance and
+uploads for the new revision are still pending. Actions downloads require GitHub
+sign-in and expire. The npm package is **not published**; npm publication or a
+public release requires separate authorization. [Download details](docs/guide/downloads.md).
 
-| Download                        | Choose this when…                      | Requirements                                        |
-| ------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `chmkit-VERSION-cli.cjs`        | You want to inspect/extract/pack files | Supported Node.js; no npm install                   |
-| `chmkit-VERSION.tgz`            | You need the library or installed CLI  | Node.js and npm; runtime dependencies are installed |
-| `chmkit-VERSION-browser.tar.gz` | You want browser ESM and declarations  | Modern browser and HTTP(S) static hosting           |
+### Open the local viewer
 
-Use Node.js 22.13+ or 24 for development; Node 20.19 is a runtime compatibility
-target, not a supported dev-dependency installation environment. Consumer runtime
-requirements are in the download's `engines.node`. The CLI embeds neither Node nor Electron.
-Download **`chmkit-api-<commit-sha>`** from the same CI run to browse generated
-[TypeDoc reference](docs/api.md) without a source build; it is not a publicly hosted site.
+Extract `chmkit-1.1.0-browser.tar.gz`, then double-click **`dist/viewer/index.html`**.
+Select your `.chm` file or try the built-in sample to browse, search and preview it.
+Keep the extracted directory intact. No Node, npm, source checkout, build or local
+server is needed. Direct `file:` opening and sample preview were verified in
+Chromium, Firefox and WebKit with **zero HTTP requests**.
+
+The viewer uses a restricted, script-free preview; some CHM page features may be
+omitted. Library ESM and module Worker integrations still use HTTP(S).
+[Browser guide](docs/guide/browser.md).
 
 ### Run the standalone CLI
 
 ```sh
-node chmkit-VERSION-cli.cjs --help
-node chmkit-VERSION-cli.cjs info manual.chm --json
-node chmkit-VERSION-cli.cjs tree manual.chm --depth 2
-node chmkit-VERSION-cli.cjs search manual.chm "installation" --type html --json
-node chmkit-VERSION-cli.cjs extract manual.chm --output ./manual-new --preserve-structure
+node chmkit-1.1.0-cli.cjs --help
+node chmkit-1.1.0-cli.cjs info manual.chm --json
+node chmkit-1.1.0-cli.cjs tree manual.chm --depth 2
+node chmkit-1.1.0-cli.cjs search manual.chm "installation" --type html --json
+node chmkit-1.1.0-cli.cjs extract manual.chm --output ./manual-new --preserve-structure
 ```
 
 Supply your own `manual.chm`. For internal paths, first list the archive instead
@@ -54,7 +55,7 @@ of assuming that it contains `/index.html`.
 ### Install the prebuilt library
 
 ```sh
-npm install ./chmkit-VERSION.tgz
+npm install ./chmkit-1.1.0.tgz
 npx --no-install chmkit --help
 ```
 
@@ -121,8 +122,9 @@ Browser input is `Uint8Array`, `ArrayBuffer` or `Blob`, **not** a path/URL strin
 Binary results are plain `Uint8Array`; streams are WHATWG `ReadableStream` in
 both runtimes. Browser memory input is retained separately from the cache budget.
 
-- **No bundler:** extract the browser archive, keep all relative chunks, and
-  import `./dist/browser/index.mjs` over HTTP(S).
+- **Local viewer:** open `dist/viewer/index.html` directly from the extracted
+  browser archive. For **library integration without a bundler**, retain all
+  chunks and import `./dist/browser/index.mjs` over HTTP(S).
 - **Worker:** `chmkit/worker` provides a client/host pair, bounded RPC, optional
   transfers and cleanup. See [Worker guide](docs/guide/worker.md) and
   [complete example](examples/worker/).
@@ -156,20 +158,19 @@ it does not interpolate strings. `updateArchive()` rebuilds supported
 archives into new bytes; it is **not in-place editing** and refuses structures
 it cannot safely preserve. [Packing and update guide](docs/guide/packing.md).
 
-## Scope and next steps
+## Compatibility and next steps
 
-CHMKit reads standard ITSF v2/v3 structures and LZX VERBATIM, ALIGNED and stored
-blocks, with frame/reset history and Intel E8 decoding. It is not a complete
-HTML Help Workshop replacement, a universal CHM compatibility guarantee, or an
-optimal compressor. Full-text search scans supported text resources; it does
-not consume every producer's compiled search database.
+CHMKit supports ITSF v2/v3 structures and LZX VERBATIM, ALIGNED and stored blocks,
+including frame/reset history and Intel E8 decoding. The official Free Pascal
+3.2.2 `fpdoc` archive now reads unchanged against independently extracted bytes.
+Real-input gaps remain for normal v2, GBK/UTF-16 and additional E8/window/reset
+variants; support is not a guarantee for every producer. Search scans supported
+text resources rather than every producer's compiled search database.
 
-Cache limits are managed-cache budgets, **not total RAM limits**. Ranges can
-need decoding from a preceding reset. Extraction rejects traversal, unsafe names,
-symlinks and overwrites, but cannot eliminate every hostile local TOCTOU race.
-Independent fixtures and bounded mutation tests improve confidence, not prove
-exhaustive coverage. See [format/LZX](docs/guide/format-lzx.md) and
-[current validation evidence](VALIDATION.md).
+See [format and compatibility](docs/guide/format-lzx.md),
+[resource budgets](docs/guide/configuration.md), [security](SECURITY.md) and
+[current validation evidence](VALIDATION.md) for integration limits. Prebuilt
+[TypeDoc HTML](docs/api.md) is a separate `chmkit-api-<commit-sha>` CI artifact.
 
 - [CLI reference](docs/guide/cli.md): tree, search, read, preview, browse, batch, pack
 - [Configuration and budgets](docs/guide/configuration.md)

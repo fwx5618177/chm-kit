@@ -7,6 +7,13 @@ const GUIDS = Buffer.from(
   'hex',
 );
 
+// Official FPC 3.2.2 fpdoc.chm (Free Pascal chm package 3.3.1) repeats
+// the first GUID in both slots. Keep this v3 exception an exact pair match.
+const FPC_V3_GUIDS = Buffer.from(
+  '10fd017caa7bd0119e0c00a0c922e6ec10fd017caa7bd0119e0c00a0c922e6ec',
+  'hex',
+);
+
 export class ITSFHeaderParser {
   static parse(reader: BitReader): ITSFHeader {
     const start = reader.position;
@@ -22,7 +29,8 @@ export class ITSFHeaderParser {
     }
     reader.setPosition(start, 0);
     const data = readBytes(reader, headerLength, 'ITSF header');
-    if (!data.subarray(0x18, 0x38).equals(GUIDS))
+    const guids = data.subarray(0x18, 0x38);
+    if (!guids.equals(GUIDS) && !(version === 3 && guids.equals(FPC_V3_GUIDS)))
       throw new Error('无效的 ITSF GUID');
     const result: ITSFHeader = {
       signature,

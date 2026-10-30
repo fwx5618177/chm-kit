@@ -4,10 +4,26 @@
 
 This guide describes behavior changes in the expanded working-tree API. It does
 not imply an npm release: the public `chmkit` registry endpoint currently returns
-404, and no npm publication is planned. Use a matching [prebuilt tarball/artifact](downloads.md), and check its actual
+404; publication requires separate authorization. Use a matching [prebuilt tarball/artifact](downloads.md), and check its actual
 version/exports rather than assuming an older download contains new subpaths.
 The current source package version is 1.1.0; this is not a claim that a 1.1.0
 GitHub Release exists. Library/CLI versions must match the downloaded manifest.
+
+## Current viewer and parser compatibility
+
+The current browser archive adds `dist/viewer/index.html` and a bundled classic
+IIFE. Extract `chmkit-1.1.0-browser.tar.gz` and open that entry directly as `file:`;
+no Node/npm/server/build is needed for ordinary viewing. Library ESM and module
+Worker integrations still need HTTP(S). The linked historical `45a5b5f` snapshot
+also says 1.1.0 but predates the viewer: check source identity/inventory, not just
+the version. New-revision hosted downloads remain pending.
+
+The unchanged official FPC 3.2.2 `fpdoc` archive now reads with narrowly validated
+v3 GUID, directory quickref/leaf-hint and terminal ResetTable compatibility.
+Terminal offsets are consumed and validated but are not exposed as empty frames;
+`ResetTable.blockCount` and `entries` continue to describe real data frames.
+Malformed counts, mixed quickrefs and invalid Content boundaries remain errors.
+See [format details](format-lzx.md#strict-fpc-producer-compatibility).
 
 ## Node paths are file-backed, not snapshots
 
@@ -158,6 +174,15 @@ Development now uses **Node 22.13+ or 24**, **pnpm 10.34.9**, ESLint 10's flat
 is a runtime compatibility target, not a devDependencies installation environment;
 CI installs on Node 24 before switching runtimes. The consumer engine declaration
 is separate and remains in `package.json`.
+
+Native Electron acceptance now runs through `pnpm test:electron` in the same
+Playwright configuration as the browsers. For contributors, explicitly install
+the pinned dev-only Electron 45.1.0 binary with `pnpm exec install-electron` after
+the script-disabled frozen install; no pnpm lifecycle approval is required.
+`pnpm test:browser` selects `test/browser`, while `pnpm test:all` runs Vitest and
+both Playwright paths. Reports moved from `test-results/browser/` to
+`test-results/playwright/{results.json,html,artifacts}`. Local native execution
+has passed on macOS; new hosted acceptance is separate.
 
 Delivery tests moved to `test/delivery/*.test.mjs` as native Vitest tests. Use
 `pnpm test:delivery` or the default `pnpm test`, not the removed Node test-runner

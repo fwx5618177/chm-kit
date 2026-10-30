@@ -1,6 +1,7 @@
 # CHMKit documentation
 
-Start with a [prebuilt download](guide/downloads.md), not a source build.
+Open a local CHM in the prebuilt viewer, run the CLI, or integrate the library.
+Choose a [prebuilt download](guide/downloads.md) for your workflow.
 [English quick start](../README.md) · [中文快速开始](../README_zh.md).
 The guides use English prose with runnable examples; both READMEs describe the
 same APIs and safety boundaries.
@@ -9,7 +10,7 @@ same APIs and safety boundaries.
 
 | Goal                                                         | Guide                                    |
 | ------------------------------------------------------------ | ---------------------------------------- |
-| Download, install, verify, run offline                       | [Prebuilt downloads](guide/downloads.md) |
+| Open the local viewer; download, install and verify assets   | [Prebuilt downloads](guide/downloads.md) |
 | Explore, search, preview, extract or pack from a terminal    | [CLI](guide/cli.md)                      |
 | Reuse readers, stream bytes, integrate a Node service        | [Node.js](guide/node.md)                 |
 | Read local files and handle untrusted HTML/resources         | [Browser](guide/browser.md)              |
@@ -23,16 +24,20 @@ same APIs and safety boundaries.
 
 ## Examples
 
-- [Browser viewer](../examples/browser/): local file selection and navigation.
+- [Local viewer](guide/downloads.md#local-browser-viewer): extract the current
+  browser archive and open `dist/viewer/index.html`; no Node/npm/server required.
+- [Browser source example](../examples/browser/): local file selection and navigation.
 - [Module Worker](../examples/worker/): client, worker entry and disposal.
 - [Electron](../examples/electron/): main-owned archive, sandboxed preload and renderer.
 - [Node HTTP integration](guide/node.md#complete-read-only-node-service): text-only,
   fixed-archive service with explicit limits and shutdown.
 
-Repository examples use local built outputs. That is a contributor convenience,
-not a requirement to build CHMKit as a consumer: adapt imports to your installed
-tarball or serve the browser download. Electron applications still need their
-own Electron runtime and application/preload packaging.
+The standalone viewer is already bundled for direct `file:` opening. Library
+ESM/module Worker examples use HTTP(S) and built modules; adapt imports to the
+installed tarball or extracted browser modules. Electron applications supply
+their own Electron runtime and application/preload packaging. The linked
+[historical hosted snapshot](guide/downloads.md#verified-prebuilt-snapshot)
+predates the standalone viewer; current-revision hosted delivery is pending.
 
 ## Trust, compatibility and maintenance
 

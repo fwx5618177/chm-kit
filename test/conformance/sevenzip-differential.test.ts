@@ -48,12 +48,18 @@ for (const archive of normalArchives) {
         expect(extractedNames(directory).sort()).toEqual(
           archive.files.map(file => file.name).sort(),
         );
+        // Validate every independent oracle before constructing the DUT, so a
+        // producer compatibility failure cannot hide stale/missing oracle bytes.
+        for (const file of archive.files) {
+          const fresh = readFileSync(join(directory, file.name.slice(1)));
+          expect(fresh.length, file.name).toBe(file.length);
+          expect(sha256(fresh), file.name).toBe(file.sha256);
+          expect(fresh, file.name).toEqual(oracleBytes(file));
+        }
         const reader = new CHMArchive(fixtureBytes(archive.file));
         try {
           for (const file of archive.files) {
             const fresh = readFileSync(join(directory, file.name.slice(1)));
-            expect(sha256(fresh), file.name).toBe(file.sha256);
-            expect(fresh, file.name).toEqual(oracleBytes(file));
             expect(reader.readFile(file.name), file.name).toEqual(fresh);
           }
         } finally {

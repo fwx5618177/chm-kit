@@ -8,6 +8,7 @@ type Block = {
   previous: number;
   next: number;
   children: number[];
+  fpcQuickRefs: boolean;
 };
 
 export class DirectoryParser {
@@ -55,15 +56,26 @@ export class DirectoryParser {
         previous: leaf ? data.readInt32LE(12) : -1,
         next: leaf ? data.readInt32LE(16) : -1,
         children: [],
+        fpcQuickRefs: false,
       };
       const indexNames = new Set<string>();
+      // libmspack's group M starts at M * groupSize. FPC's shared PMGL/PMGI
+      // writer records every fifth entry instead (zero-based 4, 9, ...).
+      // Require a single exact convention for the whole table, not a per-slot
+      // choice that would also accept mixed/corrupted quickrefs.
+      let standardQuickRefs = true;
+      let fpcQuickRefs = itspHeader.density === 2;
+      let previousEntryOffset = headerSize;
       let offset = headerSize;
       for (let i = 0; i < count; i++) {
         if (i > 0 && i % groupSize === 0) {
           const quickRef = data.readUInt16LE(size - 2 - (i / groupSize) * 2);
-          if (quickRef !== offset - headerSize)
+          standardQuickRefs &&= quickRef === offset - headerSize;
+          fpcQuickRefs &&= quickRef === previousEntryOffset - headerSize;
+          if (!standardQuickRefs && !fpcQuickRefs)
             throw new Error(`${signature}: invalid quickref offset`);
         }
+        previousEntryOffset = offset;
         const nameLength = this.readEncInt(data, offset, end);
         offset = nameLength.nextOffset;
         if (nameLength.value === 0 || nameLength.value > end - offset)
@@ -114,6 +126,19 @@ export class DirectoryParser {
       if (offset !== end)
         throw new Error(`${signature}: entry count/data length mismatch`);
       if (!leaf && count === 0) throw new Error('PMGI: empty index chunk');
+      block.fpcQuickRefs = quickRefs > 0 && fpcQuickRefs && !standardQuickRefs;
+      if (block.fpcQuickRefs && count % groupSize === 0) {
+        // FPC also writes the last fifth-entry ref for exact multiples, unlike
+        // the standard table. Once identified as FPC, validate that slot too.
+        const fpcRefs = count / groupSize;
+        if (2 + fpcRefs * 2 > freeSpace)
+          throw new Error(`${signature}: truncated quickref table`);
+        if (
+          data.readUInt16LE(size - 2 - fpcRefs * 2) !==
+          previousEntryOffset - headerSize
+        )
+          throw new Error(`${signature}: invalid quickref offset`);
+      }
       blocks.push(block);
     }
     this.validateBlocks(blocks, itspHeader);
@@ -144,6 +169,18 @@ export class DirectoryParser {
   private static validateBlocks(blocks: Block[], header: ITSPHeader): void {
     const seen = new Set<number>();
     let index = header.firstPMGI;
+    // FPC overwrites FirstPMGL=0 when emitting its second leaf (<= 0 check).
+    // Only repair the evidenced 0 -> 1 case with a verified FPC quickref table;
+    // the complete leaf chain and rooted index tree must still validate below.
+    if (
+      index === 1 &&
+      blocks[0]?.leaf &&
+      blocks[0].fpcQuickRefs &&
+      blocks[0].previous === -1 &&
+      blocks[0].next === 1 &&
+      blocks[1]?.previous === 0
+    )
+      index = 0;
     let previous = -1;
     while (index !== -1) {
       const block = blocks[index];

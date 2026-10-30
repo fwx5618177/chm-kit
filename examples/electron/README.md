@@ -1,38 +1,87 @@
 # Electron: approved archives, not filesystem IPC
 
-The helper has **no Electron dependency**. `src/electron/main.ts` consumes structural `ipcMain`/sender interfaces; `src/electron/preload.ts` consumes only an injectable `invoke()` interface. Unit tests use structured-clone IPC doubles and are **not native Electron execution evidence**.
+A complete small application using the **installed CHMKit package**. Main owns
+one archive selection, and a sandboxed renderer can request only the approved
+`manual` key. Clicking **Read approved manual** lists files, reads the TOC,
+searches for `manual`, reads the first HTML file's bytes and closes the archive.
+The result is text/metadata and a hex preview, **not rendered CHM HTML**.
 
-## Run in your Electron application
+## Run with a prebuilt tarball
 
-After the shared build/export integration adds `dist/{esm/electron.mjs,cjs/electron.js}`:
+Obtain the prebuilt npm tarball identified by the artifact's `manifest.json`
+(current package version: `chmkit-1.1.0.tgz`). The public npm registry is not an
+installation source for this project. Copy this example into an application
+outside the CHMKit checkout; you do not need to build CHMKit or run `pnpm demo`.
+You supply an existing `.chm` file that you trust main to open.
 
-1. Run `pnpm demo` from the repository root to generate `dist/demo/sample.chm` (or change the fixed **main-owned** archive selection in `main.mjs`).
-2. Bundle the preload for Electron's sandboxed environment:
+For example, replace the absolute paths below with your downloaded tarball,
+checkout/example location and manual:
 
-   ```sh
-   pnpm exec esbuild examples/electron/preload.cjs --bundle --platform=node --format=cjs --external:electron --outfile=examples/electron/preload.bundle.cjs
-   ```
+```sh
+mkdir chmkit-electron-app
+cd chmkit-electron-app
+npm init -y
+npm install /absolute/path/to/chmkit-1.1.0.tgz
+npm install --save-dev electron@45.1.0 esbuild
+cp -R /absolute/path/to/chm-kit/examples/electron ./app
+npx esbuild app/preload.cjs --bundle --platform=node --format=cjs --external:electron --outfile=app/preload.bundle.cjs
+npx electron app/main.mjs --manual=/absolute/path/to/manual.chm
+```
 
-3. Use your application's installed Electron runtime to launch `examples/electron/main.mjs`. For example, if Electron is already available in your application, run `electron /absolute/path/to/chm-kit/examples/electron/main.mjs`. This repository intentionally does not install Electron or download its binary.
+Installing Electron downloads its native runtime. Bundling here builds **your
+application's preload**, not CHMKit. The only external preload module is Electron's
+built-in `electron`; sandboxed preloads cannot resolve arbitrary package files
+at runtime. Rebundle after changing the preload or updating CHMKit.
 
-`main.mjs`, `preload.cjs`, `renderer.js` and `index.html` form a complete minimal example. The main process chooses `manual -> fixed sample.chm factory`. The renderer can only request `manual`, then operate on an opaque preload handle. No caller-controlled path/URL is passed to `CHMReader.open()`. Reader paths are **raw archive paths returned by `list()`**, never OS paths or complete navigation URLs.
+Keep the example's nonblocking ESM startup: it starts asynchronous work without
+top-level awaiting `app.whenReady()`. Holding entry-module evaluation open while
+waiting for readiness can stall Electron before it creates a browser window.
 
-When consuming the package, import `registerElectronArchiveHandler` from `chmkit/electron/main` and `createElectronRendererApi` from `chmkit/electron/preload`. A combined `chmkit/electron` entry is also available in source. The build owner must wire these subpaths before package imports work.
+`main.mjs` requires exactly one absolute `--manual=...` startup argument. Missing
+or relative selections exit with a usage error. This trusted launcher argument
+is never read from renderer input, a query parameter or archive navigation.
+The file must remain immutable while open. A failed open displays a generic
+error; after main's selected file becomes available, click again to retry.
 
-## Security contract
+The app imports only public entries:
 
-- Require `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`. Bundle the preload; a sandboxed preload cannot arbitrarily `require()` relative package files at runtime. Keep `ipcRenderer` and `createElectronArchiveProxy()` private to preload; expose only `createElectronRendererApi()`'s frozen plain function surface via `contextBridge`.
-- `validateSender` is **required**, synchronous and fail-closed. Check the actual allowed `webContents` object, exact frame URL and top-frame status. An origin-only check is usually insufficient. Unknown/null/dead frames are rejected. `authorizeArchive` is also required and rechecked for open and subsequent operations, allowing application policy revocation.
-- Only approved main-owned factories run. Keys are limited to 1–64 ASCII letters/digits/underscore/hyphen, starting with a letter/digit. Paths, URLs and extra open fields are rejected. A key not in the snapshotted factory map is rejected. Do not write a factory that indirectly trusts renderer input through application globals.
-- Capabilities belong to one sender object and frame identity/URL. Cross-sender/frame handle use is rejected. Navigation or renderer-process exit invalidates sender sessions and closes their readers, as does sender destruction. `releaseSender()` and handler `dispose()` offer explicit cleanup. Install one proxy/API per preload/frame/channel; client disposal releases that frame's session.
-- Read access is restricted to exact public paths snapshotted from `listFiles()` at open. Internal resources and aliases/traversal are not granted. `allowPath` further narrows visible paths. `operations` can grant only `read`, `list`, `toc`, and/or `search`; close/dispose remain cleanup operations. Listings/search results are filtered; TOC targets not exactly in the grant are omitted (including external URLs and query/hash-bearing targets). Custom adapters can implement richer trusted navigation resolution. Filtering restricted search results can yield fewer than `maxResults`, because the core search limit applies before filtering.
-- Search still runs inside the trusted archive adapter before filtering. The grant limits **returned data**, not timing side channels or work spent scanning hidden files. For stricter isolation, disable search for that grant or supply a capability-restricted adapter. Keep parser work off the main thread if untrusted large archives could block the UI; this IPC adapter does not move CPU work to another process.
-- Channel is fixed by main/preload configuration, starts with `chmkit:`, and cannot be selected by renderer API calls. Registration never removes another handler to make room; Electron rejects duplicate handlers. `dispose()` unregisters only its registered channel and drains all owned sessions. Configure different channels for different service instances.
-- Typed requests, ids, bounded input validation, conservative output limits and serialized `{name,message,code}` errors are shared with the Worker adapter. Main parser/filesystem errors are replaced with a generic error; no stack, cause, custom field or local filesystem diagnostic crosses IPC. Electron's `contextBridge` may strip custom properties from thrown Errors; do not rely on `error.code` surviving that additional bridge, although preload can inspect it.
-- The lower-level preload proxy supports request AbortSignals and timeouts (default 30 seconds). The plain renderer bridge intentionally does not transport AbortSignal/functions. Aborting/timing out discards late results and closes late opens, but cannot preempt synchronous CHM parsing. `dispose()` rejects local pending calls immediately and waits for graceful host cleanup. Transport failure rejects all pending requests; remote cleanup is best effort if IPC is already gone. Sender lifecycle cleanup remains authoritative.
-- Bounds apply after Electron has cloned the incoming invocation, not to total process memory/CPU. Apply trusted `ReaderOptions` in factories. Async factories must eventually settle for graceful cleanup to finish. Use process-level limits/isolation for hostile workloads.
-- CHM HTML is untrusted. This example only writes text/metadata to `textContent`; it never renders archive markup. A viewer needs a sandbox without scripts/same-origin, restrictive CSP and validated resource/navigation handling. Block unexpected navigation/new windows; do not grant raw IPC to an untrusted iframe.
+- `chmkit`: `CHMReader` in main.
+- `chmkit/electron/main`: main-side handler registration.
+- `chmkit/electron/preload`: the plain, frozen renderer API bundled into preload.
 
-## Maintainer build handoff
+## Boundary and lifetime
 
-Export `src/electron/index.ts` as `chmkit/electron`, and separate `src/electron/main.ts` / `src/electron/preload.ts` as `chmkit/electron/main` / `chmkit/electron/preload`. Emit CJS/ESM and `.d.cts`/`.d.mts` declarations for each. Their public declarations must remain structural and must not reference the `electron` package, DOM globals or Node types. No dependency/package change is needed for Electron itself. Source tests cannot prove the final export map; rerun isolated consumer/package tests after shared build wiring.
+The window uses `sandbox: true`, `contextIsolation: true` and
+`nodeIntegration: false`. Main validates the actual webContents, top frame and
+exact local page URL, and reauthorizes the approved key on each operation.
+`/private/` paths and raw `.hhc`/`.hhk` navigation sources are excluded from the
+public-file grant; raw navigation could otherwise disclose restricted topic
+names or paths. No raw IPC, arbitrary filesystem open, channel selection or test
+controls are exposed through `window.manual`.
+
+The UI closes each successful read, preload requests disposal on `pagehide`,
+and the main handler owns navigation/destruction cleanup. Application shutdown
+awaits handler disposal. Renderer navigation and new windows are blocked. These
+policies are an integration example, not CPU/memory isolation for hostile CHMs.
+Never insert archive markup into the host DOM; an actual HTML viewer needs a
+separate script-free sandbox, restrictive CSP and validated resources/navigation.
+
+See the [Electron guide](../../docs/guide/electron.md) for API usage, limitations
+and the repository's native acceptance contract.
+
+## Repository acceptance
+
+The shared Playwright configuration's `electron` project is the maintainer entry:
+
+```sh
+pnpm exec playwright test --project=electron
+```
+
+It requires the repository's dev-only Electron binary and existing Playwright /
+esbuild tools. Its shared webServer builds CHMKit first. The native suite then
+packages that build, installs the real tarball outside the checkout, copies this
+application and bundles its preload against the installed package. It does not
+require a registry publication, a demo archive or a source build by consumers.
+Screenshot attachments show the actual Electron window's metadata and byte
+preview, not untrusted HTML rendering. Native results must come from executing
+that project; the injected-IPC Vitest tests alone are not native evidence.

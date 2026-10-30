@@ -39,6 +39,21 @@
       "file": "LICENSE.libmspack",
       "sha256": "a190dc9c8043755d90f8b0a75fa66b9e42d4af4c980bf5ddc633f0124db3cee7",
       "sourceUrl": "https://github.com/kyz/libmspack/blob/55d501976171397ccd5d5a7a1ca7da065b1d9a06/libmspack/COPYING.LIB"
+    },
+    {
+      "file": "LICENSE.fpc-fpdoc.tex",
+      "sha256": "8fc7482db36e31f6eddaf9591a8f5c8e177f0682acbef3ad24ab65597d34d142",
+      "sourceUrl": "https://raw.githubusercontent.com/fpc/FPCDocumentation/28a887047f9fa593dff284cb35b938cdb2f86268/fpdoc.tex"
+    },
+    {
+      "file": "COPYING.LIB.fpc",
+      "sha256": "cc535c21133c895b56b374c8a1dc1eb948d99003ed2b47372069456b62f42b24",
+      "sourceUrl": "https://www.gnu.org/licenses/old-licenses/lgpl-2.0.txt"
+    },
+    {
+      "file": "READMECHM.fpc.txt",
+      "sha256": "a2b52f400573914509bc56a64946f2586fbb1193fdb0532b001785c455b1d687",
+      "sourceUrl": "https://downloads.freepascal.org/fpc/dist/3.2.2/docs/doc-chm.zip (help/readmechm.txt)"
     }
   ],
   "archives": [
@@ -63,6 +78,8 @@
         "resetInterval": 65536,
         "windowSize": 65536,
         "frameCount": 82,
+        "resetTableEntryCount": 82,
+        "terminalResetOffset": null,
         "resetGroups": 41,
         "uncompressedLength": 2678073,
         "contentOffset": 29127
@@ -4723,6 +4740,8 @@
         "resetInterval": 131072,
         "windowSize": 131072,
         "frameCount": 12,
+        "resetTableEntryCount": 12,
+        "terminalResetOffset": null,
         "resetGroups": 3,
         "uncompressedLength": 379820,
         "contentOffset": 314
@@ -5502,6 +5521,8 @@
         "resetInterval": 65536,
         "windowSize": 65536,
         "frameCount": 1,
+        "resetTableEntryCount": 1,
+        "terminalResetOffset": null,
         "resetGroups": 1,
         "uncompressedLength": 18636,
         "contentOffset": 8697
@@ -5683,6 +5704,8 @@
         "resetInterval": 65536,
         "windowSize": 65536,
         "frameCount": 1,
+        "resetTableEntryCount": 1,
+        "terminalResetOffset": null,
         "resetGroups": 1,
         "uncompressedLength": 15171,
         "contentOffset": 8663
@@ -5848,6 +5871,8 @@
         "resetInterval": 65536,
         "windowSize": 65536,
         "frameCount": 1,
+        "resetTableEntryCount": 1,
+        "terminalResetOffset": null,
         "resetGroups": 1,
         "uncompressedLength": 7534,
         "contentOffset": 8669
@@ -5959,6 +5984,1155 @@
         }
       ],
       "gitBlobSha1": "7bc85414e4d337ab3666d318998d6125424adfd2"
+    },
+    {
+      "file": "fpc-3.2.2-fpdoc.chm",
+      "kind": "normal",
+      "length": 81579,
+      "sha256": "20d3d4932ae7cca2fa1efa033e9c4e63780788fedc96e9134c53c6f9a9d2c552",
+      "license": "LGPL-2.0-or-later",
+      "licenseFile": "LICENSE.fpc-fpdoc.tex",
+      "sourceCommitUrl": null,
+      "downloadUrl": "https://downloads.freepascal.org/fpc/dist/3.2.2/docs/doc-chm.zip",
+      "modified": false,
+      "observed": {
+        "firstLzxBlockType": 1,
+        "intelHeader": false,
+        "itsfVersion": 3,
+        "languageId": 0,
+        "directoryOffset": 120,
+        "dataOffset": 12492,
+        "controlVersion": 2,
+        "resetInterval": 65536,
+        "windowSize": 65536,
+        "frameCount": 15,
+        "resetTableEntryCount": 16,
+        "terminalResetOffset": 68542,
+        "resetGroups": 8,
+        "uncompressedLength": 460763,
+        "contentOffset": 13037
+      },
+      "files": [
+        {
+          "name": "/#ITBITS",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#ITBITS",
+          "length": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "section": 0,
+          "offset": 0
+        },
+        {
+          "name": "/#STRINGS",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#STRINGS",
+          "length": 2128,
+          "sha256": "99800e280dc588bd41ca85be6d55f63b894d1590add8e50ddda6962ce51cde40",
+          "section": 1,
+          "offset": 452770
+        },
+        {
+          "name": "/#SYSTEM",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#SYSTEM",
+          "length": 131,
+          "sha256": "7e4010bf06f6ca4c8357c9bf24da10339cbd572c9eb1fafd3cd1db919ab7fd4d",
+          "section": 0,
+          "offset": 112
+        },
+        {
+          "name": "/#TOPICS",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#TOPICS",
+          "length": 2064,
+          "sha256": "240565fd1671cdd2639f9fec0ab23565ebd5b5920bcbb859e706a8a35b6de6fe",
+          "section": 1,
+          "offset": 445451
+        },
+        {
+          "name": "/#URLSTR",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#URLSTR",
+          "length": 3707,
+          "sha256": "93cc7576fbcdf22ed7de5354566ebcfa9412bc4b37d26af5d186f928e1d398c2",
+          "section": 1,
+          "offset": 447515
+        },
+        {
+          "name": "/#URLTBL",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/#URLTBL",
+          "length": 1548,
+          "sha256": "c3d100c805f4e1f76977a8a39a71aba13e844cc59ac13b0fc26b3addaa338a1a",
+          "section": 1,
+          "offset": 451222
+        },
+        {
+          "name": "/$FIftiMain",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/$FIftiMain",
+          "length": 5865,
+          "sha256": "0221f80d3fca243fbddb1181b4a58d6838227b98eb0c762c2d3082832c436360",
+          "section": 1,
+          "offset": 454898
+        },
+        {
+          "name": "/$OBJINST",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/$OBJINST",
+          "length": 2751,
+          "sha256": "6715341a64707a4102f3b4c56a3bb3be7955740e6c8ea99ba523e000a5e85faf",
+          "section": 1,
+          "offset": 0
+        },
+        {
+          "name": "/_#_README_#_",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/_#_README_#_",
+          "length": 112,
+          "sha256": "751eda3337f15d5d2f2a955188da17140b4c7fa2f3d9165f8b6d3b198cd09a28",
+          "section": 0,
+          "offset": 0
+        },
+        {
+          "name": "/fpdoc/fpdoc.css",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdoc.css",
+          "length": 7821,
+          "sha256": "8f37503b2ef53ced8c39ed6e96034fc622933faf66f5b97983ec7205f873cbf2",
+          "section": 1,
+          "offset": 132715
+        },
+        {
+          "name": "/fpdoc/fpdoc.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdoc.html",
+          "length": 22259,
+          "sha256": "213f5aaef8445b2d662c07bd8fb5435e61f7faddffb1794af74759958bb6f2ab",
+          "section": 1,
+          "offset": 301351
+        },
+        {
+          "name": "/fpdoc/fpdoc.kwd",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdoc.kwd",
+          "length": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "section": 1,
+          "offset": 49670
+        },
+        {
+          "name": "/fpdoc/fpdocch1.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch1.html",
+          "length": 1936,
+          "sha256": "f0e1a4b701dc60b664b227e38c6583906e6096b1042824fceea1a4913443643a",
+          "section": 1,
+          "offset": 396191
+        },
+        {
+          "name": "/fpdoc/fpdocch2.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch2.html",
+          "length": 1846,
+          "sha256": "92bf16cf200a73205ca6e49c97b2dc47a761567de20126741f663ba35b02f7a1",
+          "section": 1,
+          "offset": 244403
+        },
+        {
+          "name": "/fpdoc/fpdocch3.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch3.html",
+          "length": 8114,
+          "sha256": "7db3d30bcffc1dd2e4facd714cde977a44385624f5ae80da4953815ee013e79c",
+          "section": 1,
+          "offset": 91540
+        },
+        {
+          "name": "/fpdoc/fpdocch4.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch4.html",
+          "length": 3011,
+          "sha256": "340fda53f84babf5ce44aba37dee58bea3c6bddd0746602bbf4dbd01630d6e3f",
+          "section": 1,
+          "offset": 110370
+        },
+        {
+          "name": "/fpdoc/fpdocch5.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch5.html",
+          "length": 8746,
+          "sha256": "387184fbcc380f67c9e0408ce56d77923ddddb929b310811cea10f5e9255e534",
+          "section": 1,
+          "offset": 426751
+        },
+        {
+          "name": "/fpdoc/fpdocch6.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocch6.html",
+          "length": 2116,
+          "sha256": "9dac0c3cf45417658fbcdd70c5667ce2522215f83c3a40bc10fffa663ecb4b9c",
+          "section": 1,
+          "offset": 347019
+        },
+        {
+          "name": "/fpdoc/fpdocli1.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocli1.html",
+          "length": 18692,
+          "sha256": "a278e1fce1bb2a771e67ddff18f9c74c307f04531c84b832a06b79909331ac7b",
+          "section": 1,
+          "offset": 398127
+        },
+        {
+          "name": "/fpdoc/fpdocse1.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse1.html",
+          "length": 2173,
+          "sha256": "14d47760b7972ce98cf4fcccec634895503b3164e60e4e7b4fdadf45f1888099",
+          "section": 1,
+          "offset": 47497
+        },
+        {
+          "name": "/fpdoc/fpdocse10.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse10.html",
+          "length": 4457,
+          "sha256": "a25d0ebc24ef5afba707dc8ec5fb4f9ed7aec5a420b3c4078afb12452bb9adc4",
+          "section": 1,
+          "offset": 289209
+        },
+        {
+          "name": "/fpdoc/fpdocse11.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse11.html",
+          "length": 3044,
+          "sha256": "c95b2d3567c54b2294d5199cc2171c8e08866c6cd88eff887bc37ded31a6fd4d",
+          "section": 1,
+          "offset": 153242
+        },
+        {
+          "name": "/fpdoc/fpdocse12.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse12.html",
+          "length": 15694,
+          "sha256": "54fbffb0ddab0b7f7e3e1e5907c796eb9fed63731092e9a5fc9d7537cecfec48",
+          "section": 1,
+          "offset": 349135
+        },
+        {
+          "name": "/fpdoc/fpdocse13.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse13.html",
+          "length": 1909,
+          "sha256": "31031035bb4b759ccbe6fe29247a078330ede201fa6dab0cb71286b48cafede7",
+          "section": 1,
+          "offset": 83542
+        },
+        {
+          "name": "/fpdoc/fpdocse14.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse14.html",
+          "length": 8085,
+          "sha256": "d7bdce3bd67cdfdec97408a04e246ccda3a436e78a7cb205fa9ce5865e471d67",
+          "section": 1,
+          "offset": 234771
+        },
+        {
+          "name": "/fpdoc/fpdocse15.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse15.html",
+          "length": 4645,
+          "sha256": "9225778aa6a08ae18a583b1f751ab66c1396fc92c3811ff2cdfba439fbe2311a",
+          "section": 1,
+          "offset": 184580
+        },
+        {
+          "name": "/fpdoc/fpdocse16.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse16.html",
+          "length": 4670,
+          "sha256": "78c3d4670f6adadefdbe676b8f0b2a66eda11e111899456c5b8c117aacfc1200",
+          "section": 1,
+          "offset": 373480
+        },
+        {
+          "name": "/fpdoc/fpdocse17.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse17.html",
+          "length": 2169,
+          "sha256": "4386c6028c601de066c7e8c9c951897b479b0f37ddf47f10f160a61d79384646",
+          "section": 1,
+          "offset": 101643
+        },
+        {
+          "name": "/fpdoc/fpdocse18.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse18.html",
+          "length": 1720,
+          "sha256": "109ba17c8dd2446d9d0e0c602886ae4e16ce1cfd45d48475b62cb2e8413688c9",
+          "section": 1,
+          "offset": 260290
+        },
+        {
+          "name": "/fpdoc/fpdocse19.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse19.html",
+          "length": 1719,
+          "sha256": "68b92fb0559dfebc64af82351dc3074685fd9e0cb28b84451b38f9ecd8147f23",
+          "section": 1,
+          "offset": 78840
+        },
+        {
+          "name": "/fpdoc/fpdocse2.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse2.html",
+          "length": 5042,
+          "sha256": "a387dbe9a1b0cc76c24f452c8e122e739512a19b48811cc1bb0897fb8b83f686",
+          "section": 1,
+          "offset": 364829
+        },
+        {
+          "name": "/fpdoc/fpdocse20.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse20.html",
+          "length": 1549,
+          "sha256": "e78649be234f3425fc9bb2ed6f9c43d1977aefa16bd87deed1230945b9ae4d8f",
+          "section": 1,
+          "offset": 369871
+        },
+        {
+          "name": "/fpdoc/fpdocse3.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse3.html",
+          "length": 2124,
+          "sha256": "c5c8f650ad6ef9b1c63da0002a2b040b05f7ccfa5d595872b89b96a3f2a764e8",
+          "section": 1,
+          "offset": 18362
+        },
+        {
+          "name": "/fpdoc/fpdocse4.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse4.html",
+          "length": 3736,
+          "sha256": "63c111e7de98be8d226b8212474581becb4e8f54bc08fd2dffd7cead531d75e0",
+          "section": 1,
+          "offset": 441715
+        },
+        {
+          "name": "/fpdoc/fpdocse5.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse5.html",
+          "length": 2833,
+          "sha256": "0d3d8f7766cae06a7c80f8fe6cea6b8c3c55147c6147c19517da4f9df35a8188",
+          "section": 1,
+          "offset": 275624
+        },
+        {
+          "name": "/fpdoc/fpdocse6.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse6.html",
+          "length": 7758,
+          "sha256": "06e1069c7acd6a59c891babc4f1d8950f639c3943fedf1a91d458c998945935a",
+          "section": 1,
+          "offset": 337364
+        },
+        {
+          "name": "/fpdoc/fpdocse7.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse7.html",
+          "length": 5912,
+          "sha256": "463e3c22962b120ff798ff55deb91c47bd8ece1124ebb674c8b98540fbd628f9",
+          "section": 1,
+          "offset": 254378
+        },
+        {
+          "name": "/fpdoc/fpdocse8.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse8.html",
+          "length": 1654,
+          "sha256": "d5cf3d4f06915ea22fa23055be6ff84c15f18b15023ffd7fbac73dd6540b7141",
+          "section": 1,
+          "offset": 174179
+        },
+        {
+          "name": "/fpdoc/fpdocse9.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocse9.html",
+          "length": 3496,
+          "sha256": "cff9878bc1a98a0ee7da2160ceb05dd52ca27aee4ecc6b391fcb4f3c6f5aa496",
+          "section": 1,
+          "offset": 156286
+        },
+        {
+          "name": "/fpdoc/fpdocsu1.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu1.html",
+          "length": 1638,
+          "sha256": "7d1dcb7d43bec9dd8dfdba6335a6ff247845acc0dcd61f572618ee25e326c8dd",
+          "section": 1,
+          "offset": 325543
+        },
+        {
+          "name": "/fpdoc/fpdocsu10.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu10.html",
+          "length": 2610,
+          "sha256": "f4d50ccb6b911c3abe7e0d9f3edd817883e937f87769042c30ee318ac72b42b2",
+          "section": 1,
+          "offset": 49670
+        },
+        {
+          "name": "/fpdoc/fpdocsu11.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu11.html",
+          "length": 2313,
+          "sha256": "6692325d794c159e9a6d07eb5a76b17198c9ad61c7e9c792b6e4f334e6a7a2cc",
+          "section": 1,
+          "offset": 123479
+        },
+        {
+          "name": "/fpdoc/fpdocsu12.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu12.html",
+          "length": 2505,
+          "sha256": "f9dd43cf6c577ba1e410b3f08beb57ee4d2277743a025de36479ffaa79066a05",
+          "section": 1,
+          "offset": 221641
+        },
+        {
+          "name": "/fpdoc/fpdocsu13.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu13.html",
+          "length": 1547,
+          "sha256": "0ee7c0f69a5e456782078d896919779362ad75778ecdc05804fce69312118320",
+          "section": 1,
+          "offset": 242856
+        },
+        {
+          "name": "/fpdoc/fpdocsu14.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu14.html",
+          "length": 1897,
+          "sha256": "64fae14e4dbd0f7e3e1427cf113c79f257c887d716b8dbfa24f5d0ef8639993f",
+          "section": 1,
+          "offset": 345122
+        },
+        {
+          "name": "/fpdoc/fpdocsu15.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu15.html",
+          "length": 2397,
+          "sha256": "d4e5cec196bd55f50b085df0d46249875877807b170ec4dd2d4e99bb5166442c",
+          "section": 1,
+          "offset": 262010
+        },
+        {
+          "name": "/fpdoc/fpdocsu16.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu16.html",
+          "length": 2004,
+          "sha256": "f6c728589fd08307512fb38071c74d3a12e97230913af4b70236040c46bfa467",
+          "section": 1,
+          "offset": 63501
+        },
+        {
+          "name": "/fpdoc/fpdocsu17.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu17.html",
+          "length": 2227,
+          "sha256": "e358e5b6146bbc60cfbb93d182ff1c93e779599227eb18bb31c62dbc56e15456",
+          "section": 1,
+          "offset": 140536
+        },
+        {
+          "name": "/fpdoc/fpdocsu18.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu18.html",
+          "length": 4507,
+          "sha256": "a0bbf96b542d7289133566cfead39a0aa186912e35b7a2cf72a59d8acfdc4fc5",
+          "section": 1,
+          "offset": 437208
+        },
+        {
+          "name": "/fpdoc/fpdocsu19.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu19.html",
+          "length": 2031,
+          "sha256": "ec806362230bbf7c2b6f40a025077a6f609a647d1babdea9ab2eb139247f4f79",
+          "section": 1,
+          "offset": 299320
+        },
+        {
+          "name": "/fpdoc/fpdocsu2.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu2.html",
+          "length": 1738,
+          "sha256": "c2e4fd446491c9089cc277f7127def0326bd00d01a8e2e0d6855f260aa5f5fde",
+          "section": 1,
+          "offset": 215481
+        },
+        {
+          "name": "/fpdoc/fpdocsu20.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu20.html",
+          "length": 1801,
+          "sha256": "62db8cc4f68a8e33982a20a2d1663eea3dcf6b8aab7a3f8ec4d4a3ae2db0b771",
+          "section": 1,
+          "offset": 167666
+        },
+        {
+          "name": "/fpdoc/fpdocsu21.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu21.html",
+          "length": 2253,
+          "sha256": "d2447f41dc634836113ff46284d87569b0d4c1cc409d65bd3fb88fd1e7c7bc48",
+          "section": 1,
+          "offset": 293666
+        },
+        {
+          "name": "/fpdoc/fpdocsu22.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu22.html",
+          "length": 2674,
+          "sha256": "3a6181879e8e8348164bb4944cd5dbc3dd792f3a501c78ed9e6bc434c6aecfed",
+          "section": 1,
+          "offset": 181906
+        },
+        {
+          "name": "/fpdoc/fpdocsu23.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu23.html",
+          "length": 1711,
+          "sha256": "c5581dd18177bb5938a91ae18fb16d0f32771f491a4e06d9d7b42fdda0e84358",
+          "section": 1,
+          "offset": 435497
+        },
+        {
+          "name": "/fpdoc/fpdocsu24.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu24.html",
+          "length": 1752,
+          "sha256": "a76f730b5c5154c4a51660167ace552628e3548f7842353fe177dc4f2e3c0785",
+          "section": 1,
+          "offset": 206011
+        },
+        {
+          "name": "/fpdoc/fpdocsu25.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu25.html",
+          "length": 1970,
+          "sha256": "d626cbdcf23516456df72bc5c62532dd5a860b894b95392149f5668ae1c6b82b",
+          "section": 1,
+          "offset": 217219
+        },
+        {
+          "name": "/fpdoc/fpdocsu26.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu26.html",
+          "length": 3288,
+          "sha256": "8534aec4e7724e0e44676bf3ac5d870bf16a2368f8228b8e3751757b7e927220",
+          "section": 1,
+          "offset": 71825
+        },
+        {
+          "name": "/fpdoc/fpdocsu27.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu27.html",
+          "length": 2042,
+          "sha256": "739c0c5855ce2249ecffbd50d0789eedbf28e238933757f90a4d04b5f1730e08",
+          "section": 1,
+          "offset": 67439
+        },
+        {
+          "name": "/fpdoc/fpdocsu28.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu28.html",
+          "length": 2515,
+          "sha256": "aec265d3178e58909cf49cdcc7691fefa6245cd6d4f7ab042ff387b0788d08aa",
+          "section": 1,
+          "offset": 128574
+        },
+        {
+          "name": "/fpdoc/fpdocsu29.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu29.html",
+          "length": 1812,
+          "sha256": "478320ac889f479b67f36fa8daf2763adb0b7d09e2b41eb0940f8ec465caaf45",
+          "section": 1,
+          "offset": 59081
+        },
+        {
+          "name": "/fpdoc/fpdocsu3.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu3.html",
+          "length": 2498,
+          "sha256": "974aa33586d37c98a42dcdab42874966750e1afa3806f838ed2d70e512cd778a",
+          "section": 1,
+          "offset": 147468
+        },
+        {
+          "name": "/fpdoc/fpdocsu30.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu30.html",
+          "length": 1907,
+          "sha256": "aa2fc0af9b8f54bbe6a60d177badddc97b4c951d548f9eff06ffffbc96d00b86",
+          "section": 1,
+          "offset": 229307
+        },
+        {
+          "name": "/fpdoc/fpdocsu31.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu31.html",
+          "length": 1750,
+          "sha256": "e218bd8ec57b7149491663d1a72e68322698e0fed7d92f9dbf8be80f6af446da",
+          "section": 1,
+          "offset": 328911
+        },
+        {
+          "name": "/fpdoc/fpdocsu32.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu32.html",
+          "length": 2372,
+          "sha256": "203507377d6d38fbece814316dc6104c27c5da79eaf471f53d940078d4788efc",
+          "section": 1,
+          "offset": 142763
+        },
+        {
+          "name": "/fpdoc/fpdocsu33.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu33.html",
+          "length": 3933,
+          "sha256": "a909297859402886aee95e0c31d0e3bc562fdb55f63652182d736ebc01925519",
+          "section": 1,
+          "offset": 198698
+        },
+        {
+          "name": "/fpdoc/fpdocsu34.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu34.html",
+          "length": 1730,
+          "sha256": "b07883307be46e82c7fb45bfaa5ed53f9f5da436e4d1818339c5301a7701f03b",
+          "section": 1,
+          "offset": 327181
+        },
+        {
+          "name": "/fpdoc/fpdocsu35.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu35.html",
+          "length": 1794,
+          "sha256": "929951ec1105688e53862965d85c897bcfd4d41eb91535f9ba364f77316a1fde",
+          "section": 1,
+          "offset": 159782
+        },
+        {
+          "name": "/fpdoc/fpdocsu36.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu36.html",
+          "length": 1946,
+          "sha256": "b2f625f888cd7a3970ac7de27a986d3087c8cbaf26a6956ba392aa05d07f076a",
+          "section": 1,
+          "offset": 117470
+        },
+        {
+          "name": "/fpdoc/fpdocsu37.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu37.html",
+          "length": 2060,
+          "sha256": "07d49081481736124d4f8468ffe2ad6b5434aabb400d9d638e1ff75b58bbca48",
+          "section": 1,
+          "offset": 371420
+        },
+        {
+          "name": "/fpdoc/fpdocsu38.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu38.html",
+          "length": 1886,
+          "sha256": "3e03703608496588b4ca495210caf768d8a821f1f65fa7c7d3fdbfe8237bca48",
+          "section": 1,
+          "offset": 10965
+        },
+        {
+          "name": "/fpdoc/fpdocsu39.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu39.html",
+          "length": 1839,
+          "sha256": "55b0fe6199db69f24776e52598b883397c5334105b20cfcee042bda2a3e90129",
+          "section": 1,
+          "offset": 5267
+        },
+        {
+          "name": "/fpdoc/fpdocsu4.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu4.html",
+          "length": 1622,
+          "sha256": "e1201dd99be64a59427962b77196d87a275d360d77854b955b780f7efed5d512",
+          "section": 1,
+          "offset": 246249
+        },
+        {
+          "name": "/fpdoc/fpdocsu40.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu40.html",
+          "length": 1934,
+          "sha256": "9d3c1f80de26e7f33abb2221d26fbc046b3831f92ae68abfb9eaefd64bb7c466",
+          "section": 1,
+          "offset": 65505
+        },
+        {
+          "name": "/fpdoc/fpdocsu41.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu41.html",
+          "length": 1760,
+          "sha256": "6a78124783a19fd38b1bdee3ceff93e61413b7fb7c65b289b15a73ca9899ab1c",
+          "section": 1,
+          "offset": 165906
+        },
+        {
+          "name": "/fpdoc/fpdocsu42.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu42.html",
+          "length": 1814,
+          "sha256": "5a11fd3ca31ab0c6311dd2859f63f76a162d3a40db44d85457ad53d6a870c648",
+          "section": 1,
+          "offset": 278457
+        },
+        {
+          "name": "/fpdoc/fpdocsu43.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu43.html",
+          "length": 1626,
+          "sha256": "82ac79ca947655b959ec60d5601150010497599dd902b10c1102ebd607a05247",
+          "section": 1,
+          "offset": 131089
+        },
+        {
+          "name": "/fpdoc/fpdocsu44.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu44.html",
+          "length": 2203,
+          "sha256": "f14e3b2c8fbd38ace43367ab7a9f06947b7fd8c8055d7018072804ceec83c13c",
+          "section": 1,
+          "offset": 163703
+        },
+        {
+          "name": "/fpdoc/fpdocsu45.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu45.html",
+          "length": 2127,
+          "sha256": "8856a642e1362e3162dcc7b6abb00cc69ea5545b5ba7ebe3a05917a5d8c1c17a",
+          "section": 1,
+          "offset": 161576
+        },
+        {
+          "name": "/fpdoc/fpdocsu46.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu46.html",
+          "length": 1933,
+          "sha256": "110559380bd814b94b7dc421d112f8393776f7d97db21788b131868227533416",
+          "section": 1,
+          "offset": 323610
+        },
+        {
+          "name": "/fpdoc/fpdocsu47.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu47.html",
+          "length": 1634,
+          "sha256": "5bd598b49ab9ea9c77a552e87cafbb7817baa8198d8a6c88b80904859a0f4f1b",
+          "section": 1,
+          "offset": 77206
+        },
+        {
+          "name": "/fpdoc/fpdocsu48.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu48.html",
+          "length": 2093,
+          "sha256": "8d5a4f64b051d528800201134b495e92b00af3cb6aa197c5fb0830066db900c5",
+          "section": 1,
+          "offset": 75113
+        },
+        {
+          "name": "/fpdoc/fpdocsu49.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu49.html",
+          "length": 2386,
+          "sha256": "76d4580e2a28b6f424f2ad47d792911e85e4edfafcf347e7ac3a6d2f0f4ad7fb",
+          "section": 1,
+          "offset": 267370
+        },
+        {
+          "name": "/fpdoc/fpdocsu5.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu5.html",
+          "length": 2118,
+          "sha256": "e2adc8916e71482d22e2862489f6bd456d89e057ed64a9d78f185758e77a1797",
+          "section": 1,
+          "offset": 224146
+        },
+        {
+          "name": "/fpdoc/fpdocsu50.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu50.html",
+          "length": 2910,
+          "sha256": "8a26db42322ed8f26c345462730b2c8a68907ff373075cf88b3de706c8a39e23",
+          "section": 1,
+          "offset": 251468
+        },
+        {
+          "name": "/fpdoc/fpdocsu51.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu51.html",
+          "length": 2323,
+          "sha256": "e0571ca7c6ed46a4c6dca010876569e7d8df7900d4bd1975b8294d49e02d93c9",
+          "section": 1,
+          "offset": 393868
+        },
+        {
+          "name": "/fpdoc/fpdocsu52.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu52.html",
+          "length": 2963,
+          "sha256": "13657477e6dcbb8b60f17bffeb65a81a7dcde25106d7191715c37ac1a571816a",
+          "section": 1,
+          "offset": 264407
+        },
+        {
+          "name": "/fpdoc/fpdocsu53.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu53.html",
+          "length": 2344,
+          "sha256": "718afc748a8656e4aa2adf036773c0bb42404317e03bcdabaff966e7bf151531",
+          "section": 1,
+          "offset": 69481
+        },
+        {
+          "name": "/fpdoc/fpdocsu54.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu54.html",
+          "length": 2608,
+          "sha256": "a3c0c92f86482cf23126deb767e54d2130e51bfd00fc5852dfb56f4a0098efa3",
+          "section": 1,
+          "offset": 60893
+        },
+        {
+          "name": "/fpdoc/fpdocsu55.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu55.html",
+          "length": 2370,
+          "sha256": "4b87a56cb2f92432af96edc21f352f974e590c70d83d5271e59d71522b2f688d",
+          "section": 1,
+          "offset": 330661
+        },
+        {
+          "name": "/fpdoc/fpdocsu56.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu56.html",
+          "length": 2181,
+          "sha256": "1d4c948a0ea8f4d9a14d08aa54de6b7278caf84fbe66ba71a77795773dbe0573",
+          "section": 1,
+          "offset": 119416
+        },
+        {
+          "name": "/fpdoc/fpdocsu57.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu57.html",
+          "length": 2333,
+          "sha256": "ad76bb61f7a1cff5627ff1c55357bb707a8d9836b5f0c6586e45511809f6385c",
+          "section": 1,
+          "offset": 145135
+        },
+        {
+          "name": "/fpdoc/fpdocsu58.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu58.html",
+          "length": 2077,
+          "sha256": "f5affab38c3fdb7f730493519eea3c514335866cc0bf4d7a944f1f9852b205ae",
+          "section": 1,
+          "offset": 196621
+        },
+        {
+          "name": "/fpdoc/fpdocsu59.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu59.html",
+          "length": 3674,
+          "sha256": "de55881c33d2dc999ed982d177eef3f1161f8a7f82eff71fa723e33726c7083e",
+          "section": 1,
+          "offset": 20486
+        },
+        {
+          "name": "/fpdoc/fpdocsu6.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu6.html",
+          "length": 1651,
+          "sha256": "7abb8acbf4e67b68bc767cdc17008c4f0f03953ee8a27fe9ec4df83634a491ba",
+          "section": 1,
+          "offset": 419995
+        },
+        {
+          "name": "/fpdoc/fpdocsu60.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu60.html",
+          "length": 4712,
+          "sha256": "4ff82cff2581cb8fcd42ea10224d19c216ef35508ccb9d7cb9fb5ad79c38576d",
+          "section": 1,
+          "offset": 169467
+        },
+        {
+          "name": "/fpdoc/fpdocsu61.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu61.html",
+          "length": 23337,
+          "sha256": "094cfec247a8634df958d2107b149b78691829ea772ba8335dfbbd8e70d696aa",
+          "section": 1,
+          "offset": 24160
+        },
+        {
+          "name": "/fpdoc/fpdocsu62.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu62.html",
+          "length": 2404,
+          "sha256": "e3c5307ce314768dc6e03baa9c16cc3d33974f41bfbf001848f0c63ab1279361",
+          "section": 1,
+          "offset": 113381
+        },
+        {
+          "name": "/fpdoc/fpdocsu63.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu63.html",
+          "length": 2452,
+          "sha256": "d67fb3aa3178b26035574d4fec996de9426fc1df09efc554c225a6502170cc43",
+          "section": 1,
+          "offset": 219189
+        },
+        {
+          "name": "/fpdoc/fpdocsu64.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu64.html",
+          "length": 2516,
+          "sha256": "6be882dbd09cb8011dfe99da26e669ac2fc90b73df54020f7fa99be0751be982",
+          "section": 1,
+          "offset": 2751
+        },
+        {
+          "name": "/fpdoc/fpdocsu65.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu65.html",
+          "length": 2902,
+          "sha256": "7217cb367f075a46104fb491a7f884f1f8112e49b436457194982371b8f3c3c0",
+          "section": 1,
+          "offset": 88638
+        },
+        {
+          "name": "/fpdoc/fpdocsu66.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu66.html",
+          "length": 2917,
+          "sha256": "9a5cce7d7fd0785ce321e8030b6b28b4b97067b39cac8153d1eee54f6bb4e71b",
+          "section": 1,
+          "offset": 286292
+        },
+        {
+          "name": "/fpdoc/fpdocsu67.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu67.html",
+          "length": 3043,
+          "sha256": "c5c6cd0d80bcd580776e183ec1dc8eb2a03450f7349f57fd27e58aa258a4041a",
+          "section": 1,
+          "offset": 226264
+        },
+        {
+          "name": "/fpdoc/fpdocsu68.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu68.html",
+          "length": 3640,
+          "sha256": "dfe560ebb2dfe7f7940b2b750aedb1bb5eb42dc37bfbd9a2861052deb37ba3fe",
+          "section": 1,
+          "offset": 103812
+        },
+        {
+          "name": "/fpdoc/fpdocsu69.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu69.html",
+          "length": 2918,
+          "sha256": "950ca20505a7396434fd4264094faa80989d4daf3c121b76c1ab44de69701fd9",
+          "section": 1,
+          "offset": 107452
+        },
+        {
+          "name": "/fpdoc/fpdocsu7.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu7.html",
+          "length": 1882,
+          "sha256": "d72689e3c578535f0c0d235b58ce0a4b14952bcb4e735ad5f96519bd44f1cd30",
+          "section": 1,
+          "offset": 121597
+        },
+        {
+          "name": "/fpdoc/fpdocsu70.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu70.html",
+          "length": 5511,
+          "sha256": "67fcc1af5856eb2334dbd1cbb89b1a6f50cd67b59c85857501c1088fb8e9e202",
+          "section": 1,
+          "offset": 12851
+        },
+        {
+          "name": "/fpdoc/fpdocsu71.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu71.html",
+          "length": 3176,
+          "sha256": "1c0d69dd1eee6b788bc175e0a96f7a3e53ac71ea80695c8f46e30726720bfd16",
+          "section": 1,
+          "offset": 416819
+        },
+        {
+          "name": "/fpdoc/fpdocsu72.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu72.html",
+          "length": 3218,
+          "sha256": "a126370f5ef38cb5111640003bed0a62c9259f3f73f84c735fda852174e05ea6",
+          "section": 1,
+          "offset": 55863
+        },
+        {
+          "name": "/fpdoc/fpdocsu73.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu73.html",
+          "length": 2860,
+          "sha256": "9eaebeb87cd67b2c131f52408b83d87bf6079f4d89796b270e6fb7671118f847",
+          "section": 1,
+          "offset": 283432
+        },
+        {
+          "name": "/fpdoc/fpdocsu74.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu74.html",
+          "length": 1989,
+          "sha256": "4cc5195a64b496f72f29755ef12c76caf4ac6e388409958497ded3204db31b1f",
+          "section": 1,
+          "offset": 99654
+        },
+        {
+          "name": "/fpdoc/fpdocsu75.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu75.html",
+          "length": 2464,
+          "sha256": "5ec7178bb55462a5c281cfb875f986ee0518f2fbbb6aeaf7b97f5534b0e96a73",
+          "section": 1,
+          "offset": 175833
+        },
+        {
+          "name": "/fpdoc/fpdocsu76.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu76.html",
+          "length": 3022,
+          "sha256": "a268aefbadf617f5389a2167a138f46c2e7c4fa225cc84ef2730e5f4205e838b",
+          "section": 1,
+          "offset": 390846
+        },
+        {
+          "name": "/fpdoc/fpdocsu77.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu77.html",
+          "length": 3187,
+          "sha256": "ecca5ef0be119130542a88584f7411a9aec93ff7d9488bec5ce43ce32483bf8a",
+          "section": 1,
+          "offset": 85451
+        },
+        {
+          "name": "/fpdoc/fpdocsu78.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu78.html",
+          "length": 4750,
+          "sha256": "d93db61f5fb4fc35428000791bb8d0d1c8f6fdd133cd5a408f017ecea8303267",
+          "section": 1,
+          "offset": 207763
+        },
+        {
+          "name": "/fpdoc/fpdocsu79.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu79.html",
+          "length": 3161,
+          "sha256": "2090ba9b5e303521646b99d68386336288c68881f3b01c562a339551a40cee4e",
+          "section": 1,
+          "offset": 280271
+        },
+        {
+          "name": "/fpdoc/fpdocsu8.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu8.html",
+          "length": 3551,
+          "sha256": "44f15ae4b763335ce02801bc45bbc8b7dbb83946caaeb065bf0d965093538391",
+          "section": 1,
+          "offset": 378150
+        },
+        {
+          "name": "/fpdoc/fpdocsu80.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu80.html",
+          "length": 3988,
+          "sha256": "5252c6dc4ed8d7bddfcc72dc5b430a8c0acf56c88bfdd1f01ae8c781c5a89164",
+          "section": 1,
+          "offset": 192633
+        },
+        {
+          "name": "/fpdoc/fpdocsu81.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu81.html",
+          "length": 3276,
+          "sha256": "17dd8c0be6a3b0dd311c7a9c7ac2245b28430bcd509cee6fbd9368d225e55c63",
+          "section": 1,
+          "offset": 149966
+        },
+        {
+          "name": "/fpdoc/fpdocsu82.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu82.html",
+          "length": 3401,
+          "sha256": "ec770845cf0e5918925b84b7436baf310873b5ae7b79057b4f9fba657a2ae5e4",
+          "section": 1,
+          "offset": 295919
+        },
+        {
+          "name": "/fpdoc/fpdocsu83.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu83.html",
+          "length": 4333,
+          "sha256": "31bc5fedc3ca0d1e90d862cfe63be132ad82e542b8181bc8a96bc3c86b30e7af",
+          "section": 1,
+          "offset": 333031
+        },
+        {
+          "name": "/fpdoc/fpdocsu84.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu84.html",
+          "length": 2959,
+          "sha256": "6dac2d20642816c757d69d91f15bd1caac7f168d0f79f499ab9235d00481d1e9",
+          "section": 1,
+          "offset": 381701
+        },
+        {
+          "name": "/fpdoc/fpdocsu85.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu85.html",
+          "length": 3408,
+          "sha256": "1e8de0e51bd09f57b9556326349db7c645c1b22e5c55f63742efd9243cd2f6f6",
+          "section": 1,
+          "offset": 189225
+        },
+        {
+          "name": "/fpdoc/fpdocsu86.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu86.html",
+          "length": 2968,
+          "sha256": "fe8a6b0bce1d8c05b2c880db0b6d836b06649857a763a6f430022fb570b15348",
+          "section": 1,
+          "offset": 212513
+        },
+        {
+          "name": "/fpdoc/fpdocsu87.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu87.html",
+          "length": 3230,
+          "sha256": "4387ad2a2c23e364f5c4df0f66ef90ebe8becc221b8cb535001f089824d9baf2",
+          "section": 1,
+          "offset": 384660
+        },
+        {
+          "name": "/fpdoc/fpdocsu88.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu88.html",
+          "length": 2782,
+          "sha256": "ab8afa10be639834a87f3039ae3cd39b78080ed3988c54f1bfb5ce0764ba76d9",
+          "section": 1,
+          "offset": 421646
+        },
+        {
+          "name": "/fpdoc/fpdocsu89.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu89.html",
+          "length": 3609,
+          "sha256": "e27be69c134586d276c7076f2f9a4245b7669ade831dc284e4b59f309d2d4181",
+          "section": 1,
+          "offset": 178297
+        },
+        {
+          "name": "/fpdoc/fpdocsu9.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu9.html",
+          "length": 1685,
+          "sha256": "475bedbd96f9bf069e401e3a7a96b3f8f4f5d01b3158bd51022291d23c34fdca",
+          "section": 1,
+          "offset": 115785
+        },
+        {
+          "name": "/fpdoc/fpdocsu90.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu90.html",
+          "length": 5868,
+          "sha256": "6fd832e512291636e28637fbb3360e981a4fd63588f7b59c171e6da4fa429f58",
+          "section": 1,
+          "offset": 269756
+        },
+        {
+          "name": "/fpdoc/fpdocsu91.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu91.html",
+          "length": 3583,
+          "sha256": "b510a6a61055d63750587b34a3cf19cf307b804e22bce57fffb67346faa69b48",
+          "section": 1,
+          "offset": 52280
+        },
+        {
+          "name": "/fpdoc/fpdocsu92.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu92.html",
+          "length": 3859,
+          "sha256": "efd6d0deff70b7c182b78aced896e04d39f2cead807d52be47a88c1db133160a",
+          "section": 1,
+          "offset": 7106
+        },
+        {
+          "name": "/fpdoc/fpdocsu93.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu93.html",
+          "length": 2782,
+          "sha256": "6f1713bf22ae003c1ceee897b39c068c8386cba3cb99fc5e9c8ff2eb4c34259f",
+          "section": 1,
+          "offset": 125792
+        },
+        {
+          "name": "/fpdoc/fpdocsu94.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu94.html",
+          "length": 3597,
+          "sha256": "72316d36d07851ec9be5ffb47ebaae52ba6bc00883ec5a4eb3ef5066d6345306",
+          "section": 1,
+          "offset": 247871
+        },
+        {
+          "name": "/fpdoc/fpdocsu95.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu95.html",
+          "length": 2323,
+          "sha256": "d831d654c5746037d6e20759f4abf798743c1a90099fb7229a13dbc546c3a935",
+          "section": 1,
+          "offset": 424428
+        },
+        {
+          "name": "/fpdoc/fpdocsu96.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu96.html",
+          "length": 2983,
+          "sha256": "e11d43803d8dd9683a215125aa295c094f5ca381e7439a6093456884b1ae1d9c",
+          "section": 1,
+          "offset": 80559
+        },
+        {
+          "name": "/fpdoc/fpdocsu97.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu97.html",
+          "length": 3557,
+          "sha256": "bff2a28c45ad978396f15c95403fa939669ee5c8dd1a5a1ced22941aebccc37e",
+          "section": 1,
+          "offset": 231214
+        },
+        {
+          "name": "/fpdoc/fpdocsu98.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu98.html",
+          "length": 2956,
+          "sha256": "eb9782ed67e4b4f5420f185f9725b792a47fc46d6f7af426a92495301bc68164",
+          "section": 1,
+          "offset": 387890
+        },
+        {
+          "name": "/fpdoc/fpdocsu99.html",
+          "expectedFile": "expected/fpc-3.2.2-fpdoc/fpdoc/fpdocsu99.html",
+          "length": 3380,
+          "sha256": "8e09f1caec5a2fef0c6896394905a1d5a4f487f98e666523c90f5e887d5d544f",
+          "section": 1,
+          "offset": 202631
+        }
+      ],
+      "container": {
+        "sha256": "cb9ebc5f333653e6c22bdbcf92ea3390f485db330d5cf9377281af0ed367ab53",
+        "member": "help/fpdoc.chm",
+        "executed": false,
+        "retained": false
+      },
+      "documentationSourceUrl": "https://raw.githubusercontent.com/fpc/FPCDocumentation/28a887047f9fa593dff284cb35b938cdb2f86268/fpdoc.tex",
+      "documentationSourceArchiveUrl": "https://github.com/fpc/FPCDocumentation/archive/28a887047f9fa593dff284cb35b938cdb2f86268.tar.gz",
+      "binaryBuildCommit": null,
+      "provenanceNote": "Official 3.2.2 distribution member; exact binary build commit is unknown. Documentation source commit is license/source evidence only, not a reproducible-build claim.",
+      "itsfGuidPair": "10fd017caa7bd0119e0c00a0c922e6ec10fd017caa7bd0119e0c00a0c922e6ec",
+      "producer": {
+        "resource": "/_#_README_#_",
+        "text": "This archive was not made by the MS HTML Help Workshop(r)(tm) program, but by Free Pascal's chm package 3.3.1.\r\n"
+      }
     },
     {
       "file": "cve-2015-4467-reset-interval-zero.chm.xor",

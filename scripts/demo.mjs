@@ -92,7 +92,7 @@ try {
   );
   console.log(JSON.stringify(report, null, 2));
   console.log(
-    '\nOpen dist/demo/extracted/index.html, or serve this project and open examples/browser/index.html.',
+    '\nOpen dist/viewer/index.html directly in your browser and choose dist/demo/sample.chm. No local server is needed.',
   );
 } finally {
   reader.close();

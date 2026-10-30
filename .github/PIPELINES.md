@@ -10,13 +10,21 @@ it never publishes to npm, deploys, creates tags or creates releases.
   Server 2025 x64**, each with Node **20.19.0 / 22 / 24**. Linux requires the
   independent 7-Zip CHM oracle. These are explicit OS labels, not immutable image
   snapshots: GitHub still applies image updates within the selected OS.
-- Three real-browser jobs: Chromium / Firefox / WebKit on Ubuntu 24.04.
+- Three real-browser jobs: Chromium / Firefox / WebKit on Ubuntu 24.04, using
+  `pnpm test:browser` (`playwright test test/browser`).
+- One native Electron job on **macOS 15**, using the exactly pinned dev-only
+  Electron **45.1.0**. After the frozen script-disabled install, it runs
+  `pnpm exec install-electron` (the official native-binary installer; no lifecycle
+  approval needed), then `pnpm test:electron`. It installs the real CHMKit tgz
+  outside the checkout and exercises the actual sandboxed example, IPC permissions,
+  lifecycle and screenshots. Electron is not a consumer runtime dependency.
 - Format checking and the delivery-script regression tests run in the Linux
   Node 24 job. Existing typecheck, lint, Vitest and Playwright acceptance remain.
-- A separate minimum-runtime job builds on Node 24 and runs the 30 installed
+- A separate minimum-runtime job builds on Node 24 and runs the 31 installed
   consumer cases with a real Node 20.10.0 executable. Modern development tools
   are not run on the library's minimum consumer runtime.
-- A fourteenth delivery job runs **only after all thirteen acceptance jobs pass**.
+- The fifteenth job is delivery: it runs **only after all fourteen acceptance
+  jobs pass** (9 Node + 3 browser + minimum + native Electron).
   It invokes the canonical `pnpm build`, generates TypeDoc with warnings treated
   as errors, then runs `node scripts/package.mjs`. API HTML is uploaded separately.
 - Every dependency install in the source checkout uses
@@ -32,6 +40,14 @@ it never publishes to npm, deploys, creates tags or creates releases.
 - Test report uploads use `if-no-files-found: error`: a missing report is a real
   failure, not a warning to ignore. Reports are retained for 14 days; consumer
   assets for 30 days, subject to repository retention limits.
+
+All Playwright projects share `playwright.config.ts`, with explicit browser and
+Electron test directories. Reports are
+`test-results/playwright/{results.json,html,artifacts}`; each browser/native CI
+job uploads its own report tree. Separate local invocations reuse those paths.
+`pnpm test:all` includes Vitest, browser and native Electron runs. Local Electron
+acceptance passed; **the current 15-job hosted revision remains unverified**.
+The 14-job run below is historical evidence only.
 
 ## Action versions and real warnings
 
@@ -75,8 +91,10 @@ at source revision `a67ffe9`:
 No `NODE_NO_WARNINGS`, `--no-warnings`, forced action-runtime overrides, log
 filtering or warning suppression is part of the pipeline.
 
-[Revised hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243)
+[Historical hosted run 41003535243](https://github.com/fwx5618177/chm-kit/actions/runs/41003535243)
 at exact source `45a5b5f3ba186bed283036da074e3c697931ffea` passed **14/14 jobs**.
+It predates the FPC fixes, standalone viewer and native Electron job; it is not
+a pass or a new download for the current revision.
 All completed checks' annotations and all complete raw logs were inspected:
 zero technical warning/error matches or warning/failure annotations; only three
 macOS capacity notices remain. Consumer/API artifacts were actually downloaded,
@@ -103,15 +121,23 @@ must list every new public output; missing export/bin targets fail packaging.
 
 `dist/package/` contains:
 
-| File                              | Consumer use                                                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `chmkit-<version>.tgz`            | `npm install ./chmkit-<version>.tgz`; already contains compiled CJS/ESM, browser assets, CLI and declarations |
-| `chmkit-<version>-cli.cjs`        | `node chmkit-<version>-cli.cjs --help`; fully bundled npm dependencies, only Node built-ins remain external   |
-| `chmkit-<version>-browser.tar.gz` | Extract and HTTP(S)-serve `dist/browser/`; includes all chunks, complete `dist/types/`, docs and notices      |
-| `chmkit-<version>-USAGE.md`       | Versioned installation/usage notes                                                                            |
-| `THIRD_PARTY_NOTICES.txt`         | License notices from runtime dependencies and their dependency graph; also included inside the archives       |
-| `manifest.json`                   | Schema, version, source commit, dirty flag, toolchain, asset size/SHA-256 and exact npm file inventory        |
-| `SHA256SUMS`                      | SHA-256 for every asset and the manifest                                                                      |
+| File                          | Consumer use                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `chmkit-1.1.0.tgz`            | `npm install ./chmkit-1.1.0.tgz`; compiled CJS/ESM, browser modules, CLI and declarations                                 |
+| `chmkit-1.1.0-cli.cjs`        | `node chmkit-1.1.0-cli.cjs --help`; bundled npm dependencies, only Node built-ins remain external                         |
+| `chmkit-1.1.0-browser.tar.gz` | Extract and open `dist/viewer/index.html` directly; also includes `dist/browser/` chunks, `dist/types/`, docs and notices |
+| `chmkit-1.1.0-USAGE.md`       | Versioned installation/usage notes                                                                                        |
+| `THIRD_PARTY_NOTICES.txt`     | License notices from runtime dependencies and their dependency graph; also included inside the archives                   |
+| `manifest.json`               | Schema, version, source commit, dirty flag, toolchain, asset size/SHA-256 and exact npm file inventory                    |
+| `SHA256SUMS`                  | SHA-256 for every asset and the manifest                                                                                  |
+
+These are the current 1.1.0 filenames; `manifest.json` identifies the exact
+version and source of a particular bundle. The browser archive now includes
+`dist/viewer/{index.html,viewer.js,reader.worker.js,worker-client.js}`;
+`viewer.js` is a classic self-contained IIFE for direct `file:` opening, not an
+ESM entry. Zero-HTTP sample preview passed in all three engines. Library ESM and
+module Worker use still require HTTP(S). Historical linked archives do not gain
+these files retroactively.
 
 The npm asset's staging metadata removes repository-only scripts (including
 `prepare` / `prepack`), devDependencies and package-manager/hook configuration.
@@ -133,7 +159,9 @@ Local uncommitted builds are marked `dirty: true`. They can be used for testing,
 but the release workflow rejects them. SHA-256 detects corruption; it is not a
 signature or a substitute for trusting the source of the manifest. Standalone
 CLI downloads still require supported Node; they do not embed a Node executable.
-Browser downloads require a browser/static host, not a local build toolchain.
+The standalone browser viewer needs only a modern browser, not Node/npm, a
+server or a local build toolchain. Library ESM/module Worker hosting still uses
+HTTP(S).
 
 CI uploads the complete directory as artifact **`chmkit-<github.sha>`**, available
 under the run's **Artifacts** section. GitHub Actions artifact downloads normally
@@ -163,7 +191,7 @@ Prerequisites for a maintainer, not actions performed by this change:
    never interpolated into shell commands.
 5. Read-only preflight checks real environment protection, exact package version
    and peeled existing tag commit. The reusable CI runs the full nine-Node,
-   three-browser and minimum-runtime acceptance matrix and produces the prebuilt
+   three-browser, minimum-runtime and native Electron acceptance matrix and produces the prebuilt
    download artifact.
 6. GitHub pauses the release job for environment review. After approval, a separate
    no-dependency-install job downloads only this run's artifact, rechecks policy,

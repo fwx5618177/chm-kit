@@ -4,14 +4,25 @@
     <meta charset="utf-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>CHMKit restricted Electron bridge</title>
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <h1>CHMKit restricted Electron bridge</h1>
-    <button id="open" type="button">Read approved manual</button>
-    <pre id="output" aria-live="polite">No archive selected.</pre>
+    <main>
+      <p class="eyebrow">CHMKit · Electron</p>
+      <h1>Read an approved manual</h1>
+      <p>
+        A sandboxed, isolated renderer uses a read-only archive bridge. Main
+        selects the file; the renderer receives only an opaque handle.
+      </p>
+      <button id="open" type="button">Read approved manual</button>
+      <p id="status" role="status">Ready. No archive is open.</p>
+      <h2>Archive metadata and byte preview</h2>
+      <p>Archive HTML is not rendered. This panel displays text only.</p>
+      <pre id="output" aria-live="polite">No archive selected.</pre>
+    </main>
     <script src="./renderer.js" defer></script>
   </body>
 </html>

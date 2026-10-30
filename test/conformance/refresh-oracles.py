@@ -18,6 +18,9 @@ PYCHM = "https://github.com/dottedmag/pychm/blob/9db50a881aa19649da100e5168d4540
 INNO = "https://github.com/jrsoftware/issrc/blob/2527da77ff7983514f535d19391a748c5d898336/"
 PUTTY = "https://git.tartarus.org/?p=simon/putty.git;a=commit;h=d2c178c49a0ae6fa9ef75ca84fb3c9d0d675ea85"
 SEVEN = "https://github.com/ip7z/7zip/tree/5b39dc76f1bc82f941d5c800ab9f34407a06b53a"
+# Documentation/license evidence, NOT a known build commit for the release CHM.
+FPC_DOC = "https://raw.githubusercontent.com/fpc/FPCDocumentation/28a887047f9fa593dff284cb35b938cdb2f86268/"
+FPC_DOWNLOAD = "https://downloads.freepascal.org/fpc/dist/3.2.2/docs/doc-chm.zip"
 
 NORMAL = [
     ("putty-0.83.chm", "3508241b8284fa643a69e6cbbde1a8273748c0d9ad4312be70cb90f26a474ac3", "MIT", "LICENSE.putty", PUTTY, "https://the.earth.li/~sgtatham/putty/0.83/putty.chm"),
@@ -25,6 +28,7 @@ NORMAL = [
     ("inno-myprog.chm", "fc47e3f35ce2f2db1ad85dc320200424c406a3c7cb9c17fb5fd91af865644021", "LicenseRef-Inno-Setup", "LICENSE.issrc", INNO + "Examples/MyProg.chm", None),
     ("pychm-combined.chm", "be9cd285629743fd8a37575c503e15dcb70df816b39ceb0ca9d5739d9acebbee", "GPL-2.0-or-later", "LICENSE.pychm", PYCHM + "tests/integration/combined.chm", None),
     ("pychm-combined2.chm", "b8eb69234bab5e63123562a338b89f96cdfc6608c6d8cebab4b064b6bd8fcb35", "GPL-2.0-or-later", "LICENSE.pychm", PYCHM + "tests/integration/combined2.chm", None),
+    ("fpc-3.2.2-fpdoc.chm", "20d3d4932ae7cca2fa1efa033e9c4e63780788fedc96e9134c53c6f9a9d2c552", "LGPL-2.0-or-later", "LICENSE.fpc-fpdoc.tex", None, FPC_DOWNLOAD),
 ]
 MALFORMED = [
     ("cve-2015-4467-reset-interval-zero.chm.xor", "f3caf03196f16ce774ea09899dd879dee7a25661ed7019bf907f5fdf5ac72c05"),
@@ -85,12 +89,21 @@ def structure(data):
     r = base + reset["offset"]
     cv, ri, window = struct.unpack_from("<III", data, c + 8)
     factor = 32768 if cv == 2 else 1
-    frames = struct.unpack_from("<I", data, r + 4)[0]
+    reset_entries = struct.unpack_from("<I", data, r + 4)[0]
     uncompressed = struct.unpack_from("<Q", data, r + 16)[0]
+    frames = (uncompressed + 32767) // 32768
+    terminal = None
+    if reset_entries == frames + 1 and frames > 0:
+        entry_size, table_offset = struct.unpack_from("<II", data, r + 8)
+        assert entry_size == 8
+        terminal = struct.unpack_from("<Q", data, r + table_offset + frames * entry_size)[0]
+        assert terminal == content["length"] == struct.unpack_from("<Q", data, r + 24)[0]
+    else:
+        assert reset_entries == frames
     start = base + content["offset"]
     intel = bool(struct.unpack_from("<H", data, start)[0] & 0x8000)
     first_type = (struct.unpack_from("<H", data, start + (4 if intel else 0))[0] >> 12) & 7
-    return entries, {"firstLzxBlockType": first_type, "intelHeader": intel, "itsfVersion": version, "languageId": struct.unpack_from("<I", data, 20)[0], "directoryOffset": directory, "dataOffset": base, "controlVersion": cv, "resetInterval": ri * factor, "windowSize": window * factor, "frameCount": frames, "resetGroups": (uncompressed + ri * factor - 1) // (ri * factor), "uncompressedLength": uncompressed, "contentOffset": base + content["offset"]}
+    return entries, {"firstLzxBlockType": first_type, "intelHeader": intel, "itsfVersion": version, "languageId": struct.unpack_from("<I", data, 20)[0], "directoryOffset": directory, "dataOffset": base, "controlVersion": cv, "resetInterval": ri * factor, "windowSize": window * factor, "frameCount": frames, "resetTableEntryCount": reset_entries, "terminalResetOffset": terminal, "resetGroups": (uncompressed + ri * factor - 1) // (ri * factor), "uncompressedLength": uncompressed, "contentOffset": base + content["offset"]}
 
 
 def run(tool, args):
@@ -110,6 +123,9 @@ def main():
         ("LICENSE.pychm", "ee8ad0da4000f87a54b135a35c2148f318cba67dbba018753b2010db4c652fff", PYCHM + "LICENSE"),
         ("COPYING.pychm", "669cd20e1d23a23737c7d50e22fc80053ccd94e624920479f8618b0606b022fe", PYCHM + "COPYING"),
         ("LICENSE.libmspack", "a190dc9c8043755d90f8b0a75fa66b9e42d4af4c980bf5ddc633f0124db3cee7", MSPACK + "COPYING.LIB"),
+        ("LICENSE.fpc-fpdoc.tex", "8fc7482db36e31f6eddaf9591a8f5c8e177f0682acbef3ad24ab65597d34d142", FPC_DOC + "fpdoc.tex"),
+        ("COPYING.LIB.fpc", "cc535c21133c895b56b374c8a1dc1eb948d99003ed2b47372069456b62f42b24", "https://www.gnu.org/licenses/old-licenses/lgpl-2.0.txt"),
+        ("READMECHM.fpc.txt", "a2b52f400573914509bc56a64946f2586fbb1193fdb0532b001785c455b1d687", FPC_DOWNLOAD + " (help/readmechm.txt)"),
     ]
     for name, sha, url in licenses:
         assert digest((ROOT / name).read_bytes()) == sha, name
@@ -143,6 +159,14 @@ def main():
             item["gitBlobSha1"] = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         if name.startswith("7zip"):
             item["container"] = {"sha256": "26cb6e9f56333682122fafe79dbcdfd51e9f47cc7217dccd29ac6fc33b5598cd", "length": 1589510, "member": "7-zip.chm", "executed": False, "retained": False}
+        if name.startswith("fpc-"):
+            item["container"] = {"sha256": "cb9ebc5f333653e6c22bdbcf92ea3390f485db330d5cf9377281af0ed367ab53", "member": "help/fpdoc.chm", "executed": False, "retained": False}
+            item["documentationSourceUrl"] = FPC_DOC + "fpdoc.tex"
+            item["documentationSourceArchiveUrl"] = "https://github.com/fpc/FPCDocumentation/archive/28a887047f9fa593dff284cb35b938cdb2f86268.tar.gz"
+            item["binaryBuildCommit"] = None
+            item["provenanceNote"] = "Official 3.2.2 distribution member; exact binary build commit is unknown. Documentation source commit is license/source evidence only, not a reproducible-build claim."
+            item["itsfGuidPair"] = data[0x18:0x38].hex()
+            item["producer"] = {"resource": "/_#_README_#_", "text": "This archive was not made by the MS HTML Help Workshop(r)(tm) program, but by Free Pascal's chm package 3.3.1.\r\n"}
         manifest["archives"].append(item)
         print(name, observed, "oracle files", len(files))
     for name, sha in MALFORMED:

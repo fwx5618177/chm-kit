@@ -21,7 +21,8 @@ flowchart TD
 ## Data reading
 
 `src/core/headers/` parses ITSF/ITSP/LZXC and safe binary fields.
-`src/core/directory/` handles PMGL entries and encoded integers;
+`src/core/directory/` handles PMGL/PMGI entries, encoded integers and strictly
+validated standard/FPC quickref conventions;
 `src/core/parser/` combines validated structures. Physical content base must come
 from the format, not a guessed ordering of header/directory/content sections.
 
@@ -77,7 +78,9 @@ adding support; do not make unsupported structures silently disappear.
 
 ## Build and evidence
 
-`scripts/build.mjs` owns complete public JS/declaration generation. Public entry
+`scripts/build.mjs` owns complete public JS/declaration generation and the
+classic-IIFE standalone viewer in `dist/viewer/`. The viewer opens directly as
+`file:`, while library ESM/module Workers continue to use HTTP(S). Public entry
 changes must update package metadata and isolated consumer tests along with the
 build. Node/browser declaration types must be correct at source level, not patched
 in generated files. Preserve browser chunks and do not install Electron to satisfy
@@ -92,7 +95,11 @@ Use Node 22.13+ or 24 and pnpm 10.34.9 for development. CI installs dependencies
 on Node 24 before switching to runtime targets, including Node 20.19; that older
 runtime is not the dev-tool installation floor. ESLint 10 uses the flat
 `eslint.config.mjs`. Node/package/delivery acceptance uses Vitest 4.1.12 with
-Vite 7.3.7; real-browser acceptance uses Playwright. `test/delivery/*.test.mjs`
+Vite 7.3.7; real-browser and native Electron acceptance share one Playwright
+configuration with explicit projects. Electron 45.1.0 is a pinned devDependency;
+`pnpm exec install-electron` runs the official binary installer without pnpm
+lifecycle approval. No Electron runtime is installed by the consumer package.
+Reports use `test-results/playwright/{results.json,html,artifacts}`. `test/delivery/*.test.mjs`
 are native Vitest tests included by default `pnpm test`, with
 `pnpm test:delivery` for focused runs. Do not restore the removed Node test runner.
 Independent fixture oracles and bounded mutation/differential tests must not be

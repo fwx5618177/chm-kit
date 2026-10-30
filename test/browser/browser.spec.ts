@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type * as BrowserAPI from '../../src/browser';
 import type * as WorkerAPI from '../../src/worker';
 import type * as ResourcesAPI from '../../src/browser-resources';
@@ -31,6 +33,25 @@ test('built browser, Worker and resources artifacts expose the required public e
       [resourcesModulePath, ['ArchivePathResolver', 'createArchivePreview']],
     ] as [string, string[]][],
   );
+});
+
+test('prebuilt standalone viewer opens directly from disk without npm, a build or HTTP hosting', async ({
+  page,
+}, testInfo) => {
+  const requests: string[] = [];
+  page.on('request', request => requests.push(request.url()));
+  await page.goto(pathToFileURL(resolve('dist/viewer/index.html')).href);
+  await page.locator('#sample').click();
+  await expect(page.locator('#files button').first()).toBeVisible();
+  await expect(page.locator('#preview')).toBeVisible();
+  await expect(page.frameLocator('#preview').locator('body')).toContainText(
+    'CHMKit',
+  );
+  expect(requests.filter(url => /^https?:/.test(url))).toEqual([]);
+  await testInfo.attach('standalone-local-file-viewer', {
+    body: await page.screenshot(),
+    contentType: 'image/png',
+  });
 });
 
 test('native ESM without Node globals; byte/text/range/stream/cache/pack boundaries', async ({
@@ -205,7 +226,7 @@ test('native module Worker library client/host correlates concurrent calls and p
     const { createWorkerClient } = (await import(
       modulePath
     )) as typeof WorkerAPI;
-    const worker = new Worker('/examples/browser/reader.worker.js', {
+    const worker = new Worker('/dist/viewer/reader.worker.js', {
       type: 'module',
     });
     const client = createWorkerClient(worker, { terminateOnDispose: true });

@@ -2,7 +2,7 @@
 
 Thank you for helping improve CHM support. For ordinary use, choose a
 [prebuilt download](docs/guide/downloads.md); **source builds are for contributors**.
-The public `chmkit` registry endpoint returns 404; npm publication is not planned.
+The public `chmkit` npm package is not published; publication needs separate authorization.
 
 ## Discuss and report
 
@@ -43,8 +43,9 @@ ESLint 10 uses the flat [`eslint.config.mjs`](eslint.config.mjs), not an eslintr
 file. Tests use Vitest 4.1.12 with Vite 7.3.7; keep dependencies lockfile-consistent.
 
 `pnpm build` is the canonical complete build via `scripts/build.mjs`, with no
-partial-build arguments. It produces Node CJS/ESM, CLI, browser modules/chunks and
-bundled declarations for public entries. It cleans only its owned output trees,
+partial-build arguments. It produces Node CJS/ESM, CLI, browser modules/chunks,
+the standalone classic-script viewer in `dist/viewer/`, and bundled declarations
+for public entries. It cleans only its owned output trees,
 not the entire `dist/`; `dist/demo/` and separate test reports are preserved.
 Do not patch generated declarations to hide a wrong source-level type boundary.
 
@@ -65,6 +66,10 @@ pnpm test:delivery
 # Install browser runtimes, then execute real-browser acceptance
 pnpm exec playwright install chromium firefox webkit
 pnpm test:browser
+
+# Explicit official binary installer; no pnpm lifecycle approval required
+pnpm exec install-electron
+pnpm test:electron
 ```
 
 Linux browser/system dependencies may require
@@ -72,11 +77,25 @@ Linux browser/system dependencies may require
 Select an engine with `pnpm test:browser --project=chromium` (or firefox/webkit).
 `pnpm test` runs Vitest's node and package projects, including `test/delivery/`.
 `pnpm test:delivery` focuses that directory, including `package.test.mjs`; it is
-not a separate Node test runner. `pnpm test:all` also runs Playwright.
+not a separate Node test runner. `pnpm test:browser` is
+`playwright test test/browser`; `pnpm test:electron` selects `--project=electron`.
+The single Playwright configuration defines all four explicit projects.
+`pnpm test:all` runs Vitest, then all four Playwright projects in one invocation,
+so its browser and native Electron cases remain together in the same report.
+JSON, HTML and attachments use `test-results/playwright/{results.json,html,artifacts}`;
+focused invocations replace the previous Playwright report.
 The package project's global setup owns its complete build. Playwright's
 web-server command builds before launching Vite or making readiness requests;
 Playwright runs `globalSetup` too late to own that prerequisite. Do not run
 multiple builds against shared output concurrently.
+
+Electron **45.1.0** is exactly pinned in devDependencies only, not a CHMKit
+runtime dependency. `pnpm exec install-electron` explicitly downloads the official
+native binary after script-disabled dependency installation; do not enable broad
+lifecycle approval to obtain it. Native acceptance installs the real CHMKit tgz
+outside the checkout and launches the example with real IPC and sandboxing.
+The CI native job targets macOS 15; Linux hosts need native system libraries and
+a display. Do not disable sandboxing to make a run pass.
 
 An installed `7zz`/`7z` supplies an independent CHM oracle. Normal vendored corpus
 and hash checks are offline. External-tool checks explicitly skip if unavailable;
@@ -101,14 +120,17 @@ Use the native reports under `test-results/`; do not copy old case counts into d
 extracted content and a report in `dist/demo/`. It is a real workflow, not an
 independent compiler oracle.
 
-For browser examples, build once and manually serve the repository over loopback
-HTTP with your preferred static server; e.g.
-`python3 -m http.server 8080 --bind 127.0.0.1`. Open `/examples/browser/` or
-`/examples/worker/`, then stop the server with Ctrl-C. Automated checks should use
-bounded tests which own their server/browser lifecycle, not orphan background servers.
+Ordinary viewer users extract the prebuilt browser archive and open
+`dist/viewer/index.html` directly; no toolchain or server is needed. Contributors
+can open that file after `pnpm build` too. To work on source ESM/Worker examples,
+serve the repository over loopback HTTP with your preferred static server, e.g.
+`python3 -m http.server 8080 --bind 127.0.0.1`, and open `/examples/browser/` or
+`/examples/worker/`. Stop the server with Ctrl-C. Library ESM/module Workers
+still need HTTP(S). Automated checks should use bounded tests which own their
+server/browser lifecycle, not orphan background servers.
 See [Electron example setup](examples/electron/README.md) for application preload
-bundling and an existing Electron runtime. Structural IPC tests do not establish
-native Electron execution.
+bundling. Native Electron acceptance has passed locally; structural IPC tests
+remain distinct from that actual runtime evidence. See [VALIDATION.md](VALIDATION.md).
 
 ## Documentation and public API changes
 
@@ -176,4 +198,4 @@ reviewed protected environment. Do not assume the matching tag or protected
 authorization must exist before dispatch. The workflow can then create a
 **draft GitHub release**; a maintainer separately decides whether to publish it.
 Ordinary push/PR CI never publishes. There is no npm publishing workflow and no
-current npm publication plan.
+implicit authorization to publish npm.

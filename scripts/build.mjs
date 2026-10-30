@@ -1,7 +1,14 @@
 import { build } from 'esbuild';
 import { rollup } from 'rollup';
 import { dts } from 'rollup-plugin-dts';
-import { chmod, copyFile, mkdir, readFile, rm } from 'node:fs/promises';
+import {
+  chmod,
+  copyFile,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +19,7 @@ if (process.argv.length !== 2)
 process.chdir(fileURLToPath(new URL('../', import.meta.url)));
 // Rebuild package artifacts without deleting demo data or test evidence.
 await Promise.all(
-  ['cjs', 'esm', 'browser', 'types', 'declarations'].map(directory =>
+  ['cjs', 'esm', 'browser', 'viewer', 'types', 'declarations'].map(directory =>
     rm(`dist/${directory}`, { recursive: true, force: true }),
   ),
 );
@@ -136,4 +143,57 @@ try {
 } finally {
   await rm('dist/declarations', { recursive: true, force: true });
 }
-console.log('Built CHMKit (Node CJS/ESM + browser + declarations)');
+await mkdir('dist/viewer', { recursive: true });
+// A classic self-contained script also works when users open the viewer as file:.
+const viewer = await build({
+  entryPoints: ['examples/browser/viewer.js'],
+  // The unbundled example imports public dist modules; link source entries for
+  // this canonical bundle instead of rebundling already split/injected output.
+  plugins: [
+    {
+      name: 'viewer-library-entries',
+      setup(builder) {
+        builder.onResolve(
+          { filter: /^\.\.\/\.\.\/dist\/browser\/(?:index|resources)\.mjs$/ },
+          args => ({
+            path: fileURLToPath(
+              new URL(
+                args.path.endsWith('/index.mjs')
+                  ? '../src/browser.ts'
+                  : '../src/browser-resources.ts',
+                import.meta.url,
+              ),
+            ),
+          }),
+        );
+      },
+    },
+  ],
+  inject: ['src/browser-buffer.ts'],
+  outfile: 'dist/viewer/viewer.js',
+  platform: 'browser',
+  target: 'es2020',
+  format: 'iife',
+  bundle: true,
+  minify: true,
+  legalComments: 'eof',
+  metafile: true,
+});
+if (
+  Object.values(viewer.metafile.outputs).some(output =>
+    output.imports.some(item => item.external),
+  )
+)
+  throw new Error('Standalone browser viewer has an external dependency');
+const html = await readFile('examples/browser/index.html', 'utf8');
+const moduleScript = '<script type="module" src="./viewer.js"></script>';
+if (!html.includes(moduleScript))
+  throw new Error('Browser viewer entry script is missing');
+await writeFile(
+  'dist/viewer/index.html',
+  html.replace(moduleScript, '<script defer src="./viewer.js"></script>'),
+);
+for (const name of ['reader.worker.js', 'worker-client.js']) {
+  await copyFile(`examples/browser/${name}`, `dist/viewer/${name}`);
+}
+console.log('Built CHMKit (Node CJS/ESM + browser + viewer + declarations)');

@@ -13,16 +13,23 @@ and Electron integration surfaces. Keep the product user-oriented rather than
 turning READMEs into an audit log. Both root READMEs should be moderate-length
 entry points with equivalent guidance; put detail in `docs/guide/`.
 
-- Prefer prebuilt tgz, standalone CLI and browser archive in quick starts.
-  Consumers must not need a source build, pnpm, TypeScript or husky.
+- Prefer the local browser viewer, standalone CLI and prebuilt tgz in quick starts.
+  The current browser archive includes `dist/viewer/index.html` and a classic IIFE;
+  ordinary viewers open it as `file:` without Node/npm/server/build. Library ESM
+  and module Workers still require HTTP(S). Consumers must not need pnpm,
+  TypeScript or husky.
 - Public npm `chmkit` currently returns 404. Do not write registry installation as
   available or suggest an older registry version exists without new evidence.
-  There is no current npm publication plan.
+  npm publication requires separate user/maintainer authorization; do not invent
+  a decision that publication is "not planned".
 - Do not invent public GitHub Releases or a deployed API documentation site.
   Actions artifacts require GitHub sign-in and expire. A successful local build
   is not a hosted artifact. A draft release is not a public release.
 - Package/CLI versions must agree; read actual metadata instead of hard-coding
-  a planned version into docs. Use manifest-based download filenames.
+  a planned version into docs. Use concrete current filenames (`chmkit-1.1.0.tgz`,
+  `chmkit-1.1.0-cli.cjs`, `chmkit-1.1.0-browser.tar.gz`) for quick starts and explain
+  manifest version/source verification once. The historical `45a5b5f` snapshot
+  shares version 1.1.0 but predates the new viewer/FPC/native-Electron changes.
 - `pnpm docs:build` uses TypeDoc 0.28.20 / `typedoc.json` to generate `dist/api/`.
   CI uploads it separately as `chmkit-api-<sha>`; users download/browse without a
   source build. Keep HTML out of Git and do not claim public hosting is deployed.
@@ -51,13 +58,23 @@ pnpm test
 pnpm test:delivery
 pnpm exec playwright install chromium firefox webkit
 pnpm test:browser
+pnpm exec install-electron
+pnpm test:electron
 ```
 
 Start with focused `pnpm test:unit <test-path>` checks, then installed-package and
 real-browser acceptance as appropriate. `pnpm test` runs Vitest node + package;
 `pnpm test:package` uses an isolated consumer. Playwright's web-server command
-builds before starting Vite, including its readiness request. Do not race builds on shared output. `pnpm test:all` also runs
-Playwright. Node tests do not establish native browser/Electron behavior.
+builds before starting Vite, including its readiness request. Do not race builds
+on shared output. One Playwright configuration has explicit browser and Electron
+projects: `pnpm test:browser` selects `test/browser`, `pnpm test:electron` selects
+`--project=electron`, and `pnpm test:all` runs Vitest followed by all four
+Playwright projects in one invocation. The full report preserves all 46 native
+browser/Electron cases under `test-results/playwright/{results.json,html,artifacts}`.
+Focused invocations intentionally replace the previous Playwright report. Node tests do not establish native browser/Electron behavior.
+Electron 45.1.0 is exactly pinned and development-only. `pnpm exec install-electron`
+is its official native-binary installer after script-disabled installation; no
+pnpm lifecycle approval is needed. Do not add Electron as a runtime dependency.
 External `7zz`/`7z` checks explicitly skip if absent, or fail when
 `CHM_REQUIRE_7Z=1`; skips are not passes. Native benchmarks use
 `pnpm test:bench test/bench/real-corpus.bench.ts`, a one-shot native benchmark
@@ -66,7 +83,8 @@ are included in `pnpm test`; `pnpm test:delivery` focuses them. Do not restore a
 second Node test runner or the removed script-path test.
 
 `pnpm build` runs the canonical `scripts/build.mjs`, accepts no partial arguments
-and owns all public entry/declaration generation. It cleans its output trees,
+and owns all public entry/declaration generation plus the standalone `dist/viewer/`
+classic-script bundle. It cleans its output trees,
 not all of `dist/`; preserve demo/test evidence. Do not patch generated declarations.
 `pnpm demo` creates actual sample/extraction/report output. Use bounded tests for
 automation; do not launch indefinite dev/watch/static servers in agent tools.
@@ -74,7 +92,7 @@ Do not use `clean` to erase evidence or alter fixtures to pass formatting.
 
 Delivery is `pnpm package:artifacts` (`pnpm build` then the packager). It stages
 consumer-only metadata, removes repository hooks/dev scripts, bundles the standalone
-CLI, preserves browser chunks/types and validates the real installed tarball in a
+CLI, preserves browser viewer/chunks/types and validates the real installed tarball in a
 system-temp consumer outside repository ancestry. No borrowed dependencies or
 consumer overrides may mask missing exports/dependencies. Dependency installation
 may use the network. Keep runtime dependency notices and hashes with assets.
@@ -84,6 +102,11 @@ may use the network. Keep runtime dependency notices and hashes with assets.
 - `src/core/headers/`, `directory/`, `parser/`: binary structures, offsets,
   directory decoding and mandatory validation. Do not assume data follows the
   directory or reinterpret a legitimate explicit zero data base as missing.
+  The FPC v3 GUID exception is the exact duplicated-first-GUID pair, not arbitrary
+  duplicate GUIDs or a v2 exception. FPC quickrefs must use a consistent verified
+  density-2 convention; leaf-hint compatibility never bypasses chain/index checks.
+  One terminal ResetTable offset must equal compressed Content length; normalize
+  it away from real frames without ignoring malformed counts/starts/terminals.
 - `src/core/lzx/`: real VERBATIM/ALIGNED/stored decoder, dictionary, frame/reset
   history and E8 decoding. `src/core/files/`: source abstraction and reconstruction.
 - `src/reader/chm-archive.ts`: portable core over owned memory/synchronous source;
@@ -109,7 +132,8 @@ may use the network. Keep runtime dependency notices and hashes with assets.
 - `src/core/config.ts`: safe load/merge/validation/cache, not a global control
   plane. `src/cli/runtime.ts` defines the actual connected field subset.
 - `scripts/`, `.github/`: canonical build/demo/delivery/policy tooling. Node,
-  package and delivery tests use native Vitest; browsers use Playwright. Do not
+  package and delivery tests use native Vitest; browsers and native Electron use
+  one Playwright configuration. Do not
   add an ad hoc replacement runner or resurrect Node test-runner delivery tests.
 
 Public subpaths include `chmkit/browser`, `reader`, `config`, `worker`,
@@ -188,12 +212,19 @@ or call synthetic/header-modified files unmodified real-world corpus.
 Bounded fuzz/differential tests are not exhaustive proofs; early rejection may
 not reach later corrupt fields. Record actual commands/platform/failures/skips in
 `VALIDATION.md`; workflow definitions and source-only checks are not hosted runs.
+Current local native acceptance is seven actual Electron 45.1.0 cases on macOS;
+local browser `file:` sample preview passed with zero HTTP requests in all three
+engines. Do not use the historical 14-job run as proof of the new 15-job revision
+(9 Node + 3 browser + minimum + native Electron + dependent delivery).
+Current local full acceptance is 883 Vitest cases in 58 files and 46 Playwright
+cases, with 31 minimum-runtime installed-consumer cases. Record new hosted
+execution evidence separately.
 
 Normal CI is read-only and never publishes. Manual release policy is in
 `.github/PIPELINES.md`: existing matching tag, coherent version, full CI and
 protected independent review before **draft** release creation. Tag/environment
 configuration and human authorization are prerequisites, not claimed completed
 setup. Do not bypass approval with direct `gh release` commands. There is no npm
-publication workflow or current plan; any change requires separate authorization.
+publication workflow; publication requires separate authorization.
 Never suppress genuine warnings or weaken meaningful tests to manufacture a clean
 result.

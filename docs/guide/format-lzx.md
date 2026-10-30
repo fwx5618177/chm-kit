@@ -41,6 +41,32 @@ can put the directory at EOF and use an explicit data base of **zero**. Zero is
 not a universal instruction to substitute `directoryEnd`. Bounds and per-resource
 validation remain necessary regardless of physical ordering.
 
+## Strict FPC producer compatibility
+
+The official Free Pascal 3.2.2 `help/fpdoc.chm` is read **unchanged**. Its 138
+resources match independent 7-Zip extraction, including ranges and streams.
+The compatibility handling is specific, not a general relaxation of validation:
+
+- **ITSF v3 GUIDs:** accept the exact duplicated-first-standard-GUID pair found
+  in this archive. Arbitrary duplicates, unknown/reversed pairs and the same
+  exception applied to v2 are not accepted.
+- **Directory quickrefs:** permit FPC's density-2 fifth-entry convention only
+  when the table consistently follows it. Verify every expected record start,
+  including the final quickref at an exact multiple of five; mixed/interior
+  pointers reject. The evidenced overwritten first-leaf hint is accepted only
+  with verified FPC quickrefs and an intact leaf chain/rooted index.
+- **Terminal ResetTable offset:** this archive stores 15 frame starts plus one
+  terminal offset of 68542, exactly its compressed Content length. Consume and
+  validate the terminal, then expose only the 15 real frames. A nonempty stream
+  can have exactly the real frame count or one extra matching terminal; real
+  starts must begin at zero, increase strictly and stay below Content length.
+  The declared compressed length must also match actual Content. Bad counts,
+  terminals, starts, bounds and empty-stream sentinels still reject.
+
+See the [conformance evidence](../../test/conformance/README.md#fpc-compatibility-regression)
+for raw layout/provenance and final partial-frame checks. This fixture does not
+establish every Free Pascal/chm-package version's compatibility.
+
 ## Frame, block, window and reset are different things
 
 | Term      | Meaning                                       | User-visible implication                          |
@@ -97,8 +123,10 @@ be larger than its input even when its content uses compression.
 
 ## Compatibility evidence and remaining limits
 
-Independent upstream corpora cover actual HHA/Halibut archives, VERBATIM/ALIGNED
-content, multi-frame/multi-reset data and different real windows/layouts.
+Independent upstream corpora cover actual HHA/Halibut and official FPC archives,
+VERBATIM/ALIGNED content, multi-frame/multi-reset data and different real
+windows/layouts. The current corpus has six normal archives and 859 independent
+resource expectations, with 886 checksummed fixture files.
 Byte expectations come from independent 7-Zip extraction, not CHMKit self-roundtrip.
 See [fixture provenance](../../test/fixtures/upstream-chm/README.md).
 
@@ -106,7 +134,9 @@ That evidence does not establish universal producer compatibility. Check the
 fixture manifests and [validation record](../../VALIDATION.md) for the layouts,
 encodings, windows and reset combinations actually exercised. Malformed samples
 and synthetic/header-modified tests do not substitute for normal independently
-sourced archives. Implementation support and real-corpus coverage are distinct.
+sourced archives. Normal real upstream **ITSF v2**, **GBK/UTF-16** and additional
+**E8/window/long-reset** inputs remain gaps. Implementation support and real-corpus
+coverage are distinct.
 
 Bounded mutation tests exercise specific corruptions with process/input/output
 deadlines. A parser rejecting early may not reach a later mutated field. Agreement

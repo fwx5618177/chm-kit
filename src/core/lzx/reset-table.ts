@@ -15,7 +15,7 @@ export class ResetTableProcessor {
     const start = reader.position;
     const data = readBytes(reader, 0x28, 'ResetTable header');
     const version = data.readUInt32LE(0);
-    const blockCount = data.readUInt32LE(4);
+    const entryCount = data.readUInt32LE(4);
     const entrySize = data.readUInt32LE(8);
     const tableOffset = data.readUInt32LE(12);
     if (version !== 2) throw new Error(`不支持的重置表版本: ${version}`);
@@ -33,22 +33,37 @@ export class ResetTableProcessor {
     );
     const blockSize = readUInt64LE(data, 0x20, 'ResetTable block size');
     if (blockSize !== 0x8000) throw new Error(`无效的块大小: ${blockSize}`);
-    if (blockCount !== Math.ceil(uncompressedLength / blockSize))
+    const blockCount = Math.ceil(uncompressedLength / blockSize);
+    // FPC appends one Content-end offset to the real frame starts. Consume and
+    // validate it, but expose only data frames to readers and existing validators.
+    const hasTerminal = blockCount > 0 && entryCount === blockCount + 1;
+    if (entryCount !== blockCount && !hasTerminal)
       throw new Error(
         'ResetTable: block count does not match uncompressed length',
       );
     requireRange(
       reader.buffer,
       start,
-      tableOffset + blockCount * entrySize,
+      tableOffset + entryCount * entrySize,
       'ResetTable entries',
     );
     reader.setPosition(start + tableOffset, 0);
     const offsets = readBytes(
       reader,
-      blockCount * entrySize,
+      entryCount * entrySize,
       'ResetTable entries',
     );
+    if (
+      hasTerminal &&
+      readUInt64LE(
+        offsets,
+        blockCount * entrySize,
+        'ResetTable terminal compressed offset',
+      ) !== compressedLength
+    )
+      throw new Error(
+        'ResetTable: terminal offset does not match compressed length',
+      );
     const entries: ResetTableEntry[] = [];
     for (let i = 0; i < blockCount; i++) {
       // Preserve the legacy property name: compressedLength is a cumulative

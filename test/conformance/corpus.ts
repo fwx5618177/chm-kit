@@ -20,7 +20,20 @@ export interface CorpusArchive {
   sha256: string;
   license: string;
   licenseFile: string;
-  sourceCommitUrl: string;
+  sourceCommitUrl: string | null;
+  documentationSourceUrl?: string;
+  documentationSourceArchiveUrl?: string;
+  binaryBuildCommit?: string | null;
+  provenanceNote?: string;
+  itsfGuidPair?: string;
+  producer?: { resource: string; text: string };
+  downloadUrl?: string | null;
+  container?: {
+    sha256: string;
+    member: string;
+    executed: boolean;
+    retained: boolean;
+  };
   modified: boolean;
   gitBlobSha1?: string;
   xorInMemory?: boolean;
@@ -35,6 +48,8 @@ export interface CorpusArchive {
     resetInterval: number;
     windowSize: number;
     frameCount: number;
+    resetTableEntryCount: number;
+    terminalResetOffset: number | null;
     resetGroups: number;
     uncompressedLength: number;
     contentOffset: number;

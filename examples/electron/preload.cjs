@@ -1,6 +1,6 @@
 // Bundle this file for a sandboxed preload; only Electron itself remains external.
 const { contextBridge, ipcRenderer } = require('electron');
-const { createElectronRendererApi } = require('../../dist/cjs/electron.js');
+const { createElectronRendererApi } = require('chmkit/electron/preload');
 
 const api = createElectronRendererApi(ipcRenderer, { timeoutMs: 10000 });
 contextBridge.exposeInMainWorld('manual', api);

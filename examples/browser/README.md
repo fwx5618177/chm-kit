@@ -1,20 +1,28 @@
-# Browser preview and native module Worker
+# Local browser viewer and module Worker integration
 
-This demo keeps archive markup out of the host DOM. The iframe has `sandbox=""` and `referrerpolicy="no-referrer"`: **never add `allow-scripts` or `allow-same-origin`**. Its generated document installs a restrictive CSP before archive markup. Resource embedding is archive-only; no helper fetches a network URL.
+Browse, search and preview a local CHM without uploading it. This viewer keeps archive markup out of the host DOM. The iframe has `sandbox=""` and `referrerpolicy="no-referrer"`: **never add `allow-scripts` or `allow-same-origin`**. Its generated document installs a restrictive CSP before archive markup. Resource embedding is archive-only; no helper fetches a network URL.
 
-## Build handoff / serving
+## Open the prebuilt viewer
 
-The shared build owner must emit these filesystem-free modules:
+Extract the current **`chmkit-1.1.0-browser.tar.gz`** and double-click **`dist/viewer/index.html`**. Select a `.chm` file or try the built-in generated sample. No Node, npm, source build, bundler or local server is required. Keep the extracted directory intact.
 
-| Source                     | Browser artifact / intended subpath                       |
-| -------------------------- | --------------------------------------------------------- |
-| `src/browser.ts`           | `dist/browser/index.mjs` / `chmkit/browser`               |
-| `src/worker/index.ts`      | `dist/browser/worker.mjs` / `chmkit/worker`               |
-| `src/browser-resources.ts` | `dist/browser/resources.mjs` / `chmkit/browser-resources` |
+The bundle includes `dist/viewer/index.html`, the self-contained **classic-IIFE** `viewer.js`, and `reader.worker.js` / `worker-client.js`, plus `dist/browser/`, `dist/types/` and licenses/notices. Direct `file:` opening and actual sample preview have been verified in Chromium, Firefox and WebKit with **zero HTTP requests**. This is measured viewer behavior, not a guarantee about arbitrary application code or every CHM feature.
 
-Add corresponding declarations and package export entries; do not make a browser resources entry depend on the Node root. `src/browser.ts` should also wrap `updateArchive` so every result, including the no-change fast path, is a **plain `Uint8Array`**, not a Buffer. Its core Node implementation returns Buffer and should not be re-exported unchanged into the browser facade.
+The [download guide](../../docs/guide/downloads.md) distinguishes the current bundle from the historical `45a5b5f` snapshot, which does not include this viewer. New-revision hosted delivery is pending.
 
-After those outputs exist, run `pnpm build`, manually serve the repository (for example `python3 -m http.server 8080 --bind 127.0.0.1`), and open `/examples/browser/`. Stop the server with Ctrl+C. Native module Workers require HTTP(S), not `file:` URLs.
+## Contributor source example and ESM integration
+
+This directory is the source of the bundled viewer. Its `index.html` uses an ESM script; the canonical build bundles that script and emits the classic-script HTML entry in `dist/viewer/`. For source development, run `pnpm build`, serve the repository (for example `python3 -m http.server 8080 --bind 127.0.0.1`), and open `/examples/browser/`. Stop the server with Ctrl+C. Alternatively, open the built `dist/viewer/index.html` directly.
+
+Applications can use the installed package or extracted browser ESM modules without building CHMKit:
+
+| Browser artifact             | Public subpath             |
+| ---------------------------- | -------------------------- |
+| `dist/browser/index.mjs`     | `chmkit/browser`           |
+| `dist/browser/worker.mjs`    | `chmkit/worker`            |
+| `dist/browser/resources.mjs` | `chmkit/browser-resources` |
+
+Retain all relative chunks and paths. **Library ESM and module Workers still need HTTP(S)**; the standalone viewer's direct-disk support is not module Worker support under `file:`. The shipped Worker entry/client are available for HTTP(S) integrations.
 
 ## Resource helper
 
@@ -100,21 +108,17 @@ try {
 }
 ```
 
-Transfer-input opt-in detaches the **entire backing ArrayBuffer**, including sibling views. Transferred output owns a fresh buffer, never a cache or Buffer slab. AbortSignals/timeouts reject the caller and discard/close late results; they cannot interrupt synchronous parsing/decompression. `delayed.worker.js` demonstrates an asynchronous factory and a one-archive budget for lifecycle regression tests. See `../worker/README.md` for the fuller ownership contract. Native Electron is not needed for this browser demo; injected Electron unit tests are not evidence of running Electron itself.
+Transfer-input opt-in detaches the **entire backing ArrayBuffer**, including sibling views. Transferred output owns a fresh buffer, never a cache or Buffer slab. AbortSignals/timeouts reject the caller and discard/close late results; they cannot interrupt synchronous parsing/decompression. `delayed.worker.js` demonstrates an asynchronous factory and a one-archive budget for lifecycle regression tests. See the [Worker example](../worker/README.md) for the fuller ownership contract. Native Electron is not needed for this browser viewer; its separate runtime acceptance is recorded in [VALIDATION.md](../../VALIDATION.md).
 
 ## Validation
 
 ```sh
 pnpm exec vitest run --project node --reporter=default test/reader/browser-resources.test.ts test/worker test/electron
-pnpm exec playwright test test/browser/browser.spec.ts --workers=3
+pnpm test:browser
 ```
 
-The Playwright config runs **Chromium, Firefox and WebKit**. Tests use actual module Workers and the library protocol for concurrent open/read/list/TOC/search/range, transferable bytes, cancellation, timeout, malformed archives, native Worker errors and disposal. Preview cases cover nested CSS imports/cycles, srcset, unsafe SVG, no remote or same-origin probes, query/fragment/percent/raw filenames, Unicode and object URL cleanup. The incremental-update case deliberately requires the actual browser `updateArchive` export and asserts plain Uint8Array results; it must not be papered over by a Node Buffer re-export or a test-only replacement.
+The single Playwright config defines explicit **Chromium, Firefox and WebKit** projects plus a separate native Electron project. `pnpm test:browser` selects `test/browser`; use `pnpm test:browser --project=chromium` to focus one engine. The shared webServer builds canonical outputs before serving them. Tests require the **built** modules; there is no source-entry-bundle fallback.
 
-While the separate build owner is adding the new Worker/resources outputs, `test/browser/support.ts` can explicitly serve source-entry bundles **in memory**, annotated `source-entry-bundle` in Playwright reports. This does not claim package-export correctness and does not replace the browser `updateArchive` entry. Once build artifacts exist, tests consume those artifacts instead. For strict post-integration validation, forbid that fallback:
+The standalone-viewer case opens the built `dist/viewer/index.html` as `file:`, loads the sample preview and checks zero HTTP requests. Other cases use actual module Workers and the library protocol for concurrent open/read/list/TOC/search/range, transferable bytes, cancellation, timeout, malformed archives, native Worker errors and disposal. Preview cases cover nested CSS imports/cycles, srcset, unsafe SVG, no remote or same-origin probes, query/fragment/percent/raw filenames, Unicode and object URL cleanup. The incremental-update case requires the actual browser `updateArchive` export and plain Uint8Array results, not a Node Buffer re-export or test-only replacement.
 
-```sh
-CHMKIT_REQUIRE_PLATFORM_BUILD=1 pnpm exec playwright test test/browser/browser.spec.ts --workers=3
-```
-
-No dependency installation, publishing, native Electron execution or cross-platform CI success is implied by these commands being documented.
+Reports are in `test-results/playwright/{results.json,html,artifacts}`. `pnpm test:all` also runs Vitest and the separate native Electron project. Current local results and pending hosted evidence are distinguished in [VALIDATION.md](../../VALIDATION.md); documenting a command is not evidence that a new hosted revision passed.

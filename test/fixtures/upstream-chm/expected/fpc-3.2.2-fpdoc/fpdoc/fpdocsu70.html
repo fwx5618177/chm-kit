@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"  
+  "http://www.w3.org/TR/html4/loose.dtd">  
+<html > 
+<head><title>element : Identifier documentation</title> 
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"> 
+<meta name="generator" content="TeX4ht (http://www.tug.org/tex4ht/)"> 
+<meta name="originator" content="TeX4ht (http://www.tug.org/tex4ht/)"> 
+<!-- html,4,png,sections+,fn-in --> 
+<meta name="src" content="fpdoc.tex"> 
+<link rel="stylesheet" type="text/css" href="fpdoc.css"> 
+</head><body 
+>
+<!--l. 1639--><div class="crosslinks"><p class="noindent">[<a 
+href="fpdocsu71.html" >next</a>] [<a 
+href="fpdocsu69.html" >prev</a>] [<a 
+href="fpdocsu69.html#tailfpdocsu69.html" >prev-tail</a>] [<a 
+href="#tailfpdocsu70.html">tail</a>] [<a 
+href="fpdocse14.html#fpdocsu70.html" >up</a>] </p></div>
+<h4 class="subsectionHead"><span class="titlemark">5.3.10   </span> <a 
+href="fpdoc.html#QQ2-91-92" id="x91-900005.3.10"><span 
+class="cmbx-10">element </span>: Identifier documentation</a></h4>
+<!--l. 1641--><p class="noindent" >The <span 
+class="cmbx-10">element </span>contains the documentation for an identifier in a unit. It should occur inside a
+<span 
+class="cmtt-10">module </span>tag. It can contain 4 tags:
+     <dl class="description"><dt class="description">
+<span 
+class="cmbx-10">short</span> </dt><dd 
+class="description">For a one-line description of the identifier. Is used as a header or is used in overviews
+     of constants, types, variables or classes.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">descr</span> </dt><dd 
+class="description">Contains the actual description of the identifier.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">errors</span> </dt><dd 
+class="description">For functions an procedures this can be used to describe error conditions. It will be
+     put in a separate section below the description section.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">seealso</span> </dt><dd 
+class="description">Used to refer to other nodes. will be typeset in a separate section.</dd></dl>
+<!--l. 1654--><p class="noindent" >The <span 
+class="cmbx-10">element </span>tag should have at least the <span 
+class="cmti-10">name </span>attribute, it is used to link the element node to
+the actual identifier in the Pascal unit. Other attributes may be added in future.
+<!--l. 1658--><p class="noindent" >Example:
+                                                                            
+
+                                                                            
+<div class="verbatim" id="verbatim-70">
+&#x003C;element&#x00A0;name="MyEnym"&#x003E;
+&#x00A0;<br />&#x003C;descr&#x003E;Myenum&#x00A0;is&#x00A0;a&#x00A0;simple&#x00A0;enumeration&#x00A0;type&#x003C;/descr&#x003E;
+&#x00A0;<br />&#x003C;/element&#x003E;
+</div>
+<!--l. 1663--><p class="nopar" >
+<!--l. 1665--><p class="noindent" >The following attributes are supported:
+     <dl class="description"><dt class="description">
+<span 
+class="cmbx-10">name</span> </dt><dd 
+class="description">this attribute is required and should equal the identifier name.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">opaque</span> </dt><dd 
+class="description">this attribute is used for opaque types: if set to 1, the declaration will be replaced
+     with the term &#8220;opaque&#8221;.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">link</span> </dt><dd 
+class="description">this should contain the name of an element. A link to the current element will be
+     referred to this identifier instead. This can be used in overridden methods/properties
+     to refer to the parent documentation instead.
+     </dd><dt class="description">
+<span 
+class="cmbx-10">alwaysvisible</span> </dt><dd 
+class="description">if set to 1, documentation for the element will be shown anyway, even if the
+     current visibility is not shown. This can be used to force generation of documentation
+     for private or protected members of a class even when they are not supposed to be
+     shown. (for example, <span 
+class="cmtt-10">--hide-protected </span>is given, and one wishes to show a protected
+     method.)
+     </dd><dt class="description">
+<span 
+class="cmbx-10">skip</span> </dt><dd 
+class="description">if set to 1, the element will not appear in any overviews. A documentation page may
+     be generated in HTML, but it will not be linked to from any overview.</dd></dl>
+<!--l. 1679--><p class="noindent" >See also: <span 
+class="cmbx-10">descr </span>(<a 
+href="fpdocsu66.html#x87-860005.3.6">171<!--tex4ht:ref: tag:descr --></a>), <span 
+class="cmbx-10">short </span>(<a 
+href="fpdocsu89.html#x110-1090005.3.29">220<!--tex4ht:ref: tag:short --></a>), <span 
+class="cmbx-10">errors </span>(<a 
+href="fpdocsu71.html#x92-910005.3.11">181<!--tex4ht:ref: tag:errors --></a>), <span 
+class="cmbx-10">seealso </span>(<a 
+href="fpdocsu88.html#x109-1080005.3.28">218<!--tex4ht:ref: tag:seealso --></a>)
+                                                                            
+
+                                                                            
+<!--l. 1682--><div class="crosslinks"><p class="noindent">[<a 
+href="fpdocsu71.html" >next</a>] [<a 
+href="fpdocsu69.html" >prev</a>] [<a 
+href="fpdocsu69.html#tailfpdocsu69.html" >prev-tail</a>] [<a 
+href="fpdocsu70.html" >front</a>] [<a 
+href="fpdocse14.html#fpdocsu70.html" >up</a>] </p></div>
+<!--l. 1682--><p class="noindent" ><a 
+ id="tailfpdocsu70.html"></a>  
+</body></html> 

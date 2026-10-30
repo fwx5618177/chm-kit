@@ -15,7 +15,9 @@ extract the entire artifact and open its `index.html`. Keep the asset directorie
 beside it. GitHub sign-in is normally required; the workflow requests 30-day
 retention. This is prebuilt HTML: **readers do not need to build the source**.
 Use the matching source revision's entry map and guides below when browsing GitHub.
-See [downloads](guide/downloads.md#api-reference) for details.
+See [downloads](guide/downloads.md#api-reference) for details. The verified
+`45a5b5f` API/download links are historical, not documentation or hosted evidence
+for the new standalone viewer revision; new-revision uploads remain pending.
 
 For contributors, `pnpm docs:build` uses TypeDoc 0.28.20 and
 [`typedoc.json`](../typedoc.json) to generate `dist/api/`, treating warnings as

@@ -76,6 +76,60 @@ for (const version of [2, 3]) {
   });
 }
 
+test('ITSF: accepts the exact FPC v3 duplicated-first-GUID variant', () => {
+  const buf = createITSFBuffer();
+  buf.copy(buf, 0x28, 0x18, 0x28);
+  const reader = new BitReader(Buffer.concat([buf, Buffer.from('tail')]));
+  equal(
+    ITSFHeaderParser.parse(reader),
+    ITSFHeaderParser.parse(new BitReader(createITSFBuffer())),
+  );
+  equal(reader.position, buf.length);
+});
+
+test('ITSF: rejects reversed, duplicated-second, zero and unknown GUID pairs', () => {
+  const first = Buffer.from('10fd017caa7bd0119e0c00a0c922e6ec', 'hex');
+  const second = Buffer.from('11fd017caa7bd0119e0c00a0c922e6ec', 'hex');
+  const unknown = Buffer.from(first);
+  unknown[15] ^= 1;
+  for (const version of [2, 3]) {
+    for (const [left, right] of [
+      [second, first],
+      [second, second],
+      [Buffer.alloc(16), second],
+      [first, Buffer.alloc(16)],
+      [first, unknown],
+      [unknown, second],
+      [unknown, unknown],
+    ]) {
+      const buf = createITSFBuffer(version);
+      left!.copy(buf, 0x18);
+      right!.copy(buf, 0x28);
+      throws(() => ITSFHeaderParser.parse(new BitReader(buf)), /ITSF GUID/);
+    }
+  }
+  // The upstream evidence is v3 only; do not extend the exception to v2.
+  const v2 = createITSFBuffer(2);
+  first.copy(v2, 0x28);
+  throws(() => ITSFHeaderParser.parse(new BitReader(v2)), /ITSF GUID/);
+});
+
+test('ITSF: rejects every other single-bit GUID corruption, including FPC tails', () => {
+  for (const fpc of [false, true]) {
+    const valid = createITSFBuffer();
+    if (fpc) valid.copy(valid, 0x28, 0x18, 0x28);
+    for (let offset = 0x18; offset < 0x38; offset++) {
+      for (let bit = 0; bit < 8; bit++) {
+        // These two accepted pairs differ by exactly this bit.
+        if (offset === 0x28 && bit === 0) continue;
+        const bad = Buffer.from(valid);
+        bad[offset] ^= 1 << bit;
+        throws(() => ITSFHeaderParser.parse(new BitReader(bad)), /ITSF GUID/);
+      }
+    }
+  }
+});
+
 test('ITSF: rejects signatures, versions, both bad GUIDs and short version headers', () => {
   for (const [offset, value] of [
     [0, 0],

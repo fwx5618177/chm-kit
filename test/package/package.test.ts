@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import {
   cp,
+  mkdir,
   mkdtemp,
   readFile,
   realpath,
@@ -191,6 +192,63 @@ describe('installed npm tarball', () => {
     expect(packed.files.map(file => file.path)).toContain(
       'dist/browser/index.mjs',
     );
+  });
+
+  it('ships a complete browser viewer that resolves outside the repository without a consumer build', async () => {
+    const metadata = JSON.parse(
+      await readFile(join(packageRoot, 'package.json'), 'utf8'),
+    ) as { version: string };
+    const archive = join(
+      packageRoot,
+      'dist/package',
+      `chmkit-${metadata.version}-browser.tar.gz`,
+    );
+    const files = invoke('tar', ['-tzf', archive], directory!)
+      .toString('utf8')
+      .trim()
+      .split(/\r?\n/);
+    expect(files).toEqual(
+      expect.arrayContaining([
+        'dist/viewer/index.html',
+        'dist/viewer/viewer.js',
+        'dist/viewer/reader.worker.js',
+        'dist/viewer/worker-client.js',
+      ]),
+    );
+    expect(
+      files.filter(
+        name =>
+          !/^(?:dist\/(?:browser|viewer|types)(?:\/|$)|LICENSE$|README(?:_zh)?\.md$|THIRD_PARTY_NOTICES\.txt$)/.test(
+            name,
+          ),
+      ),
+    ).toEqual([]);
+    const extracted = join(directory!, 'browser-download');
+    await mkdir(extracted);
+    invoke('tar', ['-xzf', archive, '-C', extracted], directory!);
+    const html = await readFile(
+      join(extracted, 'dist/viewer/index.html'),
+      'utf8',
+    );
+    expect(html).toContain('Content-Security-Policy');
+    expect(html).toContain('viewer.js');
+    const linked = await build({
+      absWorkingDir: extracted,
+      entryPoints: ['dist/viewer/viewer.js', 'dist/viewer/reader.worker.js'],
+      bundle: true,
+      platform: 'browser',
+      format: 'esm',
+      outdir: 'verification-only',
+      write: false,
+      metafile: true,
+    });
+    for (const input of Object.keys(linked.metafile!.inputs)) {
+      const path = relative(extracted, resolve(extracted, input));
+      expect(isAbsolute(path)).toBe(false);
+      expect(path).not.toMatch(/^\.\.(?:[/\\]|$)/);
+    }
+    for (const output of Object.values(linked.metafile!.outputs))
+      expect(output.imports.filter(item => item.external)).toEqual([]);
   });
 
   it('excludes tests, fixtures, demo content and test artifacts from the tarball', () => {

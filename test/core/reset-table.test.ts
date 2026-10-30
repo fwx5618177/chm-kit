@@ -59,6 +59,171 @@ test('ResetTable: standard LE header, uint64 cumulative offsets and frame length
   ok(processor.validate());
 });
 
+test('ResetTable: one exact terminal Content offset normalizes to real frames only', () => {
+  for (const uncompressedLength of [
+    1,
+    0x8000,
+    0x8001,
+    0x10000,
+    0x10000 + 123,
+  ]) {
+    const count = Math.ceil(uncompressedLength / 0x8000);
+    const offsets = Array.from({ length: count }, (_, i) => i * 1000);
+    const options = { uncompressedLength, compressedLength: count * 1000 };
+    const expected = parse(
+      createResetTableBuffer(offsets, options),
+    ).getResetTable();
+    const processor = parse(
+      createResetTableBuffer([...offsets, options.compressedLength], options),
+    );
+    equal(processor.getResetTable(), expected);
+    equal(processor.getBlockCount(), count);
+    equal(processor.getBlockInfo(count), null);
+    throws(() => processor.calculateBlockOffset(count));
+    equal(processor.findBlockByOffset(options.compressedLength - 1), count - 1);
+    equal(processor.findBlockByOffset(options.compressedLength), -1);
+    ok(processor.getResetTable()!.entries.every(e => e.uncompressedLength > 0));
+    ok(processor.validate());
+  }
+});
+
+test('ResetTable: terminal variant consumes the raw table with padding and nonzero start', () => {
+  const buf = createResetTableBuffer([0, 1000, 2500, 4000], {
+    uncompressedLength: 0x10000 + 123,
+    tableOffset: 64,
+  });
+  buf.fill(0xcc, 40, 64);
+  const reader = new BitReader(
+    Buffer.concat([Buffer.alloc(7), buf, Buffer.from('tail')]),
+  );
+  reader.setPosition(7);
+  const table = new ResetTableProcessor().parseResetTable(reader);
+  equal(reader.position, 7 + buf.length);
+  equal(table.blockCount, 3);
+  equal(table.entries.length, 3);
+  equal(table.entries[2]!.uncompressedLength, 123);
+});
+
+test('ResetTable: terminal offsets retain all safe uint64 high words', () => {
+  const processor = parse(
+    createResetTableBuffer([0, 0x100000123, Number.MAX_SAFE_INTEGER], {
+      uncompressedLength: 0x8001,
+      compressedLength: Number.MAX_SAFE_INTEGER,
+    }),
+  );
+  equal(processor.getBlockCount(), 2);
+  equal(processor.getResetTable()!.compressedLength, Number.MAX_SAFE_INTEGER);
+  equal(processor.calculateBlockOffset(1), 0x100000123);
+  equal(processor.findBlockByOffset(Number.MAX_SAFE_INTEGER - 1), 1);
+});
+
+test('ResetTable: rejects inexact, duplicate, early and unsafe terminal offsets', () => {
+  for (const terminal of [
+    0,
+    1,
+    1000,
+    2500,
+    3999,
+    4001,
+    Number.MAX_SAFE_INTEGER,
+  ]) {
+    throws(
+      () =>
+        parse(
+          createResetTableBuffer([0, 1000, 2500, terminal], {
+            uncompressedLength: 0x10000 + 123,
+          }),
+        ),
+      /terminal/,
+    );
+  }
+  const unsafe = createResetTableBuffer([0, 1000, 2500, 4000], {
+    uncompressedLength: 0x10000 + 123,
+  });
+  unsafe.writeBigUInt64LE(0x20000000000000n, unsafe.length - 8);
+  throws(() => parse(unsafe), /safe/);
+});
+
+test('ResetTable: exact terminal offset never excuses malformed real frame starts', () => {
+  for (const offsets of [
+    [1, 1000, 2500, 4000],
+    [0, 2500, 1000, 4000],
+    [0, 1000, 1000, 4000],
+    [0, 1000, 4000, 4000],
+    [0, 1000, 4001, 4000],
+  ]) {
+    throws(
+      () =>
+        parse(
+          createResetTableBuffer(offsets, {
+            uncompressedLength: 0x10000 + 123,
+          }),
+        ),
+      /cumulative/,
+    );
+  }
+});
+
+test('ResetTable: accepts neither multiple terminals nor missing frame starts', () => {
+  const options = { uncompressedLength: 0x10000 + 123 };
+  for (const offsets of [
+    [],
+    [0],
+    [0, 4000],
+    [0, 1000, 4000],
+    [0, 1000, 2500, 4000, 4000],
+  ]) {
+    throws(() => parse(createResetTableBuffer(offsets, options)));
+  }
+  const truncatedCount = createResetTableBuffer([0, 1000, 2500, 4000], options);
+  for (const count of [0, 1, 2, 5, 0xffffffff]) {
+    truncatedCount.writeUInt32LE(count, 4);
+    throws(() => parse(truncatedCount));
+  }
+});
+
+test('ResetTable: does not introduce empty-stream terminal variants or zero compressed frames', () => {
+  throws(
+    () =>
+      parse(
+        createResetTableBuffer([0], {
+          uncompressedLength: 0,
+          compressedLength: 0,
+        }),
+      ),
+    /count/,
+  );
+  throws(
+    () =>
+      parse(
+        createResetTableBuffer([0, 0], {
+          uncompressedLength: 1,
+          compressedLength: 0,
+        }),
+      ),
+    /cumulative/,
+  );
+});
+
+test('ResetTable: terminal-table truncations and corruptions clear previous parsed state', () => {
+  const valid = createResetTableBuffer([0, 1000, 2500, 4000], {
+    uncompressedLength: 0x10000 + 123,
+  });
+  const processor = parse(valid);
+  for (let length = 0; length < valid.length; length++) {
+    throws(() =>
+      processor.parseResetTable(new BitReader(valid.subarray(0, length))),
+    );
+    equal(processor.getResetTable(), null);
+    ok(!processor.validate());
+  }
+  processor.parseResetTable(new BitReader(valid));
+  const corrupt = Buffer.from(valid);
+  corrupt.writeBigUInt64LE(3999n, corrupt.length - 8);
+  throws(() => processor.parseResetTable(new BitReader(corrupt)), /terminal/);
+  equal(processor.getResetTable(), null);
+});
+
 test('ResetTable: tableOffset is relative to the table start and may include padding', () => {
   const buf = createResetTableBuffer(undefined, { tableOffset: 64 });
   buf.fill(0xcc, 40, 64);

@@ -1,49 +1,48 @@
 # CHMKit
 
-用 TypeScript 读取、搜索、提取和创建 Microsoft HTML Help（`.chm`）归档。
-可直接运行预编译 CLI、集成 Node.js 库，或在浏览器中读取本地文件，无需上传。
+在浏览器中打开本地 Microsoft HTML Help（`.chm`）文件，通过终端探索内容，
+或把 TypeScript 读写库集成到应用。支持读取、搜索、预览、提取和创建归档，无需上传文件。
 
 [English](README.md) | **中文** · [文档导航](docs/index.md) ·
 [API 参考](docs/api.md) · [迁移指南](docs/guide/migration.md)
 
-## 快速开始：无需自己构建
+## 快速开始：选择使用方式
 
-**公共 npm registry 当前对 `chmkit` 返回 404，目前也不计划 npm 发布。**
-请使用以下预编译下载；使用者不需要源码仓库、pnpm 或编译器。
-已有[验证通过的 1.1.0 预构建快照及直接下载链接](docs/guide/downloads.md#verified-prebuilt-snapshot)，
-下载仍受 GitHub 登录和产物保留期限限制。
+| 下载文件                      | 适用场景                                           | 需要的环境                                |
+| ----------------------------- | -------------------------------------------------- | ----------------------------------------- |
+| `chmkit-1.1.0-browser.tar.gz` | 直接打开的本地查看器，另含浏览器模块和类型         | 现代浏览器；查看器无需 Node、npm 或服务器 |
+| `chmkit-1.1.0-cli.cjs`        | 终端检查、搜索、提取、打包                         | Node.js 20.10+；无需 npm install          |
+| `chmkit-1.1.0.tgz`            | Node 库、安装版 CLI、浏览器／Worker／Electron 集成 | 使用 Node.js 和 npm 安装                  |
 
-1. 打开 [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)，
-   选择所需修订对应的成功 **CI** 运行。
-2. 在 **Artifacts** 下载并解压 **`chmkit-<commit-sha>`**。
-   Actions 下载通常要求 **GitHub 登录**，产物有保留期限；打包 job 未完成的运行
-   不提供使用者下载，不能把任意绿色子任务当作完整交付。
-3. 查看 `manifest.json` 和下载包内带版本的 `USAGE.md`。
-   以下命令中的 `VERSION` 请替换为 manifest 的实际版本，不要猜测版本或标签。
+从成功的 [CI 运行](https://github.com/fwx5618177/chm-kit/actions/workflows/ci.yml)
+下载 **`chmkit-<commit-sha>`** artifact，或获取维护者提供的预编译包，然后解压。
+以下示例使用当前版本 **1.1.0**；请通过 `manifest.json` 确认下载的版本和源码修订，
+保留许可说明并[验证校验和](docs/guide/downloads.md#verify-the-download)。
 
-本文不假设已经存在公开 GitHub Release。维护者审批发布后，可提供长期、匿名可下载的
-Release 附件；见[下载说明](docs/guide/downloads.md)。
+已有的[验证通过的托管快照](docs/guide/downloads.md#verified-prebuilt-snapshot)
+是较早的 1.1.0 修订，**不含独立查看器**；新修订的托管验证和上传仍待完成。
+Actions 下载需要 GitHub 登录且会过期。npm 包**尚未发布**；npm 发布或公开 Release
+需要另行授权。见[下载详情](docs/guide/downloads.md)。
 
-| 下载文件                        | 适用场景               | 需要的环境                         |
-| ------------------------------- | ---------------------- | ---------------------------------- |
-| `chmkit-VERSION-cli.cjs`        | 检查、提取、搜索、打包 | 支持的 Node.js；不需要 npm install |
-| `chmkit-VERSION.tgz`            | 使用库或安装 CLI       | Node.js、npm；安装运行时依赖       |
-| `chmkit-VERSION-browser.tar.gz` | 浏览器 ESM 与声明文件  | 现代浏览器、HTTP(S) 静态托管       |
+### 直接打开本地查看器
 
-开发环境使用 Node.js 22.13+ 或 24；Node 20.19 仅作运行时兼容测试，
-不是安装开发依赖的环境。使用者的精确运行时要求见下载包 `engines.node`。
-独立 CLI **没有内嵌 Node 或 Electron 运行时**。源码构建只面向贡献者，见
-[CONTRIBUTING.md](CONTRIBUTING.md)。同次 CI 的 **`chmkit-api-<commit-sha>`**
-提供可直接浏览的 [TypeDoc API 文档](docs/api.md)，无需源码构建，也不代表已公开托管。
+解压 `chmkit-1.1.0-browser.tar.gz`，双击 **`dist/viewer/index.html`**。
+选择自己的 `.chm` 文件，或使用内置示例，即可浏览、搜索和预览内容。
+保持解压后的目录完整；无需 Node、npm、源码仓库、构建或本地服务器。
+已在 Chromium、Firefox 和 WebKit 验证直接以 `file:` 打开并预览示例，
+**HTTP 请求数为零**。
+
+查看器使用受限的禁脚本预览，部分 CHM 页面功能可能被省略。
+库 ESM 和 module Worker 集成仍需 HTTP(S)。见[浏览器指南](docs/guide/browser.md)。
 
 ### 直接运行独立 CLI
 
 ```sh
-node chmkit-VERSION-cli.cjs --help
-node chmkit-VERSION-cli.cjs info manual.chm --json
-node chmkit-VERSION-cli.cjs tree manual.chm --depth 2
-node chmkit-VERSION-cli.cjs search manual.chm "安装" --type html --json
-node chmkit-VERSION-cli.cjs extract manual.chm --output ./manual-new --preserve-structure
+node chmkit-1.1.0-cli.cjs --help
+node chmkit-1.1.0-cli.cjs info manual.chm --json
+node chmkit-1.1.0-cli.cjs tree manual.chm --depth 2
+node chmkit-1.1.0-cli.cjs search manual.chm "安装" --type html --json
+node chmkit-1.1.0-cli.cjs extract manual.chm --output ./manual-new --preserve-structure
 ```
 
 `manual.chm` 使用你自己的文件。读取内部页面前先列出路径，不要假设每个归档都有
@@ -52,7 +51,7 @@ node chmkit-VERSION-cli.cjs extract manual.chm --output ./manual-new --preserve-
 ### 安装预编译库
 
 ```sh
-npm install ./chmkit-VERSION.tgz
+npm install ./chmkit-1.1.0.tgz
 npx --no-install chmkit --help
 ```
 
@@ -116,8 +115,9 @@ try {
 二进制结果为普通 `Uint8Array`；Node 和浏览器的流均为 WHATWG `ReadableStream`。
 浏览器持有的完整内存输入不计入缓存预算。
 
-- **不使用打包器：**解压 browser archive，保留所有相对 chunks，使用 HTTP(S)
-  提供文件并导入 `./dist/browser/index.mjs`。
+- **本地查看器：**直接打开浏览器包内的 `dist/viewer/index.html`。
+  **不使用打包器集成库**时，保留所有 chunks，通过 HTTP(S) 导入
+  `./dist/browser/index.mjs`。
 - **Worker：**`chmkit/worker` 提供 client/host、有界 RPC、可选 transfer 和清理。
   见 [Worker 指南](docs/guide/worker.md)与[完整示例](examples/worker/)。
 - **Electron：**`chmkit/electron/main`、`chmkit/electron/preload` 提供经过授权的
@@ -148,17 +148,17 @@ await writeFile('generated-new.chm', bytes, { flag: 'wx' });
 重建归档，**不是原地编辑**；无法安全保留的结构会明确拒绝。
 具体参数、删除语义与限制见[打包与更新指南](docs/guide/packing.md)。
 
-## 能力边界与下一步
+## 兼容性与下一步
 
-已实现标准 ITSF v2/v3 结构和 LZX VERBATIM、ALIGNED、stored 解码，包括跨 frame／
-reset 的历史状态与 Intel E8。它不是完整 HTML Help Workshop 替代品，不保证读取所有
-CHM，也不承诺最优压缩率。全文搜索扫描支持的文本资源，不是直接支持所有生产器的
-编译搜索数据库。支持结构也不代表每种结构都有真实上游样本证明。
+支持 ITSF v2/v3 结构和 LZX VERBATIM、ALIGNED、stored 解码，包括跨 frame／reset
+的历史状态与 Intel E8。官方 Free Pascal 3.2.2 `fpdoc` 归档现可保持原始字节不变读取，
+并与独立提取结果比对。正常 v2、GBK/UTF-16 和更多 E8／window／reset 变体仍缺真实输入
+证据，不保证兼容所有生产器。搜索扫描支持的文本资源，而非所有生产器的编译搜索数据库。
 
-缓存限制是**受管缓存预算，不是总 RAM 上限**；范围读取仍可能从前置 reset 解码。
-提取拒绝路径穿越、危险名字、符号链接和覆盖，但不能消除恶意本地进程的所有 TOCTOU
-竞争。独立语料与有界变异测试提升置信度，不等于穷尽覆盖。
-见[格式／LZX 指南](docs/guide/format-lzx.md)和[实际验证记录](VALIDATION.md)。
+集成限制见[格式与兼容性](docs/guide/format-lzx.md)、
+[资源预算](docs/guide/configuration.md)、[安全策略](SECURITY.md)和
+[实际验证记录](VALIDATION.md)。预编译 [TypeDoc HTML](docs/api.md) 是单独的
+`chmkit-api-<commit-sha>` CI artifact。
 
 - [CLI 指南](docs/guide/cli.md)：tree、search、read、preview、browse、batch、pack
 - [配置与资源预算](docs/guide/configuration.md)

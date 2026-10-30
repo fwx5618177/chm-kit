@@ -18,8 +18,10 @@ through the artifact pipeline.
 
 `test/fixtures/pychm-example/` contains GPL-2.0-or-later PyCHM data.
 `test/fixtures/upstream-chm/` contains independently sourced PuTTY, 7-Zip,
-Inno Setup, PyCHM and libmspack fixtures with their corresponding MIT, permissive,
-LGPL or GPL notices. Raw CHMs, extracted oracle bytes, notices and derived copies
+Inno Setup, PyCHM, official Free Pascal 3.2.2 `fpdoc` and libmspack fixtures
+with their corresponding MIT, permissive, LGPL or GPL notices. The FPC data is
+LGPL-2.0-or-later; its retained documentation license grant and LGPL v2 text
+remain test-only alongside the original ZIP/member hashes. Raw CHMs, extracted oracle bytes, notices and derived copies
 retain their upstream terms. Review each fixture's README and manifest:
 
 - [Original PyCHM fixture](../../test/fixtures/pychm-example/README.md)

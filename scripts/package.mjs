@@ -412,6 +412,19 @@ async function packageAssets() {
     );
 
     const browserName = `${prefix}-browser.tar.gz`;
+    const viewer = join(work, 'viewer');
+    await mkdir(join(viewer, 'dist/viewer'), { recursive: true });
+    for (const name of [
+      'index.html',
+      'viewer.js',
+      'reader.worker.js',
+      'worker-client.js',
+    ]) {
+      await copyFile(
+        join(root, 'dist/viewer', name),
+        join(viewer, 'dist/viewer', name),
+      );
+    }
     // Preserve all browser chunks and all declarations, including future public
     // Worker/Electron entries from the canonical build; do not enumerate APIs.
     run(
@@ -427,13 +440,16 @@ async function packageAssets() {
         'README.md',
         'README_zh.md',
         'THIRD_PARTY_NOTICES.txt',
+        '-C',
+        viewer,
+        'dist/viewer',
       ],
       root,
     );
     const usageName = `${prefix}-USAGE.md`;
     await writeFile(
       join(output, usageName),
-      `# CHMKit ${manifest.version} prebuilt downloads\n\nSource commit: ${commit}\n\n- Install Node package: \`npm install ./${packed.filename}\`. Compiled CJS/ESM, CLI and declarations are already included; do not run build. Runtime dependencies are fetched from npm.\n- Standalone CLI: \`node ${cliName} --help\`. Requires ${manifest.engines?.node ?? 'a supported Node.js version'}, but no npm install, pnpm or compiler.\n- Browser: extract \`${browserName}\`, serve \`dist/browser/\` over HTTP(S), and import \`index.mjs\` or \`root.mjs\`; retain the chunks and relative paths. Declaration files are in \`dist/types/\`.\n- Verify files using \`sha256sum -c SHA256SUMS\` (macOS: \`shasum -a 256 -c SHA256SUMS\`). Windows PowerShell: \`Get-FileHash -Algorithm SHA256 <file>\`; compare to SHA256SUMS. Hashes detect corruption; obtain the manifest from a trusted source.\n\nThird-party dependency license notices are included in THIRD_PARTY_NOTICES.txt and the archives. These assets do not embed a Node executable or Electron runtime.\n`,
+      `# CHMKit ${manifest.version} prebuilt downloads\n\nSource commit: ${commit}\n\n- Install Node package: \`npm install ./${packed.filename}\`. Compiled CJS/ESM, CLI and declarations are already included; do not run build. Runtime dependencies are fetched from npm.\n- Standalone CLI: \`node ${cliName} --help\`. Requires ${manifest.engines?.node ?? 'a supported Node.js version'}, but no npm install, pnpm or compiler.\n- Browser viewer: extract \`${browserName}\` and open \`dist/viewer/index.html\` directly in a modern browser. No npm, build, Node.js or local server is required, and archive contents stay local. Library ESM/Worker integration instead uses HTTP(S)-served \`dist/browser/index.mjs\` or \`root.mjs\`; retain all relative paths/chunks. Declaration files are in \`dist/types/\`.\n- Verify files using \`sha256sum -c SHA256SUMS\` (macOS: \`shasum -a 256 -c SHA256SUMS\`). Windows PowerShell: \`Get-FileHash -Algorithm SHA256 <file>\`; compare to SHA256SUMS. Hashes detect corruption; obtain the manifest from a trusted source.\n\nThird-party dependency license notices are included in THIRD_PARTY_NOTICES.txt and the archives. These assets do not embed a Node executable or Electron runtime.\n`,
     );
 
     const assets = await Promise.all(

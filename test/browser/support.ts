@@ -73,7 +73,7 @@ export const test = base.extend<BrowserFixtures>({
         }
         return route.fallback();
       });
-      await page.goto('/examples/browser/index.html', {
+      await page.goto('/dist/viewer/index.html', {
         waitUntil: 'networkidle',
       });
       await use(activity);

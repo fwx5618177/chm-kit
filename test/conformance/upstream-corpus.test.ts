@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { CHMArchive, CacheStrategy } from '../../src/reader/chm-archive';
 import { CHMParser } from '../../src/core/parser/chm-parser';
 import { BitReader } from '../../src/utils/io/bit-reader';
+import { ITSFHeaderParser } from '../../src/core/headers/itsf-header';
 import {
   consumeStream,
   corpusRoot,
@@ -43,7 +44,31 @@ test('all upstream bytes, notices and independent oracle digests are pinned', ()
     expect(bytes.length).toBe(archive.length);
     expect(sha256(bytes)).toBe(archive.sha256);
     expect(archive.modified).toBe(false);
-    expect(archive.sourceCommitUrl).toMatch(/[a-f0-9]{40}/);
+    if (archive.file === 'fpc-3.2.2-fpdoc.chm') {
+      expect(archive.sourceCommitUrl).toBeNull();
+      expect(archive.binaryBuildCommit).toBeNull();
+      expect(archive.documentationSourceUrl).toBe(
+        'https://raw.githubusercontent.com/fpc/FPCDocumentation/28a887047f9fa593dff284cb35b938cdb2f86268/fpdoc.tex',
+      );
+      expect(archive.documentationSourceArchiveUrl).toBe(
+        'https://github.com/fpc/FPCDocumentation/archive/28a887047f9fa593dff284cb35b938cdb2f86268.tar.gz',
+      );
+      expect(archive.downloadUrl).toBe(
+        'https://downloads.freepascal.org/fpc/dist/3.2.2/docs/doc-chm.zip',
+      );
+      expect(archive.container).toEqual({
+        sha256:
+          'cb9ebc5f333653e6c22bdbcf92ea3390f485db330d5cf9377281af0ed367ab53',
+        member: 'help/fpdoc.chm',
+        executed: false,
+        retained: false,
+      });
+      expect(archive.provenanceNote).toContain(
+        'exact binary build commit is unknown',
+      );
+    } else {
+      expect(archive.sourceCommitUrl).toMatch(/[a-f0-9]{40}/);
+    }
     expect(archive.license).not.toBe('');
     expect(fixtureBytes(archive.licenseFile).length).toBeGreaterThan(100);
     if (archive.gitBlobSha1) {
@@ -64,6 +89,37 @@ test('all upstream bytes, notices and independent oracle digests are pinned', ()
   expect(filesBelow(join(corpusRoot, 'expected')).sort()).toEqual(
     expectedPaths.sort(),
   );
+});
+
+test('official FPC fpdoc retains producer evidence and the nonstandard GUID pair', () => {
+  const archive = normalArchives.find(a => a.file === 'fpc-3.2.2-fpdoc.chm')!;
+  const bytes = fixtureBytes(archive.file);
+  expect(bytes.length).toBe(81579);
+  expect(sha256(bytes)).toBe(
+    '20d3d4932ae7cca2fa1efa033e9c4e63780788fedc96e9134c53c6f9a9d2c552',
+  );
+  const pair = '10fd017caa7bd0119e0c00a0c922e6ec'.repeat(2);
+  expect(bytes.subarray(0x18, 0x38).toString('hex')).toBe(pair);
+  expect(archive.itsfGuidPair).toBe(pair);
+  const reader = new BitReader(bytes);
+  expect(ITSFHeaderParser.parse(reader)).toMatchObject({
+    version: 3,
+    headerLength: 96,
+    languageId: 0,
+    directoryOffset: 120,
+    directoryLength: 12372,
+    unknown4: 12492,
+  });
+  expect(reader.position).toBe(96);
+  expect(archive.producer?.resource).toBe('/_#_README_#_');
+  const producer = archive.files.find(
+    f => f.name === archive.producer!.resource,
+  )!;
+  const text = oracleBytes(producer).toString('ascii');
+  expect(text).toBe(archive.producer!.text);
+  expect(text).toContain("Free Pascal's chm package 3.3.1");
+  expect(archive.files).toHaveLength(138);
+  expect(archive.license).toBe('LGPL-2.0-or-later');
 });
 
 for (const archive of normalArchives) {
@@ -92,6 +148,12 @@ for (const archive of normalArchives) {
         observed.contentOffset + (intelHeader ? 4 : 0),
       );
       expect((blockWord >>> 12) & 7).toBe(observed.firstLzxBlockType);
+      // Include metadata resources; only directory markers and DataSpace
+      // implementation streams are outside 7-Zip's extractable resource set.
+      const resources = [...parsed.directory.entries.keys()]
+        .filter(name => !name.endsWith('/') && !name.startsWith('::'))
+        .sort();
+      expect(resources).toEqual(archive.files.map(file => file.name).sort());
       for (const file of archive.files) {
         expect(parsed.directory.entries.get(file.name)).toMatchObject({
           name: file.name,
