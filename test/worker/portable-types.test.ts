@@ -34,6 +34,38 @@ function portableDeclarations(): Map<string, string> {
   return output;
 }
 
+function virtualCompilerHost(
+  host: ts.CompilerHost,
+  files: Map<string, string>,
+): ts.CompilerHost {
+  const canonicalPath = (name: string): string =>
+    host.getCanonicalFileName(name.replace(/\\/g, '/'));
+  const virtual = new Map(
+    [...files].map(([name, contents]) => [canonicalPath(name), contents]),
+  );
+  const originalRead = host.readFile.bind(host);
+  const originalExists = host.fileExists.bind(host);
+  const originalDirectory = host.directoryExists?.bind(host);
+  host.readFile = name =>
+    virtual.get(canonicalPath(name)) ?? originalRead(name);
+  host.fileExists = name =>
+    virtual.has(canonicalPath(name)) || originalExists(name);
+  host.directoryExists = name => {
+    const prefix = `${canonicalPath(name).replace(/\/$/, '')}/`;
+    return (
+      [...virtual.keys()].some(file => file.startsWith(prefix)) ||
+      !!originalDirectory?.(name)
+    );
+  };
+  host.getSourceFile = (name, language) => {
+    const contents = host.readFile(name);
+    return contents === undefined
+      ? undefined
+      : ts.createSourceFile(name, contents, language, true);
+  };
+  return host;
+}
+
 function checkConsumer(
   files: Map<string, string>,
   lib: string[],
@@ -50,21 +82,7 @@ function checkConsumer(
     types: [],
     lib,
   };
-  const host = ts.createCompilerHost(options);
-  const originalRead = host.readFile.bind(host);
-  const originalExists = host.fileExists.bind(host);
-  const originalDirectory = host.directoryExists?.bind(host);
-  host.readFile = name => virtual.get(name) ?? originalRead(name);
-  host.fileExists = name => virtual.has(name) || originalExists(name);
-  host.directoryExists = name =>
-    [...virtual.keys()].some(file => file.startsWith(`${name}/`)) ||
-    !!originalDirectory?.(name);
-  host.getSourceFile = (name, language) => {
-    const contents = host.readFile(name);
-    return contents === undefined
-      ? undefined
-      : ts.createSourceFile(name, contents, language, true);
-  };
+  const host = virtualCompilerHost(ts.createCompilerHost(options), virtual);
   const program = ts.createProgram([consumer], options, host);
   expect(
     ts
@@ -77,6 +95,42 @@ function checkConsumer(
 }
 
 describe('Worker/Electron declaration boundary', () => {
+  it.each([true, false])(
+    'canonicalizes virtual paths with case sensitivity %s',
+    caseSensitive => {
+      const directory = 'D:/a/chm-kit/chm-kit/test/worker/virtual-types/worker';
+      const file = `${directory}/index.d.ts`;
+      const source = 'export {};';
+      const base = ts.createCompilerHost({});
+      base.useCaseSensitiveFileNames = () => caseSensitive;
+      base.getCanonicalFileName = name =>
+        caseSensitive ? name : name.toLowerCase();
+      const host = virtualCompilerHost(
+        base,
+        new Map([[file.replace(/\//g, '\\'), source]]),
+      );
+      for (const name of [file, file.replace(/\//g, '\\')]) {
+        expect(host.fileExists(name)).toBe(true);
+        expect(host.readFile(name)).toBe(source);
+        expect(host.getSourceFile(name, ts.ScriptTarget.ES2020)?.text).toBe(
+          source,
+        );
+      }
+      for (const name of [directory, directory.replace(/\//g, '\\')]) {
+        expect(host.directoryExists?.(name)).toBe(true);
+        expect(host.directoryExists?.(`${name}/`)).toBe(true);
+        expect(host.directoryExists?.(`${name}-missing`)).toBe(false);
+      }
+      expect(host.fileExists(file.toUpperCase())).toBe(!caseSensitive);
+      expect(host.readFile(file.toUpperCase())).toBe(
+        caseSensitive ? undefined : source,
+      );
+      expect(host.directoryExists?.(directory.toUpperCase())).toBe(
+        !caseSensitive,
+      );
+    },
+  );
+
   it('consumes emitted declarations with ES2020 alone, without DOM, Node or Electron types', () => {
     const files = portableDeclarations();
     checkConsumer(

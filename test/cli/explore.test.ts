@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { Readable, Writable } from 'stream';
+import { pathToFileURL } from 'url';
 import { packFiles } from '../../src/encoder/archive-builder';
 import { CHMReader } from '../../src/reader/chm-reader';
 import { browseArchive } from '../../src/cli/browse';
@@ -16,7 +17,7 @@ import { ParserOperations } from '../../src/operations/parser';
 let root: string;
 let archive: string;
 const cliPath = resolve('src/cli/index.ts');
-const loader = require.resolve('tsx');
+const loader = pathToFileURL(require.resolve('tsx')).href;
 const binary = Buffer.from([0, 0xff, 0x80, 65]);
 const text = 'Alpha alpha\nword';
 const malicious =
