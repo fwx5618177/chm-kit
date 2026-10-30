@@ -113,13 +113,24 @@ test('same-size rewrite with restored mtime invalidates the source via ctime, ev
   try {
     source.cache.setLimit(4096);
     const output = source.read(0, 100);
-    const writer = openSync(path, 'r+');
-    try {
-      writeSync(writer, Buffer.from([2]), 0, 1, 0);
-    } finally {
-      closeSync(writer);
-    }
-    utimesSync(path, new Date(0), new Date(0));
+    // A same-tick rewrite need not advance the filesystem's change timestamp.
+    // Observe the ctime-only mutation before testing the cache-hit rejection.
+    await vi.waitFor(
+      () => {
+        const writer = openSync(path, 'r+');
+        try {
+          writeSync(writer, Buffer.from([2]), 0, 1, 0);
+        } finally {
+          closeSync(writer);
+        }
+        utimesSync(path, new Date(0), new Date(0));
+        assert.notEqual(
+          fstatSync(fd, { bigint: true }).ctimeNs,
+          before.ctimeNs,
+        );
+      },
+      { timeout: 2000, interval: 20 },
+    );
     const after = fstatSync(fd, { bigint: true });
     assert.equal(after.size, before.size);
     assert.equal(after.mtimeNs, before.mtimeNs);

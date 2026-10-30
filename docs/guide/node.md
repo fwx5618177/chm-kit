@@ -45,6 +45,9 @@ failure closes the acquired source. Finish or cancel streams before closing.
 The file source checks descriptor identity, size and timestamps at read boundaries,
 including cached reads, and closes/refuses detected mutations. These checks are
 not a file lock or a race-free snapshot; immutability is still your responsibility.
+Timestamp granularity varies by filesystem: a same-size rewrite that leaves all
+observed metadata unchanged cannot be detected by these checks. Do not rely on
+them to secure a file that another process can modify.
 
 Only descriptor acquisition is asynchronous. Parsing, source reads, search and
 decoding run synchronously on the calling thread, including stream pulls. An
