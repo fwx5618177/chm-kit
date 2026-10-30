@@ -88,14 +88,23 @@ approved public Releases. See [downloads](docs/guide/downloads.md).
   confidence, not exhaustive safety. See [coverage](test/conformance/README.md),
   [format](docs/guide/format-lzx.md), [budgets](docs/guide/configuration.md) and [security](SECURITY.md).
 
-## Cache follow-up — separate hosted verification pending
+## Verified cold-cache ownership and final CI noise check
 
-The working-tree follow-up replaces competing post-job saves with verified
-`actions/cache/restore` and `save` v6.1.0, all-job restore and only three designated
-Node-24 OS writers saving immediately after frozen install. It also emits the
-actual pnpm store path by executing the installed JS entry, not a Windows `.cmd`.
-These changes need their **own hosted cold-cache run**; run 41044610433 does not
-verify them or prove cache contention eliminated. See [.github/PIPELINES.md](.github/PIPELINES.md).
+[Run 41046798648](https://github.com/fwx5618177/chm-kit/actions/runs/41046798648)
+at exact **`4bb18ee53eb395131239185c57dad5b4cb3bc0f0`** passed **15/15 jobs**, with
+the same test counts as above. All **15 complete logs (777,833 bytes / 8,005
+lines)** and all annotations were inspected: **zero technical warnings/errors,
+zero cache-reservation/save failures**. Only four macOS capacity notices remain.
+
+The new `pnpmstore-<OS>-<arch>-<lockhash>` namespace had **13 cold misses and two
+warm hits**. All three Node-24 OS owners had a cold miss and successfully saved
+their respective keys: **exactly three save attempts, all successful; twelve
+restore-only jobs**. The two later warm hits do not substitute for the owners'
+verified cold paths. Restore/save use pinned official `actions/cache` v6.1.0
+(Node 24); the pnpm store path comes from its actual JS entry, not a Windows
+`.cmd`. No warnings were hidden to obtain this result. The earlier eleven
+contentions are historical and absent from this follow-up. See
+[cache policy](.github/PIPELINES.md#cache-policy--verified-single-writer-ownership).
 
 ## Reproduction and remaining gates
 

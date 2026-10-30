@@ -220,8 +220,11 @@ cases, with 31 minimum-runtime installed-consumer cases. The actual downloaded
 browser archive passed `file:` sample preview with zero HTTP requests/errors in
 all three engines. All hosted logs/annotations were reviewed: zero technical
 warnings/errors, but four capacity notices and eleven nonfatal cache contentions.
-The subsequent single-writer cache follow-up needs its own hosted cold-cache
-verification; do not extend the accepted source's result to later edits.
+The subsequent single-writer cache policy was separately verified in run
+41046798648 at `4bb18ee53eb395131239185c57dad5b4cb3bc0f0`: all 15 jobs passed,
+13 cold misses and two warm hits, exactly three successful OS-owner saves,
+12 restore-only jobs, zero technical/cache warnings and only four capacity
+notices. Do not extend an accepted source's result to later code changes.
 
 Normal CI is read-only and never publishes. Manual release policy is in
 `.github/PIPELINES.md`: existing matching tag, coherent version, full CI and

@@ -30,8 +30,8 @@ it never publishes to npm, deploys, creates tags or creates releases.
 - Every dependency install in the source checkout uses
   `pnpm install --frozen-lockfile --ignore-scripts`. Only pnpm's actual store is
   cached, keyed by OS, architecture and `pnpm-lock.yaml`; `node_modules` and build
-  outputs are not cached. The subsequent single-writer cache policy below needs
-  its own hosted cold-cache validation.
+  outputs are not cached. The single-writer policy below has verified cold-cache
+  acceptance on all three platforms.
 - Toolchain order is Node 24 bootstrap → npm install of the exact `packageManager`
   pnpm version into the runner temp directory (no lifecycle scripts) → pnpm
   store cache + frozen source install on Node 24 → selected compatibility Node.
@@ -49,16 +49,16 @@ Vitest followed by **one invocation of all four Playwright projects**, preservin
 all 46 browser/native cases under
 `test-results/playwright/{results.json,html,artifacts}`. Each browser/native CI
 job uploads its own report tree; focused local invocations replace the previous
-report. **Run 41044610433 at `962ee71` passed all 15 jobs**; this does not verify
-later cache-policy edits.
+report. **Run 41044610433 at `962ee71` passed all 15 jobs**; the subsequent cache
+policy also passed its own 15-job run, recorded below.
 
-## Cache policy — follow-up awaiting hosted validation
+## Cache policy — verified single-writer ownership
 
-The working-tree follow-up replaces competing post-job saves with separate
+The setup replaces competing post-job saves with separate
 `actions/cache/restore` and `actions/cache/save` **v6.1.0**, both pinned to
 **`55cc8345863c7cc4c66a329aec7e433d2d1c52a9`**. The official release tag and both
-entry points' Node-24 runtimes were verified. This verifies the pin/runtime,
-not execution of the revised cache flow on hosted runners.
+entry points' Node-24 runtimes were verified; the actual hosted cold-cache flow
+was then executed on Linux, macOS and Windows.
 
 - **All 15 jobs restore; only three write.** The Node-24 matrix job for each of
   Ubuntu/macOS/Windows is the designated writer of its OS/architecture key. The
@@ -74,10 +74,15 @@ not execution of the revised cache flow on hosted runners.
   executed by `process.execPath` with `store path --silent`, not a Windows `.cmd`
   shim. Restore/save use that actual validated absolute path.
 
-The accepted `962ee71` run had **11 nonfatal cache-reservation contentions**.
-This policy addresses that race, but a **new hosted cold-cache run is pending**.
-Do not claim the follow-up already passed remotely or that infrastructure noise
-has been eliminated.
+[Run 41046798648](https://github.com/fwx5618177/chm-kit/actions/runs/41046798648)
+at exact `4bb18ee53eb395131239185c57dad5b4cb3bc0f0` passed **15/15 jobs**.
+There were **13 cold misses, two later warm hits and exactly three successful
+save attempts**, all from the Node-24 owners (one per OS). All three owners
+missed before saving, exercising the fresh namespace rather than merely hitting
+an old cache. Twelve jobs remained restore-only. All 15 complete logs and
+annotations were inspected: **zero cache reservation/save failures or technical
+warning/error matches**. The earlier `962ee71` run's eleven contention messages
+are absent; four macOS capacity notices still remain.
 
 ## Action versions and real warnings
 
@@ -132,7 +137,7 @@ bytes / 8,129 lines)** and annotations were inspected: **zero technical
 warnings/errors**, including esbuild/Vite/IPC/npm/deprecation diagnostics.
 **Four macOS capacity notices and eleven nonfatal cache-reservation contentions**
 were observed; they are not hidden or relabeled as a noise-free run. The later
-cache fix above awaits its own hosted evidence.
+cache-policy run above separately confirms elimination of the contention.
 
 The actual runtime/API artifacts were downloaded; exact source, version 1.1.0,
 `dirty: false`, all sizes/hashes and inventories were verified. The downloaded
