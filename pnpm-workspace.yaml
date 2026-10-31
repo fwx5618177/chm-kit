@@ -1,0 +1,7 @@
+# Dependabot runs pnpm with --config.minimum-release-age=4320 (3 days). Re-resolving
+# the lockfile then rejects any locked version published inside that window, which
+# failed every update run (electron 45.1.0 on 10/27, rollup 4.66.0 on 10/29).
+# Dependabot's own cooldown still delays new version proposals.
+minimumReleaseAgeExclude:
+  - electron
+  - '@rollup/*'
