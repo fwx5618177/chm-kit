@@ -42,15 +42,11 @@ for (const cause of [new Error('original failure'), { code: 'E_CUSTOM' }]) {
   test(`strict config preserves ${cause instanceof Error ? 'Error' : 'non-Error'} cause identity`, () => {
     const configPath = join(root, 'config.json');
     writeFileSync(configPath, '{"cli":{"showProgress":false}}');
+    vi.spyOn(JSON, 'parse').mockImplementation(() => {
+      throw cause;
+    });
     assert.throws(
-      () =>
-        loadConfig({
-          configPath,
-          strict: true,
-          onField: () => {
-            throw cause;
-          },
-        }),
+      () => loadConfig({ configPath, strict: true }),
       error => hasCause(error, cause, /Failed to load config file/),
     );
   });

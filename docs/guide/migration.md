@@ -100,13 +100,31 @@ surface or a remote stream API.
   for absence; it does not swallow corrupt-archive/open/closed-reader errors.
 - Per-file compressed size/ratio is `null` for a shared LZX stream. Update code
   that assumed a numeric per-file estimate; use `compressedSizeExact` and notes.
-- Legacy pseudo-LZX Huffman helpers (`createLZXDecoder`, `readCodeLengths`,
-  `buildPredefinedTree` and `LZXHuffmanDecoder` operations) retain deprecated
-  signatures but throw explicit unsupported errors. Use the actual `LZXDecoder`;
-  generic Huffman-tree functionality is separate and still available.
+- Legacy pseudo-LZX Huffman helpers were removed (`Huffman.createLZXDecoder`,
+  `Huffman.readCodeLengths`, `Huffman.buildPredefinedTree` and the internal
+  `LZXHuffmanDecoder` class). They only threw \"unsupported\" errors. Use
+  `LZXDecoder`; the generic canonical-tree functions (`createCanonicalTree`,
+  `decodeSymbol`, `validateTree`, `getTreeStats`) remain.
 
 These are intentional correctness/security changes, not full behavior-level
 backward compatibility.
+
+## Removed configuration and legacy APIs
+
+Earlier development builds exposed configuration surface that was accepted but
+not applied. It has been removed rather than kept as deprecated no-ops:
+
+| Removed                                                                                                                                                         | Replacement                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Config sections `default`, `format`, `validation`; fields `cli.defaultTempDir`, `cli.colorOutput`, `performance.bufferSize`, `performance.compressionThreshold` | Explicit options in [configuration](configuration.md), such as `ReaderOptions`. A file containing them still loads and warns `Unknown config key ...`. |
+| `chm.config` (convenience export) and the `DEFAULT_CONFIG` constant                                                                                             | `getConfig()` / `loadConfig()` from `chmkit/config`, or the section getters                                                                            |
+| `getDefaultConfig`, `getChmFormatConfig`, `getValidationConfig`, `defaultConfig`, `defaultChmFormatConfig`, `defaultValidationConfig`, `config`                 | `defaultFullConfig`, `defaultLzxConfig`, `defaultCliConfig`, `defaultPerformanceConfig`                                                                |
+| `loadConfig` options `onField` and `validateConfig`                                                                                                             | `strict` and `configPath`; invalid values always fail (strict) or fall back                                                                            |
+| `CHMOptions`, `CHMFormatConfig`, `ValidationConfig` types                                                                                                       | The reader/encoder option types                                                                                                                        |
+| `HuffmanDecoder` type and the Huffman legacy statics listed above                                                                                               | `LZXDecoder`                                                                                                                                           |
+
+The root `chmkit` export no longer includes `DEFAULT_CONFIG`; `VERSION` and
+`SUPPORTED_VERSIONS` remain.
 
 ## Writing and updating
 

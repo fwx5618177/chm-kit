@@ -152,5 +152,5 @@ belong in [VALIDATION.md](../../VALIDATION.md).
 - `src/reader/`: cache/budget/lifetime API and Node file source.
 - `src/encoder/`: canonical trees, match finding, archive serialization/navigation.
 
-Legacy pseudo-LZX Huffman helper methods intentionally throw unsupported errors;
-use `LZXDecoder` for actual decoding. See [migration](migration.md).
+Legacy pseudo-LZX Huffman helper methods were removed; use `LZXDecoder` for actual
+decoding. See [migration](migration.md).

@@ -3,17 +3,6 @@ import { loadConfig } from '../core/config';
 import type { CHMKitConfig, ExtractProgress } from '../core/types';
 
 const configurations = new WeakMap<Command, CHMKitConfig>();
-const connectedFields = new Set([
-  'cli.defaultOutputDir',
-  'cli.defaultOutputFile',
-  'cli.maxConcurrency',
-  'cli.showProgress',
-  'performance.chunkSize',
-  'performance.maxFileSize',
-  'lzx.windowSize',
-  'lzx.resetInterval',
-  'lzx.compressionLevel',
-]);
 
 /** Loads once per invocation, never during module import or help/version output. */
 export function configureCLI(program: Command): void {
@@ -25,12 +14,6 @@ export function configureCLI(program: Command): void {
     const config = loadConfig({
       configPath: program.opts<{ config?: string }>().config,
       strict: true,
-      onField: field => {
-        if (!connectedFields.has(field))
-          process.stderr.write(
-            `配置 ${field} 为兼容字段，CLI 不会自动应用该字段；请使用对应 API 的显式选项。\n`,
-          );
-      },
     });
     configurations.set(program, config);
   });

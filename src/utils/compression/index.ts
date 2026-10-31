@@ -5,4 +5,3 @@
 
 export { Huffman } from './huffman';
 export { HuffmanTreeOperations } from './huffman-tree';
-export { LZXHuffmanDecoder } from './lzx-huffman-decoder';

@@ -378,7 +378,7 @@ test('search and preview also honor configured materialization limits and explic
   ).toContain('sandbox=""');
 });
 
-test('unsupported legacy config fields warn truthfully on stderr without polluting JSON', async () => {
+test('removed config sections warn on stderr and are ignored without polluting JSON', async () => {
   await fs.writeFile(
     join(root, 'chmkit.config.json'),
     JSON.stringify({
@@ -389,8 +389,15 @@ test('unsupported legacy config fields warn truthfully on stderr without polluti
   );
   const result = success('info', archive, '--json');
   expect(JSON.parse(result.stdout.toString()).fileCount).toBeGreaterThan(0);
-  expect(result.stderr.toString()).toContain('default.maxMemory');
-  expect(result.stderr.toString()).toContain('CLI 不会自动应用');
+  expect(result.stderr.toString()).toContain(
+    "Unknown config key 'default' will be ignored",
+  );
+  expect(result.stderr.toString()).toContain(
+    "Unknown config key 'validation' will be ignored",
+  );
+  expect(result.stderr.toString()).toContain(
+    "Unknown config key 'cli.colorOutput' will be ignored",
+  );
 });
 
 test('batch isolates duplicate names, continues after input errors, reports partial failure as JSON and refuses overwrite', async () => {

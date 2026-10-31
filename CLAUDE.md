@@ -187,8 +187,9 @@ source-only tests do not prove packaged availability.
   extraction failures are nonzero; cancellation is cooperative with cleanup.
   `--stream` is raw, not JSON; batch is sequential across archives; concurrency
   limits asynchronous I/O, not parallel CPU.
-- CLI config only consumes its documented subset. Never advertise `maxMemory`,
-  checksum/strictness or other compatibility fields as implemented global controls.
+- CLI config only consumes its documented subset (`cli`, `performance`, `lzx`).
+  Removed legacy sections such as `maxMemory`, `validation.*` or `format.*` are
+  unknown keys that warn and are ignored; never reintroduce them as inert fields.
 - Worker transfers are opt-in and detach whole backing buffers. Remote handles are
   a subset of local methods. Timeouts/cancel settle calls, not synchronous CPU
   preemption. Disposal and late-open cleanup must remain correct.

@@ -29,18 +29,22 @@ suppression or log filtering is used. This was not an infrastructure-noise-free 
 
 ## Consolidated local acceptance
 
-`pnpm test:all` passed **883/883 Vitest cases in 58 files** and **46/46 Playwright
-cases** (39 browser + 7 native Electron), with zero failures/skips/flaky results.
+`pnpm test:all` passed **845/845 Vitest cases in 58 files** and **46/46 Playwright
+cases** (39 browser + 7 native Electron) on the working tree after removing inert
+config fields and throw-only Huffman legacy APIs, with zero failures/skips/flaky results.
+The Vitest count fell from 883 because the obsolete legacy-API cases were deleted;
+no replacement was dropped.
 It is `pnpm test && playwright test`: one Playwright invocation preserves all four
 projects in the same report. Focused `test:browser` / `test:electron` runs replace
 that report; current paths are `test-results/playwright/{results.json,html,artifacts}`.
 Vitest/minimum reports are `test-results/vitest.json` and `test-results/package-node20.json`.
 
-The actual Node 20.10 installed consumer passed **31/31**. Frozen installation,
-typecheck, zero-warning lint, formatting/whitespace checks, actionlint, TypeDoc
-build and the actual demo passed. The official-registry audit found **0 known
-vulnerabilities**. Local environment: macOS arm64, Node 24.15.0, pnpm 10.34.9;
-Vitest 4.1.12, Playwright 1.64.1, Vite 7.3.7 and independent 7-Zip 26.05.
+The Node 20.10 installed-consumer check (31/31) was last run before this change and
+must be re-run in CI for the new commit. Locally this round: typecheck, zero-warning
+lint, formatting, actionlint and `pnpm package:artifacts` passed. The official-registry
+audit found **0 known vulnerabilities** in the earlier run. Local environment: macOS
+arm64, Node 24.15.0, pnpm 10.34.9; Vitest 4.1.12, Playwright 1.64.1, Vite 7.3.7 and
+independent 7-Zip 26.05.
 
 ## Verified downloaded consumer assets
 

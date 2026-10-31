@@ -84,8 +84,9 @@ and [migration](docs/guide/migration.md).
 - LZX writing uses actual bit-cost selection across fixed/adaptive canonical
   Huffman and ALIGNED candidates, with stored fallback. Compressed bytes/ratios
   may change; optimal or monotonically better compression is not promised.
-- CLI configuration is applied to an explicit documented field subset. Accepted
-  compatibility-only fields warn when provided instead of implying unsupported controls.
+- CLI configuration is applied to an explicit documented field subset (`cli`,
+  `performance`, `lzx`). Removed legacy fields are unknown keys that warn and are
+  ignored instead of implying unsupported controls.
 - Extraction uses file-backed positioned input rather than a whole-archive copy,
   reports partial errors and preserves completed files. Input/decode remain
   synchronous; concurrency controls bounded asynchronous output I/O, not parallel
@@ -103,8 +104,10 @@ and [migration](docs/guide/migration.md).
 - The root browser-condition default is `CHMKit`; explicit `chmkit/browser` defaults
   to `CHMReader`. Prefer named imports. Browser bytes use Uint8Array, Node bytes
   use Buffer, local streams use WHATWG ReadableStream.
-- Legacy pseudo-LZX Huffman helpers are deprecated and explicitly unsupported;
-  use the real `LZXDecoder`. Generic Huffman functionality remains separate.
+- Legacy pseudo-LZX Huffman helpers were removed (they only threw unsupported
+  errors); use the real `LZXDecoder`. Generic canonical-tree functionality remains.
+  Removed configuration sections/fields and `DEFAULT_CONFIG`/`chm.config` are listed
+  in [migration](docs/guide/migration.md#removed-configuration-and-legacy-apis).
 - Generated navigation retains orphan nested pages rather than dropping them;
   authored contents cannot be silently replaced by template/hierarchy options.
 - Strict half-open byte ranges, missing-path-only `exists()` behavior and null

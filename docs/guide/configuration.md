@@ -51,24 +51,22 @@ is strict. CLI flags override the connected defaults below.
 `blockSize` is an explicit pack flag/API option, not a recognized `lzx` config
 field. Do not confuse `performance.chunkSize` with encoder block or CHM frame size.
 
-### Compatibility-only fields
+### Removed fields
 
-The CLI warns when these are explicitly provided, and does not automatically
-apply them: `default.*` (including `maxMemory`, `tempDir`, logger/logLevel),
-`format.*`, `cli.defaultTempDir`, `cli.colorOutput`, `performance.bufferSize`,
-`performance.compressionThreshold`, and `validation.*` (including
-`validateChecksums`, `strictMode`, `allowMissingFiles`, `validateHeaders`).
-
-These retained configuration fields are **not implemented CLI switches**. In
-particular, `maxMemory` is not a RAM cap and `validateChecksums: true` is not a
-verified CHM checksum feature. Header/range safety checks are mandatory in the
-parser and are not disabled by these fields. Some related behaviors have explicit
-operation options (such as writer verification); consult their actual types,
-not similar-sounding legacy config names.
+Only the fields in the table above are configuration. Earlier releases accepted
+other sections (`default.*`, `format.*`, `validation.*`, `cli.defaultTempDir`,
+`cli.colorOutput`, `performance.bufferSize`, `performance.compressionThreshold`)
+without applying them. They have been removed rather than kept as inert
+compatibility fields. A file containing them still loads: each removed key is
+reported as `Unknown config key '<path>' will be ignored` on stderr and omitted
+from the result. `maxMemory` is not a RAM cap, and `validateChecksums: true` is
+not a CHM checksum feature. Header and range safety checks in the parser are
+mandatory. Use the explicit operation options (such as writer verification) for
+those behaviors.
 
 Unknown keys warn and are omitted. Unsafe prototype keys and invalid types are
-rejected. LZX window/reset values must also meet encoder constraints. A config
-containing valid but unconnected fields is not a promise of future support.
+rejected. LZX window/reset values must also meet encoder constraints. Any invalid
+field rejects the whole file.
 
 ## Programmatic configuration
 
@@ -80,10 +78,9 @@ parent traversal). `searchPaths`/`configFileName` let applications choose their
 own search. `getConfig(true)` reloads its cached configuration.
 
 Non-strict file parsing errors can log and fall back to defaults; use strict
-loading when a failure must stop your application. `validateConfig: false` is
-not a bypass of mandatory type/prototype checks. Defaults and merged nested
-values are independently copied; exported legacy `config` is not a live global
-control plane. JSON configuration is data, not executable JavaScript.
+loading when a failure must stop your application. Defaults and merged nested
+values are independently copied, so mutating a returned configuration does not
+change later loads. JSON configuration is data, not executable JavaScript.
 
 ## Reader budgets: what is and is not bounded
 

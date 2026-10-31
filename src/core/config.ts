@@ -1,25 +1,13 @@
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import type {
-  CHMOptions,
   LZXConfig,
-  CHMFormatConfig,
   CLIConfig,
   PerformanceConfig,
-  ValidationConfig,
   CHMKitConfig,
   ConfigLoadOptions,
 } from './types';
 import { logger } from '../logger/logger';
-
-/**
- * 默认 CHMKit 配置
- */
-export const defaultConfig: CHMOptions = {
-  logLevel: 'info',
-  tempDir: './temp',
-  maxMemory: 1024 * 1024 * 100, // 100MB
-};
 
 /**
  * 默认 LZX 压缩配置
@@ -31,57 +19,13 @@ export const defaultLzxConfig: LZXConfig = {
 };
 
 /**
- * 默认 CHM 文件格式配置
- */
-export const defaultChmFormatConfig: CHMFormatConfig = {
-  // ITSF 头部配置
-  itsfSignature: 'ITSF',
-  itsfVersion: 3,
-
-  // ITSP 头部配置
-  itspSignature: 'ITSP',
-  itspVersion: 1,
-
-  // LZXC 头部配置
-  lzxcSignature: 'LZXC',
-  lzxcVersion: 2,
-
-  // 默认文件名
-  defaultFiles: {
-    toc: 'Table of Contents.hhc',
-    index: 'Index.hhk',
-    project: 'Project.hhp',
-  },
-
-  // 支持的文件扩展名
-  supportedExtensions: [
-    '.html',
-    '.htm',
-    '.css',
-    '.js',
-    '.json',
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.gif',
-    '.svg',
-    '.ico',
-    '.xml',
-    '.txt',
-    '.md',
-  ],
-};
-
-/**
  * 默认 CLI 配置
  */
 export const defaultCliConfig: CLIConfig = {
   defaultOutputDir: './output',
   defaultOutputFile: './output.chm',
-  defaultTempDir: './temp',
   maxConcurrency: 4,
   showProgress: true,
-  colorOutput: true,
 };
 
 /**
@@ -89,31 +33,16 @@ export const defaultCliConfig: CLIConfig = {
  */
 export const defaultPerformanceConfig: PerformanceConfig = {
   chunkSize: 0x8000, // 32KB
-  bufferSize: 0x10000, // 64KB
   maxFileSize: 1024 * 1024 * 500, // 500MB
-  compressionThreshold: 1024, // 1KB
-};
-
-/**
- * 默认验证配置
- */
-export const defaultValidationConfig: ValidationConfig = {
-  validateHeaders: true,
-  validateChecksums: true,
-  strictMode: false,
-  allowMissingFiles: false,
 };
 
 /**
  * 完整的默认配置
  */
 export const defaultFullConfig: CHMKitConfig = {
-  default: cloneValue(defaultConfig),
   lzx: cloneValue(defaultLzxConfig),
-  format: cloneValue(defaultChmFormatConfig),
   cli: cloneValue(defaultCliConfig),
   performance: cloneValue(defaultPerformanceConfig),
-  validation: cloneValue(defaultValidationConfig),
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -177,86 +106,42 @@ const nonNegativeInteger: ConfigRule = value =>
 const nonEmptyString: ConfigRule = value =>
   typeof value === 'string' && value.trim().length > 0 && !value.includes('\0');
 const booleanValue: ConfigRule = value => typeof value === 'boolean';
-const oneOf =
-  (...values: unknown[]): ConfigRule =>
-  value =>
-    values.includes(value);
 
-function configSchema(): ConfigSchema {
-  return {
-    default: {
-      logLevel: oneOf('error', 'warn', 'info', 'debug', 'verbose', 'success'),
-      tempDir: nonEmptyString,
-      maxMemory: positiveInteger,
-      logger: value =>
-        isPlainObject(value) &&
-        ['error', 'warn', 'info', 'debug', 'verbose', 'success'].every(
-          method => typeof value[method] === 'function',
-        ),
-    },
-    lzx: {
-      windowSize: value =>
-        positiveInteger(value) &&
-        (value as number) >= 0x8000 &&
-        (value as number) <= 0x200000 &&
-        Number.isInteger(Math.log2(value as number)),
-      resetInterval: value =>
-        positiveInteger(value) &&
-        (value as number) >= 0x8000 &&
-        (value as number) <= 256 * 1024 * 1024 &&
-        Number.isInteger(Math.log2(value as number)),
-      compressionLevel: value =>
-        nonNegativeInteger(value) && (value as number) <= 9,
-    },
-    format: {
-      itsfSignature: oneOf('ITSF'),
-      itsfVersion: oneOf(2, 3),
-      itspSignature: oneOf('ITSP'),
-      itspVersion: oneOf(1),
-      lzxcSignature: oneOf('LZXC'),
-      lzxcVersion: oneOf(1, 2),
-      defaultFiles: {
-        toc: nonEmptyString,
-        index: nonEmptyString,
-        project: nonEmptyString,
-      },
-      supportedExtensions: value =>
-        Array.isArray(value) &&
-        value.every(
-          extension =>
-            typeof extension === 'string' &&
-            /^\.[a-z0-9][a-z0-9_-]*$/i.test(extension),
-        ),
-    },
-    cli: {
-      defaultOutputDir: nonEmptyString,
-      defaultOutputFile: nonEmptyString,
-      defaultTempDir: nonEmptyString,
-      maxConcurrency: positiveInteger,
-      showProgress: booleanValue,
-      colorOutput: booleanValue,
-    },
-    performance: {
-      chunkSize: positiveInteger,
-      bufferSize: positiveInteger,
-      maxFileSize: positiveInteger,
-      compressionThreshold: nonNegativeInteger,
-    },
-    validation: {
-      validateHeaders: booleanValue,
-      validateChecksums: booleanValue,
-      strictMode: booleanValue,
-      allowMissingFiles: booleanValue,
-    },
-  };
-}
+const configSchema: ConfigSchema = {
+  lzx: {
+    windowSize: value =>
+      positiveInteger(value) &&
+      (value as number) >= 0x8000 &&
+      (value as number) <= 0x200000 &&
+      Number.isInteger(Math.log2(value as number)),
+    resetInterval: value =>
+      positiveInteger(value) &&
+      (value as number) >= 0x8000 &&
+      (value as number) <= 256 * 1024 * 1024 &&
+      Number.isInteger(Math.log2(value as number)),
+    compressionLevel: value =>
+      nonNegativeInteger(value) && (value as number) <= 9,
+  },
+  cli: {
+    defaultOutputDir: nonEmptyString,
+    defaultOutputFile: nonEmptyString,
+    maxConcurrency: positiveInteger,
+    showProgress: booleanValue,
+  },
+  performance: {
+    chunkSize: positiveInteger,
+    maxFileSize: positiveInteger,
+  },
+};
 
-/** Validate a partial config into a new object; unknown fields remain ignored. */
+/**
+ * Validate a partial config into a new object. Unknown keys (including removed
+ * compatibility fields) are warned about and omitted; known keys are type-checked.
+ */
 function validateConfig(
   value: unknown,
   schema: ConfigSchema,
   path = '',
-  onField?: (path: string) => void,
 ): Record<string, unknown> {
   if (!isPlainObject(value))
     throw new Error(`Invalid config object '${path || 'root'}'`);
@@ -273,9 +158,8 @@ function validateConfig(
     if (typeof rule === 'function') {
       if (!rule(item)) throw new Error(`Invalid config value '${field}'`);
       result[key] = cloneValue(item);
-      onField?.(field);
     } else {
-      result[key] = validateConfig(item, rule, field, onField);
+      result[key] = validateConfig(item, rule, field);
     }
   }
   return result;
@@ -314,12 +198,9 @@ function loadConfigFromFile(
 ): CHMKitConfig | null {
   try {
     const configContent = readFileSync(configPath, 'utf-8');
-    // Safety/type checks are mandatory, even with validateConfig: false.
     return validateConfig(
       JSON.parse(configContent),
-      configSchema(),
-      '',
-      options.onField,
+      configSchema,
     ) as CHMKitConfig;
   } catch (error) {
     if (options.strict) {
@@ -380,19 +261,8 @@ export function resetConfigCache(): void {
   cachedConfig = null;
 }
 
-/**
- * 获取指定类型的配置
- */
-export function getDefaultConfig(): CHMOptions {
-  return getConfig().default!;
-}
-
 export function getLzxConfig(): LZXConfig {
   return getConfig().lzx!;
-}
-
-export function getChmFormatConfig(): CHMFormatConfig {
-  return getConfig().format!;
 }
 
 export function getCliConfig(): CLIConfig {
@@ -402,14 +272,5 @@ export function getCliConfig(): CLIConfig {
 export function getPerformanceConfig(): PerformanceConfig {
   return getConfig().performance!;
 }
-
-export function getValidationConfig(): ValidationConfig {
-  return getConfig().validation!;
-}
-
-/**
- * 导出默认配置（向后兼容）
- */
-export const config = cloneValue(defaultFullConfig);
 
 export default getConfig;

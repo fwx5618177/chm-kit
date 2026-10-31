@@ -2,7 +2,6 @@
  * CHM 文件格式相关类型定义
  */
 
-import type { LogLevel, Logger } from '../logger/types';
 import type { PackFilesOptions } from '../encoder/types';
 
 export interface ITSFHeader {
@@ -145,12 +144,6 @@ export interface HuffmanTree {
   lengths: number[];
 }
 
-export interface HuffmanDecoder {
-  literalTree: HuffmanTree;
-  matchTree: HuffmanTree;
-  lengthTree: HuffmanTree;
-}
-
 export interface LZXBlock {
   type: number;
   uncompressedSize: number;
@@ -262,13 +255,6 @@ export interface InfoCommandOptions {
   json: boolean;
 }
 
-export interface CHMOptions {
-  logLevel?: LogLevel;
-  logger?: Logger;
-  tempDir?: string;
-  maxMemory?: number;
-}
-
 /**
  * LZX 压缩配置
  */
@@ -279,33 +265,13 @@ export interface LZXConfig {
 }
 
 /**
- * CHM 文件格式配置
- */
-export interface CHMFormatConfig {
-  itsfSignature?: string;
-  itsfVersion?: number;
-  itspSignature?: string;
-  itspVersion?: number;
-  lzxcSignature?: string;
-  lzxcVersion?: number;
-  defaultFiles?: {
-    toc?: string;
-    index?: string;
-    project?: string;
-  };
-  supportedExtensions?: string[];
-}
-
-/**
  * CLI 配置
  */
 export interface CLIConfig {
   defaultOutputDir?: string;
   defaultOutputFile?: string;
-  defaultTempDir?: string;
   maxConcurrency?: number;
   showProgress?: boolean;
-  colorOutput?: boolean;
 }
 
 /**
@@ -313,31 +279,16 @@ export interface CLIConfig {
  */
 export interface PerformanceConfig {
   chunkSize?: number;
-  bufferSize?: number;
   maxFileSize?: number;
-  compressionThreshold?: number;
-}
-
-/**
- * 验证配置
- */
-export interface ValidationConfig {
-  validateHeaders?: boolean;
-  validateChecksums?: boolean;
-  strictMode?: boolean;
-  allowMissingFiles?: boolean;
 }
 
 /**
  * 完整的 CHMKit 配置
  */
 export interface CHMKitConfig {
-  default?: CHMOptions;
   lzx?: LZXConfig;
-  format?: CHMFormatConfig;
   cli?: CLIConfig;
   performance?: PerformanceConfig;
-  validation?: ValidationConfig;
 }
 
 /**
@@ -350,8 +301,4 @@ export interface ConfigLoadOptions {
   configPath?: string;
   /** Throw on invalid configuration instead of falling back (used by the CLI). */
   strict?: boolean;
-  /** Receives supplied fields, allowing consumers to report unsupported settings. */
-  onField?: (path: string) => void;
-  /** @deprecated Safety validation cannot be disabled. */
-  validateConfig?: boolean;
 }

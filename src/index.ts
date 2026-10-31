@@ -35,7 +35,7 @@ export * from './operations';
 export { CHMKit } from './chm-kit';
 
 // 导出常量
-export { VERSION, SUPPORTED_VERSIONS, DEFAULT_CONFIG } from './constants';
+export { VERSION, SUPPORTED_VERSIONS } from './constants';
 
 // 导出便捷方法
 export { chm } from './convenience';

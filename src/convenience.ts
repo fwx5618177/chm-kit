@@ -1,5 +1,5 @@
 import { CHMKit } from './chm-kit';
-import { VERSION, SUPPORTED_VERSIONS, DEFAULT_CONFIG } from './constants';
+import { VERSION, SUPPORTED_VERSIONS } from './constants';
 
 /**
  * 便捷方法
@@ -68,9 +68,4 @@ export const chm = {
    * 支持的版本
    */
   supportedVersions: SUPPORTED_VERSIONS,
-
-  /**
-   * 默认配置
-   */
-  config: DEFAULT_CONFIG,
 };

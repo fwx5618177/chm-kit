@@ -2,11 +2,10 @@ import { test } from 'vitest';
 import { strict as assert } from 'node:assert';
 import { Huffman } from '../../src/utils/compression/huffman';
 import { HuffmanTreeOperations } from '../../src/utils/compression/huffman-tree';
-import { LZXHuffmanDecoder } from '../../src/utils/compression/lzx-huffman-decoder';
 import { BitReader } from '../../src/utils/io/bit-reader';
 import { LZXDecoder } from '../../src/core/lzx/lzx-decoder';
 import { LZXEncoder } from '../../src/encoder/lzx-encoder';
-import type { HuffmanDecoder, HuffmanTree } from '../../src/core/types';
+import type { HuffmanTree } from '../../src/core/types';
 
 test('canonical trees retain symbol ordering and allow unused/incomplete code space', () => {
   const tree = Huffman.createCanonicalTree([0, 2, 0, 2]);
@@ -190,79 +189,7 @@ test('tree validation rejects malformed arrays and accepts adjacent unsigned 32-
   );
 });
 
-const legacyCalls: Array<
-  [string, (reader: BitReader, decoder: HuffmanDecoder) => unknown]
-> = [
-  ['createLZXDecoder', () => LZXHuffmanDecoder.createLZXDecoder(32768)],
-  [
-    'readLZXCodeLengths',
-    reader => LZXHuffmanDecoder.readLZXCodeLengths(reader, 2),
-  ],
-  [
-    'buildLZXPredefinedTree',
-    () => LZXHuffmanDecoder.buildLZXPredefinedTree('length', 32768),
-  ],
-  [
-    'decodeLZXSymbol',
-    (reader, decoder) =>
-      LZXHuffmanDecoder.decodeLZXSymbol(reader, decoder.literalTree),
-  ],
-  [
-    'updateLZXTree',
-    (_reader, decoder) =>
-      LZXHuffmanDecoder.updateLZXTree(decoder, 'literal', [1, 1]),
-  ],
-  [
-    'validateLZXDecoder',
-    (_reader, decoder) => LZXHuffmanDecoder.validateLZXDecoder(decoder),
-  ],
-  [
-    'getLZXDecoderStats',
-    (_reader, decoder) => LZXHuffmanDecoder.getLZXDecoderStats(decoder),
-  ],
-  [
-    'resetLZXDecoder',
-    (_reader, decoder) => LZXHuffmanDecoder.resetLZXDecoder(decoder, 32768),
-  ],
-  ['Huffman.createLZXDecoder', () => Huffman.createLZXDecoder(32768)],
-  ['Huffman.readCodeLengths', reader => Huffman.readCodeLengths(reader, 2)],
-  [
-    'Huffman.buildPredefinedTree',
-    () => Huffman.buildPredefinedTree('literal', 32768),
-  ],
-];
-
-test.each(legacyCalls)(
-  'legacy %s explicitly fails without consuming input or mutating state',
-  (_name, invoke) => {
-    const tree = Huffman.createCanonicalTree([1, 1]);
-    const decoder = { literalTree: tree, matchTree: tree, lengthTree: tree };
-    const original = structuredClone(decoder);
-    const reader = new BitReader(Buffer.from([0b01010000]));
-    reader.read(1);
-    const position = reader.getPosition();
-    assert.throws(
-      invoke.bind(undefined, reader, decoder),
-      /Unsupported legacy LZX.*LZXDecoder.*Huffman/,
-    );
-    assert.deepEqual(reader.getPosition(), position);
-    assert.deepEqual(decoder, original);
-    assert.equal(decoder.literalTree, tree);
-    assert.equal(decoder.matchTree, tree);
-    assert.equal(decoder.lengthTree, tree);
-  },
-);
-
-test('all legacy predefined-tree variants reject rather than inventing LZX trees', () => {
-  for (const type of ['literal', 'match', 'length'] as const) {
-    assert.throws(
-      () => Huffman.buildPredefinedTree(type, 32768),
-      /Unsupported legacy LZX/,
-    );
-  }
-});
-
-test('real LZX encoding/decoding remains separate from the deprecated helpers', () => {
+test('real LZX encoding/decoding round-trips through the LZX decoder', () => {
   const input = Buffer.from('real LZX tree and reset state\n'.repeat(100));
   const encoded = new LZXEncoder().compress(input);
   const decoder = new LZXDecoder({
