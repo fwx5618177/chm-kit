@@ -18,6 +18,11 @@ import {
   validateReleaseHistory,
   validateReleaseInput,
 } from '../../scripts/release.mjs';
+import { VERSION } from '../../src/constants';
+
+const packageVersion = JSON.parse(
+  await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
 
 const temporaryDirectories = [];
 afterEach(async () => {
@@ -124,6 +129,10 @@ test('nested conditional exports include future public entries without API enume
     ],
   );
   assert.throws(() => publicTargets(42));
+});
+
+test('the exported library version matches package.json', () => {
+  assert.equal(VERSION, packageVersion);
 });
 
 test('release versions are exact, safe semantic versions (including prereleases)', () => {
