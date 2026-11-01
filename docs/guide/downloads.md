@@ -66,6 +66,9 @@ package; the [API entry map](../api.md) lists every public entry.
 
 ## Releases
 
-Releases are cut by pushing a `v<version>` tag; branch pushes and pull requests
-never publish. The tag workflow re-verifies the artifacts and npm provenance, and
-the maintainer steps are in [PIPELINES](../../.github/PIPELINES.md#tagged-release-only).
+Releases are automatic. A push to `main` whose conventional commits contain a
+`feat`, `fix`, `perf` or breaking change bumps the version, creates the `v<version>`
+tag and GitHub release, and publishes the same verified tarball to npm. Pull
+requests and topic branches never publish, and changes that must not ship should
+use `docs:`/`chore:`/`test:`. Maintainer detail is in
+[PIPELINES](../../.github/PIPELINES.md#automatic-release-on-main).

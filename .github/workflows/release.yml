@@ -1,99 +1,76 @@
-name: Approved release
+name: Release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-main
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate tag, version and approval policy
-
+  version:
+    name: Decide the next version
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
-      actions: read
+    outputs:
+      version: ${{ steps.next.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
         with:
-          ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Fail closed unless release prerequisites exist
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/release.mjs validate
+      - name: Resolve the next semantic version from conventional commits
+        id: next
+        run: node scripts/release.mjs next
 
   checks:
     name: Complete cross-platform and browser acceptance
-    needs: validate
+    needs: version
     permissions:
       contents: read
     uses: ./.github/workflows/ci.yml
 
-  release:
-    name: Approved GitHub draft release
-    needs: [validate, checks]
+  publish:
+    name: Bump, tag, release and publish to npm
+    needs: [version, checks]
+    if: needs.version.outputs.version != ''
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
+    # The npm trusted publisher names this environment, so the OIDC token must
+    # carry it. It has no reviewers: publishing is unattended by design.
     environment:
       name: release
     permissions:
       contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2; node24
-        with:
-          name: chmkit-${{ github.sha }}
-          path: dist/package
-      - name: Recheck policy, tag and asset hashes; create a draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/release.mjs publish
-
-  npm:
-    name: Publish the verified tarball to npm with provenance
-    needs: [validate, checks, release]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    environment:
-      name: release
-    permissions:
-      contents: read
-      actions: read
       id-token: write
+    env:
+      RELEASE_VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; node24
         with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0; node24
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
         with:
           node-version: '24'
-          package-manager-cache: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2; node24
-        with:
-          name: chmkit-${{ github.sha }}
-          path: dist/package
-      - name: Recheck hashes, refuse a republish and publish without a token
+      - name: Bump the version and push the release commit
+        run: node scripts/release.mjs prepare
+      - name: Build and verify the consumer artifacts
+        run: |
+          pnpm build
+          node scripts/package.mjs
+      - name: Tag, create the GitHub release and publish to npm
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/release.mjs npm
+        run: |
+          node scripts/release.mjs publish
+          node scripts/release.mjs npm

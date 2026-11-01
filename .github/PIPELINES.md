@@ -1,10 +1,11 @@
-# CI, prebuilt downloads and approved releases
+# CI, prebuilt downloads and automatic releases
 
 ## CI contract
 
-`workflows/ci.yml` runs for pushes, pull requests, manual dispatches and the
-release workflow's reusable-workflow call. It has read-only repository access;
-it never publishes to npm, deploys, creates tags or creates releases.
+`workflows/ci.yml` runs for pushes to topic branches, pull requests, manual
+dispatches and the release workflow's reusable-workflow call. It has read-only
+repository access; it never publishes to npm, deploys, creates tags or creates
+releases.
 
 - Nine Node jobs: Ubuntu **24.04 LTS x64**, **macOS 15 arm64** and **Windows
   Server 2025 x64**, each with Node **20.19.0 / 22 / 24**. Linux requires the
@@ -212,61 +213,52 @@ HTTP(S).
 
 CI uploads the complete directory as artifact **`chmkit-<github.sha>`**, available
 under the run's **Artifacts** section. GitHub Actions artifact downloads normally
-require GitHub sign-in and expire. Approved public release assets provide durable,
-anonymous downloads after a maintainer publishes the draft release.
+require GitHub sign-in and expire. Published release assets provide durable,
+anonymous downloads because the release workflow attaches the same verified files
+to the tag it publishes.
 
-## Tagged release only
+## Automatic release on main
 
-`workflows/release.yml` runs **only** on a pushed `v*` tag. Branch pushes and pull
-requests never publish; `ci.yml` ignores tag pushes so a release runs the
-acceptance matrix exactly once. The workflow never creates a tag, a commit or a
-version bump.
+`workflows/release.yml` runs on **every push to `main`** and publishes without
+human approval. `ci.yml` skips `main` pushes, so the release workflow's reusable
+call is the single acceptance run for a main push. Pull requests and topic
+branches still use `ci.yml` and never publish.
 
-Prerequisites for a maintainer, not actions performed by this change:
+1. `node scripts/release.mjs next` reads the last `v*` tag and the conventional
+   commit subjects since it. `feat` bumps minor, `fix`/`perf`/`revert` bump patch,
+   `!` or a `BREAKING CHANGE:` footer bumps major; anything else (docs, chore, ci,
+   test, merge commits) produces no release and the publish job is skipped.
+2. The reusable CI runs the full nine-Node, three-browser, minimum-runtime and
+   native Electron acceptance matrix.
+3. After CI passes, the publish job writes the new version into `package.json`
+   and `src/constants.ts`, commits `chore(release): <version> [skip ci]`, and pushes
+   it to `main` with the workflow token (such pushes do not start new runs).
+4. It builds, packages and verifies the consumer artifacts, then creates and
+   pushes the `v<version>` tag, creates a published GitHub release with the
+   generated notes and asset inventory, and finally publishes the same tarball
+   to npm with OIDC trusted publishing and provenance.
 
-1. Choose and commit the intended semantic package version and matching CLI
-   version on `main`; integrate all new build entries/exports/files and lockfile
-   changes before tagging.
-2. Tag that exact `main` commit as `v<version>` and push the tag. Pushing the tag
-   is the release action; the ref is the only source of `version` and `tag`, so no
-   user input reaches a shell command.
-3. In repository Settings → Environments, configure environment **`release`** with
-   **required reviewers** and **administrator bypass disabled**, and a deployment
-   branch policy that allows the `v*` **tag** rule (a branch-only policy blocks
-   every tag deployment). This repository is maintained by a single account, so
-   **prevent self-review is off** and the owner approves their own deployment;
-   there is no independent review, which is the accepted tradeoff here.
-4. Read-only preflight checks real environment protection, exact package version,
-   the peeled tag commit and that `main` already contains it.
-5. The reusable CI runs the full nine-Node, three-browser, minimum-runtime and
-   native Electron acceptance matrix and produces the prebuilt download artifact.
-6. GitHub pauses the release job for environment review. After approval, a separate
-   no-dependency-install job downloads only this run's artifact, rechecks policy,
-   tag and source identity, validates all asset hashes/inventory, and creates a
-   **draft GitHub release** using `gh release create --verify-tag --draft`.
-   Existing releases are never overwritten. Prerelease versions are marked as
-   prereleases. A maintainer can inspect and publish the draft in GitHub's UI.
-7. A second environment-gated job then publishes npm. Order matters: npm
-   publication is irreversible, so it runs last and a failed job is re-run without
-   touching the draft. It re-verifies hashes and source commit, refuses a version
-   already on the registry, and uploads this run's tarball byte-for-byte.
+Because nothing asks for confirmation, **`main` is a release branch**: any merged
+`feat:`/`fix:` ships to npm within the run, and an npm version cannot be replaced.
+Keep unreleased work on a branch, and use `docs:`/`chore:` for changes that must
+not publish. A failed verification leaves `main` untouched because the version
+commit is created only after CI passes.
 
-Normal CI and builds have only `contents: read`. The approved GitHub release job
-has `contents: write`; environment preflight also needs `actions: read`. The `npm`
-job in the same tag workflow is the only npm publishing path: it is granted
-`id-token: write` and nothing else, exchanges that short-lived OIDC token with npm
-**trusted publishing**, and publishes with `--provenance` under `latest` (`next`
-for prereleases). No npm token or secret exists in this repository. Never add npm
-publishing to branch push or pull-request CI, and never fall back to a static token.
+The `release` environment still exists because the npm trusted publisher names it
+and the OIDC token must carry that environment claim. It has **no reviewers**, so
+it adds no gate; the deployment branch policy allows `main`.
 
-One-time prerequisite on npmjs.com, not performed by any script here: the
-`chmkit` package must exist and list a **Trusted Publisher** with repository
-`fwx5618177/chm-kit`, workflow `release.yml` and environment `release`. The very
-first version has to be published once by a maintainer with their own 2FA-enabled
-account; every later version uses the OIDC job above. `publishConfig` pins the
-publish target to `registry.npmjs.org`, so a machine-wide mirror registry
-(npmmirror) cannot silently receive a release; `npm login` still needs an
-explicit `--registry https://registry.npmjs.org/` on such machines.
+Only the publish job has `contents: write`, and only its npm step has
+`id-token: write`; that short-lived token is the sole npm credential and is never
+stored. No npm token or secret exists in this repository, and publish CI never
+falls back to one.
+
+The `chmkit` package lists a **Trusted Publisher** pointing at repository
+`fwx5618177/chm-kit`, workflow `release.yml` and environment `release`; npm only
+accepts that exact combination. `publishConfig` pins the publish target to
+`registry.npmjs.org`, so a machine-wide mirror registry (npmmirror) cannot
+silently receive a release; `npm login` still needs an explicit
+`--registry https://registry.npmjs.org/` on such machines.
 
 ## Local verification
 

@@ -281,11 +281,14 @@ async function packageAssets() {
   const notices = await bundledNotices(manifest.dependencies);
   const commit = run('git', ['--no-pager', 'rev-parse', 'HEAD'], root).trim();
   assert.match(commit, /^[a-f\d]{40}$/);
-  if (process.env.GITHUB_SHA)
+  // A release job commits the version bump before packaging, so the expected
+  // commit can differ from the workflow's trigger commit.
+  const expected = process.env.CHMKIT_EXPECTED_COMMIT ?? process.env.GITHUB_SHA;
+  if (expected)
     assert.equal(
       commit,
-      process.env.GITHUB_SHA,
-      'Build checkout differs from workflow commit',
+      expected,
+      'Build checkout differs from the expected commit',
     );
   await rm(output, { recursive: true, force: true });
   await mkdir(output, { recursive: true });

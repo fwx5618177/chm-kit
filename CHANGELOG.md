@@ -77,11 +77,12 @@ and [migration](docs/guide/migration.md).
 
 ### Changed
 
-- npm publication now exists as an environment-gated `npm` job in the release
-  workflow, which runs when a `v<version>` tag is pushed. It publishes the already
-  verified tarball with OIDC trusted publishing and provenance, never with a
-  token, and refuses a version the registry already serves. `prepack` calls
-  `node scripts/build.mjs`, so a manual publish no longer requires pnpm.
+- Publishing is automatic. A push to `main` whose conventional commits include a
+  `feat`, `fix`, `perf` or breaking change derives the next version from the last
+  `v*` tag, commits the bump, tags it, creates the GitHub release and publishes the
+  verified tarball to npm with OIDC trusted publishing and provenance. No approval
+  step and no npm token exist. `prepack` calls `node scripts/build.mjs`, so a
+  manual publish no longer requires pnpm.
 
 - The default README is Chinese (`README.md`); the English version is
   `README.en.md`, and `README_zh.md` was removed. Usage guides for the CLI and the

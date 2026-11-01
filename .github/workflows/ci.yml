@@ -1,9 +1,9 @@
 name: CI
 
 on:
+  # main publishes through the release workflow, which runs the same suite once.
   push:
-    branches: ['**']
-    tags-ignore: ['**']
+    branches-ignore: [main]
   pull_request:
   workflow_dispatch:
   workflow_call:

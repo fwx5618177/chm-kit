@@ -2,8 +2,8 @@
 
 Thank you for helping improve CHM support. For ordinary use, install the npm
 package as described in [install](docs/guide/downloads.md); **source builds are for
-contributors**. The public `chmkit` npm package is released only by the tagged
-release workflow; nothing publishes it automatically.
+contributors**. The public `chmkit` npm package is published automatically by the
+release workflow on every qualifying push to `main`; pull requests never publish.
 
 ## Discuss and report
 
@@ -193,11 +193,10 @@ commit style is welcome, but do not commit, create a branch, tag, publish or
 change repository/environment permissions on another person's behalf without
 explicit authorization.
 
-The [release procedure](.github/PIPELINES.md#tagged-release-only) runs only when a
-`v<version>` tag is pushed. It requires a coherent package/CLI version, the tag on
-`main`, full CI and the protected `release` environment. Do not assume the tag or
-that environment is configured. The workflow then creates a **draft GitHub
-release**; a maintainer separately decides whether to publish it. Branch push and
-pull-request CI never publishes. npm publishing exists only as the gated `npm` job
-of that same tag workflow: npm OIDC trusted publishing of the already verified
-tarball, with no token and no implicit authorization.
+The [release procedure](.github/PIPELINES.md#automatic-release-on-main) publishes
+automatically: a push to `main` whose conventional commits include a `feat`,
+`fix`, `perf` or breaking change bumps the version, tags it, creates the GitHub
+release and publishes the verified tarball to npm. There is no approval step, so
+**treat `main` as a release branch**: use `docs:`/`chore:`/`test:` for changes that
+must not publish, and keep unfinished work on a topic branch. Pull-request CI
+never publishes, and npm uses OIDC trusted publishing with no token at all.

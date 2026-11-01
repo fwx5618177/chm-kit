@@ -14,11 +14,14 @@ import {
 import {
   assertTrustedPublisher,
   assertUnpublished,
+  bumpedConstants,
+  bumpedManifest,
+  nextVersion,
   publishTag,
-  validateApprovalPolicy,
-  validateReleaseHistory,
-  validateReleaseInput,
+  releaseNotes,
+  releaseType,
 } from '../../scripts/release.mjs';
+import { readFileSync } from 'node:fs';
 import { VERSION } from '../../src/constants';
 
 const packageVersion = JSON.parse(
@@ -154,58 +157,90 @@ test('release versions are exact, safe semantic versions (including prereleases)
     assert.equal(isVersion(version), false);
 });
 
-test('release requires a pushed v<version> tag matching the package version', () => {
-  const input = {
-    version: '1.2.3',
-    tag: 'v1.2.3',
-    packageVersion: '1.2.3',
-    ref: 'refs/tags/v1.2.3',
-    event: 'push',
-  };
-  validateReleaseInput(input);
-  for (const patch of [
-    { tag: 'v1.2.4' },
-    { version: '--dangerous' },
-    { packageVersion: '1.2.2' },
-    { ref: 'refs/heads/main' },
-    { ref: 'refs/tags/v1.2.4' },
-    { event: 'workflow_dispatch' },
-    { event: 'pull_request' },
-  ])
-    assert.throws(() => validateReleaseInput({ ...input, ...patch }));
+test('the version bump rewrites the real manifest and source constant', () => {
+  const manifest = readFileSync(
+    new URL('../../package.json', import.meta.url),
+    'utf8',
+  );
+  const constants = readFileSync(
+    new URL('../../src/constants.ts', import.meta.url),
+    'utf8',
+  );
+  const nextVersionValue = '9.9.9';
+  const bumped = bumpedManifest(manifest, nextVersionValue);
+  assert.equal(JSON.parse(bumped).version, nextVersionValue);
+  assert.equal(JSON.parse(bumped).name, JSON.parse(manifest).name);
+  assert.equal(
+    bumpedConstants(constants, nextVersionValue),
+    constants.replace(
+      /export const VERSION = '[^']+';/,
+      `export const VERSION = '${nextVersionValue}';`,
+    ),
+  );
+  assert.match(
+    bumpedConstants(constants, nextVersionValue),
+    /VERSION = '9\.9\.9'/,
+  );
+  assert.throws(() => bumpedManifest('{}', '9.9.9'), /version field/);
+  assert.throws(() => bumpedConstants('nothing', '9.9.9'), /exported VERSION/);
 });
 
-test('release tags must point to a commit that main already contains', () => {
-  for (const status of ['identical', 'behind']) validateReleaseHistory(status);
-  for (const status of ['ahead', 'diverged', undefined])
-    assert.throws(() => validateReleaseHistory(status), /commit on main/);
+test('conventional commits decide the release type', () => {
+  assert.equal(releaseType('feat: add tunnel reader'), 'minor');
+  assert.equal(releaseType('feat(cli): add flag'), 'minor');
+  assert.equal(releaseType('fix: handle empty index'), 'patch');
+  assert.equal(releaseType('perf: reuse buffer'), 'patch');
+  assert.equal(releaseType('revert: "feat: add tunnel reader"'), 'patch');
+  assert.equal(releaseType('feat!: drop Node 18'), 'major');
+  assert.equal(releaseType('fix(core)!: rename option'), 'major');
+  assert.equal(
+    releaseType('chore: tidy scripts', 'BREAKING CHANGE: new layout'),
+    'major',
+  );
+  for (const subject of [
+    'docs: refresh install guide',
+    'chore(release): 1.2.0 [skip ci]',
+    'test: cover empty archives',
+    'ci: pin actions',
+    'Merge pull request #12 from topic',
+    'not conventional',
+  ])
+    assert.equal(releaseType(subject), 'none', subject);
 });
 
-test('release approval policy fails closed for missing reviewers and admin bypass', () => {
-  const rule = {
-    type: 'required_reviewers',
-    prevent_self_review: true,
-    reviewers: [{ type: 'User', reviewer: { login: 'release-reviewer' } }],
-  };
-  validateApprovalPolicy({
-    can_admins_bypass: false,
-    protection_rules: [rule],
-  });
-  // A solo maintainer approves their own release, so self-review stays allowed.
-  validateApprovalPolicy({
-    can_admins_bypass: false,
-    protection_rules: [{ ...rule, prevent_self_review: false }],
-  });
-  for (const environment of [
-    {},
-    { protection_rules: [] },
-    { can_admins_bypass: true, protection_rules: [rule] },
-    {
-      can_admins_bypass: false,
-      protection_rules: [{ ...rule, reviewers: [] }],
-    },
-  ])
-    assert.throws(() => validateApprovalPolicy(environment));
+test('the highest commit type decides the next version', () => {
+  const commits = subjects => subjects.map(subject => ({ subject, body: '' }));
+  assert.equal(nextVersion('1.2.3', commits(['fix: a', 'fix: b'])), '1.2.4');
+  assert.equal(nextVersion('1.2.3', commits(['fix: a', 'feat: b'])), '1.3.0');
+  assert.equal(nextVersion('1.2.3', commits(['feat: a', 'fix!: b'])), '2.0.0');
+  assert.equal(
+    nextVersion(
+      '1.2.3',
+      commits(['docs: a', 'chore(release): 1.2.3 [skip ci]']),
+    ),
+    null,
+  );
+  assert.equal(nextVersion('1.2.3', []), null);
+  assert.equal(nextVersion('0.9.9', commits(['feat: a'])), '0.10.0');
+});
+
+test('release notes group conventional commits and skip internal ones', () => {
+  const notes = releaseNotes(
+    '1.2.0',
+    [
+      { subject: 'feat: add tunnel reader', body: '' },
+      { subject: 'fix: handle empty index', body: '' },
+      { subject: 'docs: refresh install guide', body: '' },
+      { subject: 'chore(release): 1.2.0 [skip ci]', body: '' },
+    ],
+    'v1.1.1',
+  );
+  assert.match(notes, /^# CHMKit 1\.2\.0/m);
+  assert.match(notes, /Changes since v1\.1\.1/);
+  assert.match(notes, /## Features\n\n- feat: add tunnel reader/);
+  assert.match(notes, /## Fixes\n\n- fix: handle empty index/);
+  assert.doesNotMatch(notes, /refresh install guide/);
+  assert.match(releaseNotes('1.2.0', []), /Maintenance release/);
 });
 
 test('npm publishing uses the next tag for prereleases and latest otherwise', () => {
