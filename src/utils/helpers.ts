@@ -166,11 +166,3 @@ export function globToRegExp(pattern: string): RegExp {
 
   return new RegExp(`${source}$`, 'i');
 }
-
-/**
- * 显示信息对象
- * @param info 信息对象
- */
-export function displayInfo(info: unknown): void {
-  process.stdout.write(`${JSON.stringify(info, null, 2)}\n`);
-}

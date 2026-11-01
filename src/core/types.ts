@@ -251,7 +251,6 @@ export interface PackCommandOptions extends Pick<
 }
 
 export interface InfoCommandOptions {
-  verbose: boolean;
   json: boolean;
 }
 

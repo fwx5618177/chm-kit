@@ -117,6 +117,18 @@ test('pack/info/list/read/extract roundtrip with strict JSON and exact binary ou
   equal(await fs.readFile(join(output, 'docs/nested.txt'), 'utf8'), 'nested');
 });
 
+test('info prints a human-readable report by default and JSON only with --json', () => {
+  const text = success('info', archive).stdout.toString();
+  ok(text.startsWith('=== CHM 文件解析统计 ==='));
+  ok(text.includes('总文件数: 7'));
+  ok(!text.trimStart().startsWith('{'));
+  equal(
+    JSON.parse(success('info', archive, '--json').stdout.toString()).fileCount,
+    7,
+  );
+  failure('info', archive, '--verbose');
+});
+
 test('uncompressed pack/info/read/extract roundtrip uses the section-0 data base', async () => {
   const uncompressed = join(root, 'uncompressed.chm');
   success('pack', source, '--output', uncompressed, '--no-compression');
