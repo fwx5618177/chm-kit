@@ -10,6 +10,10 @@ and [migration](docs/guide/migration.md).
 
 ### Added
 
+- Demo videos under `media/`: a usage tutorial (about 62 s) and a promo (about 36 s),
+  each with and without a background track. Narration is Chinese captions over the real
+  viewer and CLI output. The Remotion source is in `media/source/`. Background music
+  is Mixkit House Vibez under the Mixkit Stock Music Free License; sound effects are CC0.
 - Ready-to-open local browser viewer in `chmkit-1.1.0-browser.tar.gz`:
   `dist/viewer/index.html`, a self-contained classic-IIFE `viewer.js`, and Worker
   entry/client integration files alongside browser modules/types/licenses.
@@ -125,7 +129,9 @@ and [migration](docs/guide/migration.md).
 - Previewed HTML remains untrusted. File immutability, TOCTOU extraction limits,
   resource budgets and IPC boundaries are documented in [SECURITY.md](SECURITY.md).
 - Normal real upstream ITSF v2, GBK/UTF-16 and additional E8/window/reset corpus
-  gaps remain; the FPC archive is not evidence that every producer is supported.
+  gaps remain. The maintainer accepted the ITSF v2 gap on 2026-11-01: no LGPL
+  samples are imported and no synthetic v2 is substituted (see [TODO.md](TODO.md)).
+  The FPC archive is not evidence that every producer is supported.
 - No automatic npm publication or GitHub Release publication is introduced.
   Approved release automation creates a draft only; it requires explicit
   authorization, a matching existing tag and protected-environment review. Tag

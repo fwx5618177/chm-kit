@@ -1,0 +1,23 @@
+{
+  "name": "chmkit-video",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "still": "remotion still src/index.ts",
+    "render:tutorial": "remotion render src/index.ts Tutorial out/chmkit-tutorial.mp4",
+    "render:tutorial:nobgm": "remotion render src/index.ts Tutorial out/chmkit-tutorial-nobgm.mp4 --props=props/nobgm.json",
+    "render:promo": "remotion render src/index.ts Promo out/chmkit-promo.mp4",
+    "render:promo:nobgm": "remotion render src/index.ts Promo out/chmkit-promo-nobgm.mp4 --props=props/nobgm.json"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.484",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "remotion": "4.0.484"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "typescript": "6.0.3"
+  }
+}

@@ -24,6 +24,13 @@ CHMKit 提供四种入口，共用同一套解析与解压实现：
 - 全文搜索是对可读文本资源的字面量扫描，不读取编译后的搜索数据库。
 - 查看器的 HTML 预览是禁脚本、受限的静态预览，不是完整浏览器。
 
+## 视频演示
+
+- [使用教程（约 1 分钟）](media/chmkit-tutorial.mp4) · [无背景音乐版](media/chmkit-tutorial-nobgm.mp4)：浏览器查看器与命令行的完整使用步骤。
+- [宣传片（约 36 秒）](media/chmkit-promo.mp4) · [无背景音乐版](media/chmkit-promo-nobgm.mp4)：功能概览。
+
+视频中的界面与终端输出都来自本仓库的真实构建产物，字幕为中文。视频源码与说明见 [media/](media/README.md)。
+
 ## 获取 CHMKit
 
 目前 npm 包**尚未发布**，请选择下面一种方式。

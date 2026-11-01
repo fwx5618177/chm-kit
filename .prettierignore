@@ -6,6 +6,8 @@ test-results/
 playwright-report/
 # Immutable third-party oracle bytes must not be formatted.
 test/fixtures/
+# Standalone Remotion video project; it has its own package.json and style.
+media/source/
 *.log
 *.lock
 package-lock.json

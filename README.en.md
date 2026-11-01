@@ -26,6 +26,13 @@ Limits to know:
 - Search is a literal scan of readable text resources. It does not read compiled search databases.
 - The viewer's HTML preview is a restricted, script-free static preview, not a full browser.
 
+## Video demos
+
+- [Usage tutorial (about 1 minute)](media/chmkit-tutorial.mp4) · [without background music](media/chmkit-tutorial-nobgm.mp4): the full browser viewer and command-line walkthrough.
+- [Promo (about 36 seconds)](media/chmkit-promo.mp4) · [without background music](media/chmkit-promo-nobgm.mp4): a feature overview.
+
+The interface and terminal output in the videos come from this repository's real build output. Captions are in Chinese. The video source and notes are in [media/](media/README.md).
+
 ## Get CHMKit
 
 The npm package is **not published yet**. Choose one of the following.
