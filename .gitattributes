@@ -8,3 +8,4 @@ test/fixtures/upstream-chm/** -whitespace
 *.chm binary
 *.png binary
 *.mp4 binary
+*.gif binary

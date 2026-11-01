@@ -28,19 +28,13 @@ Limits to know:
 
 ## Video demos
 
-**Usage tutorial (about 1 minute)**: the full browser viewer and command-line walkthrough.
+[![Usage tutorial preview, click to watch the full video](media/chmkit-tutorial-preview.gif)](media/chmkit-tutorial.mp4)
 
-<video src="media/chmkit-tutorial.mp4" controls preload="metadata" width="100%">
-  <a href="media/chmkit-tutorial.mp4">Watch the usage tutorial</a>
-</video>
+- [Usage tutorial (about 1 minute)](media/chmkit-tutorial.mp4) · [without background music](media/chmkit-tutorial-nobgm.mp4): the full browser viewer and command-line walkthrough.
 
-**Promo (about 36 seconds)**: a feature overview.
+[![Promo preview, click to watch the full video](media/chmkit-promo-preview.gif)](media/chmkit-promo.mp4)
 
-<video src="media/chmkit-promo.mp4" controls preload="metadata" width="100%">
-  <a href="media/chmkit-promo.mp4">Watch the promo</a>
-</video>
-
-Without background music: [usage tutorial](media/chmkit-tutorial-nobgm.mp4) · [promo](media/chmkit-promo-nobgm.mp4).
+- [Promo (about 36 seconds)](media/chmkit-promo.mp4) · [without background music](media/chmkit-promo-nobgm.mp4): a feature overview.
 
 The interface and terminal output in the videos come from this repository's real build output. Captions are in Chinese. The video source and notes are in [media/](media/README.md).
 
