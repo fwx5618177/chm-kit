@@ -12,7 +12,6 @@
 | `chmkit-promo-nobgm.mp4`    | 36.05 秒 | 1920×1080 | 无       | 同一时间线，只保留音效         |
 
 - 有背景音乐与无背景音乐的版本画面和音效时间线完全相同，只差一条背景音乐。
-- `chmkit-tutorial-preview.gif`、`chmkit-promo-preview.gif`：从无背景音乐成片截取的 8 秒循环预览（640×360），用于 README 直接展示，点击跳转到完整视频。
 - 视频格式：H.264（yuv420p）+ AAC 48 kHz 立体声，30 fps。
 
 ## 音频与授权

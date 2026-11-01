@@ -26,13 +26,17 @@ CHMKit 提供四种入口，共用同一套解析与解压实现：
 
 ## 视频演示
 
-[![使用教程预览，点击观看完整视频](media/chmkit-tutorial-preview.gif)](media/chmkit-tutorial.mp4)
+**使用教程（约 1 分钟）**：浏览器查看器与命令行的完整使用步骤。
 
-- [使用教程（约 1 分钟）](media/chmkit-tutorial.mp4) · [无背景音乐版](media/chmkit-tutorial-nobgm.mp4)：浏览器查看器与命令行的完整使用步骤。
+https://github.com/user-attachments/assets/f4e8ade6-d424-4268-bb9e-6efa656105f3
 
-[![宣传片预览，点击观看完整视频](media/chmkit-promo-preview.gif)](media/chmkit-promo.mp4)
+无背景音乐版：https://github.com/user-attachments/assets/58ad9e5c-c4e8-4049-9014-3b1285850e54
 
-- [宣传片（约 36 秒）](media/chmkit-promo.mp4) · [无背景音乐版](media/chmkit-promo-nobgm.mp4)：功能概览。
+**宣传片（约 36 秒）**：功能概览。
+
+https://github.com/user-attachments/assets/b95edd3e-160f-45f4-8e01-30c9ff321dc3
+
+无背景音乐版：https://github.com/user-attachments/assets/adc5fd48-176f-4c46-a6e2-2b11960692c3
 
 视频中的界面与终端输出都来自本仓库的真实构建产物，字幕为中文。视频源码与说明见 [media/](media/README.md)。
 
