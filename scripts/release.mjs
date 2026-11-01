@@ -52,6 +52,51 @@ export function publishTag(version) {
   return version.includes('-') ? 'next' : 'latest';
 }
 
+// npm exchanges a GitHub OIDC token for a short-lived publish token and fails
+// silently when the package has no matching trusted publisher. Surface the
+// registry's reason instead of the generic "need auth" that follows.
+export async function assertTrustedPublisher({
+  name,
+  requestUrl = process.env.ACTIONS_ID_TOKEN_REQUEST_URL,
+  requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
+  fetchImpl = fetch,
+}) {
+  assert.ok(
+    requestUrl && requestToken,
+    'npm publishing requires the id-token: write permission of the release workflow',
+  );
+  const audience = new URL(requestUrl);
+  audience.searchParams.append('audience', `npm:${new URL(registry).hostname}`);
+  const idResponse = await fetchImpl(audience, {
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${requestToken}`,
+    },
+  });
+  assert.ok(
+    idResponse.ok,
+    `GitHub OIDC token request failed with HTTP ${idResponse.status}`,
+  );
+  const { value } = await idResponse.json();
+  assert.ok(value, 'GitHub returned no OIDC token');
+  const exchange = await fetchImpl(
+    new URL(
+      `/-/npm/v1/oidc/token/exchange/package/${encodeURIComponent(name)}`,
+      registry,
+    ),
+    {
+      method: 'POST',
+      headers: { accept: 'application/json', authorization: `Bearer ${value}` },
+    },
+  );
+  const body = await exchange.text();
+  assert.ok(
+    exchange.ok,
+    `npm trusted publishing rejected this workflow with HTTP ${exchange.status}: ${body}`,
+  );
+  assert.ok(JSON.parse(body).token, 'npm returned no publish token');
+}
+
 export async function assertUnpublished({ name, version, fetchImpl = fetch }) {
   const response = await fetchImpl(
     `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
@@ -177,6 +222,7 @@ async function main() {
       `Unverified npm tarball: ${basename(tarball)}`,
     );
     await assertUnpublished({ name: metadata.name, version });
+    await assertTrustedPublisher({ name: metadata.name });
     // Trusted publishing: npm exchanges the job's OIDC token, so no token secret
     // exists. The artifact is published byte-for-byte; scripts never run here.
     execFileSync(

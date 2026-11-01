@@ -12,6 +12,7 @@ import {
   verifyArtifacts,
 } from '../../scripts/package.mjs';
 import {
+  assertTrustedPublisher,
   assertUnpublished,
   publishTag,
   validateApprovalPolicy,
@@ -238,6 +239,62 @@ test('npm publishing refuses any version the registry already serves', async () 
       fetchImpl: respond(503),
     }),
     /registry lookup failed with HTTP 503/,
+  );
+});
+
+test('npm trusted publishing surfaces the registry rejection reason', async () => {
+  const calls = [];
+  const fetchImpl = (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).startsWith('https://oidc.example/'))
+      return new Response('{"value":"id-token"}', { status: 200 });
+    return new Response(
+      '{"message":"OIDC token exchange error - package not found"}',
+      { status: 404 },
+    );
+  };
+  await assert.rejects(
+    assertTrustedPublisher({
+      name: 'chmkit',
+      requestUrl: 'https://oidc.example/token?api-version=2.0',
+      requestToken: 'request-token',
+      fetchImpl,
+    }),
+    /package not found/,
+  );
+  assert.match(calls[0].url, /audience=npm%3Aregistry\.npmjs\.org/);
+  assert.equal(
+    calls[1].url,
+    'https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/chmkit',
+  );
+});
+
+test('npm trusted publishing needs OIDC permission and a publish token', async () => {
+  const tokenFetch = async url =>
+    String(url).startsWith('https://oidc.example/')
+      ? new Response('{"value":"id"}', { status: 200 })
+      : new Response('{"token":"publish-token"}', { status: 200 });
+  await assertTrustedPublisher({
+    name: 'chmkit',
+    requestUrl: 'https://oidc.example/token',
+    requestToken: 'request-token',
+    fetchImpl: tokenFetch,
+  });
+  await assert.rejects(
+    assertTrustedPublisher({ name: 'chmkit', fetchImpl: tokenFetch }),
+    /id-token: write/,
+  );
+  await assert.rejects(
+    assertTrustedPublisher({
+      name: 'chmkit',
+      requestUrl: 'https://oidc.example/token',
+      requestToken: 'request-token',
+      fetchImpl: async url =>
+        String(url).startsWith('https://oidc.example/')
+          ? new Response('{}', { status: 200 })
+          : new Response('{"token":"x"}', { status: 200 }),
+    }),
+    /no OIDC token/,
   );
 });
 
