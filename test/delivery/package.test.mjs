@@ -12,6 +12,8 @@ import {
   verifyArtifacts,
 } from '../../scripts/package.mjs';
 import {
+  assertUnpublished,
+  publishTag,
   validateApprovalPolicy,
   validateReleaseInput,
 } from '../../scripts/release.mjs';
@@ -185,6 +187,40 @@ test('release approval policy fails closed for missing reviewers, self-review an
     },
   ])
     assert.throws(() => validateApprovalPolicy(environment));
+});
+
+test('npm publishing uses the next tag for prereleases and latest otherwise', () => {
+  assert.equal(publishTag('1.2.3'), 'latest');
+  assert.equal(publishTag('2.0.0-rc.1'), 'next');
+  assert.equal(publishTag('2.0.0-alpha-beta.0'), 'next');
+});
+
+test('npm publishing refuses any version the registry already serves', async () => {
+  const respond = status => async url => {
+    assert.equal(url, 'https://registry.npmjs.org/chmkit/1.2.3');
+    return new Response('{}', { status });
+  };
+  await assertUnpublished({
+    name: 'chmkit',
+    version: '1.2.3',
+    fetchImpl: respond(404),
+  });
+  await assert.rejects(
+    assertUnpublished({
+      name: 'chmkit',
+      version: '1.2.3',
+      fetchImpl: respond(200),
+    }),
+    /already published/,
+  );
+  await assert.rejects(
+    assertUnpublished({
+      name: 'chmkit',
+      version: '1.2.3',
+      fetchImpl: respond(503),
+    }),
+    /registry lookup failed with HTTP 503/,
+  );
 });
 
 async function artifactFixture() {

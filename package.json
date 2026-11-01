@@ -143,7 +143,7 @@
     "package:artifacts": "pnpm build && node scripts/package.mjs",
     "test:all": "pnpm test && playwright test",
     "demo": "pnpm build && node scripts/demo.mjs",
-    "prepack": "pnpm build",
+    "prepack": "node scripts/build.mjs",
     "test:watch": "vitest --project node",
     "clean": "rimraf dist test-results coverage"
   },

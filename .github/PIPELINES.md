@@ -246,14 +246,24 @@ Prerequisites for a maintainer, not actions performed by this change:
    **draft GitHub release** using `gh release create --verify-tag --draft`.
    Existing releases are never overwritten. Prerelease versions are marked as
    prereleases. A maintainer can inspect and publish the draft in GitHub's UI.
+7. A second environment-gated job then publishes npm. Order matters: npm
+   publication is irreversible, so it runs last and a failed job is re-run without
+   touching the draft. It re-verifies hashes and source commit, refuses a version
+   already on the registry, and uploads this run's tarball byte-for-byte.
 
-Normal CI and builds have only `contents: read`. Only the approved release job
-has `contents: write`; environment preflight also needs `actions: read`. No
-`id-token: write`, npm token/secret, npm publish command or deployment credential
-is requested. This repository does **not** contain an npm publishing workflow.
-If one is separately requested later, use a dedicated manual, environment-gated
-job with npm **OIDC trusted publishing**, a supported npm CLI and job-scoped
-`id-token: write`; never add npm publishing to push/PR CI or fall back to a token.
+Normal CI and builds have only `contents: read`. The approved GitHub release job
+has `contents: write`; environment preflight also needs `actions: read`. The `npm`
+job in the same dispatch workflow is the only npm publishing path: it is granted
+`id-token: write` and nothing else, exchanges that short-lived OIDC token with npm
+**trusted publishing**, and publishes with `--provenance` under `latest` (`next`
+for prereleases). No npm token or secret exists in this repository. Never add npm
+publishing to push/PR CI, and never fall back to a static token.
+
+One-time prerequisite on npmjs.com, not performed by any script here: the
+`chmkit` package must exist and list a **Trusted Publisher** with repository
+`fwx5618177/chm-kit`, workflow `release.yml` and environment `release`. The very
+first version has to be published once by a maintainer with their own 2FA-enabled
+account; every later version uses the OIDC job above.
 
 ## Local verification
 

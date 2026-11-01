@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isVersion, verifyArtifacts } from './package.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const registry = 'https://registry.npmjs.org';
 
 export function validateReleaseInput({
   version,
@@ -34,6 +35,27 @@ export function validateReleaseInput({
     'workflow_dispatch',
     'Release assets require a dedicated manual dispatch',
   );
+}
+
+export function publishTag(version) {
+  return version.includes('-') ? 'next' : 'latest';
+}
+
+export async function assertUnpublished({ name, version, fetchImpl = fetch }) {
+  const response = await fetchImpl(
+    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(30000),
+    },
+  );
+  if (response.status === 404) return;
+  assert.ok(
+    response.ok,
+    `npm registry lookup failed with HTTP ${response.status}`,
+  );
+  await response.body?.cancel();
+  assert.fail(`${name}@${version} is already published; bump the version`);
 }
 
 export function validateApprovalPolicy(environment) {
@@ -118,8 +140,9 @@ async function preflight() {
 async function main() {
   const command = process.argv[2];
   assert.ok(
-    process.argv.length === 3 && ['validate', 'publish'].includes(command),
-    'Usage: node scripts/release.mjs validate|publish',
+    process.argv.length === 3 &&
+      ['validate', 'publish', 'npm'].includes(command),
+    'Usage: node scripts/release.mjs validate|publish|npm',
   );
   const { version, tag, repository, commit } = await preflight();
   if (command === 'validate') {
@@ -134,6 +157,37 @@ async function main() {
     commit,
     dirty: false,
   });
+  if (command === 'npm') {
+    const metadata = JSON.parse(
+      await readFile(join(root, 'package.json'), 'utf8'),
+    );
+    const tarball = join(directory, `chmkit-${version}.tgz`);
+    assert.ok(
+      manifest.assets.some(asset => asset.name === basename(tarball)),
+      `Unverified npm tarball: ${basename(tarball)}`,
+    );
+    await assertUnpublished({ name: metadata.name, version });
+    // Trusted publishing: npm exchanges the job's OIDC token, so no token secret
+    // exists. The artifact is published byte-for-byte; scripts never run here.
+    execFileSync(
+      'npm',
+      [
+        'publish',
+        tarball,
+        '--provenance',
+        '--access',
+        'public',
+        '--ignore-scripts',
+        '--tag',
+        publishTag(version),
+        '--registry',
+        registry,
+      ],
+      { cwd: root, stdio: 'inherit', timeout: 900000 },
+    );
+    console.log(`Published ${metadata.name}@${version} to ${registry}`);
+    return;
+  }
   const notes = manifest.assets.find(asset => asset.name.endsWith('-USAGE.md'));
   const args = [
     'release',
@@ -154,8 +208,8 @@ async function main() {
     join(directory, 'manifest.json'),
     join(directory, 'SHA256SUMS'),
   );
-  // No --clobber, npm token, npm publish, deployment or tag-creation fallback.
-  // The protected environment gate is enforced by GitHub before this job starts.
+  // No --clobber, deployment or tag-creation fallback. npm publishing happens
+  // only in the separate OIDC job, never through this token-authenticated path.
   console.log(gh(args));
 }
 

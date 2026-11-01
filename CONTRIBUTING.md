@@ -2,7 +2,8 @@
 
 Thank you for helping improve CHM support. For ordinary use, choose a
 [prebuilt download](docs/guide/downloads.md); **source builds are for contributors**.
-The public `chmkit` npm package is not published; publication needs separate authorization.
+The public `chmkit` npm package is released only by the approved, manually
+dispatched release workflow; nothing publishes it automatically.
 
 ## Discuss and report
 
@@ -198,5 +199,6 @@ reviewed protected environment. Do not assume the matching tag or protected
 `release` environment is configured: those prerequisites and explicit human
 authorization must exist before dispatch. The workflow can then create a
 **draft GitHub release**; a maintainer separately decides whether to publish it.
-Ordinary push/PR CI never publishes. There is no npm publishing workflow and no
-implicit authorization to publish npm.
+Ordinary push/PR CI never publishes. npm publishing exists only as the
+gated `npm` job of that same dispatch workflow: npm OIDC trusted publishing of the
+already verified tarball, with no token and no implicit authorization.
