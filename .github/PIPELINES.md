@@ -215,31 +215,31 @@ under the run's **Artifacts** section. GitHub Actions artifact downloads normall
 require GitHub sign-in and expire. Approved public release assets provide durable,
 anonymous downloads after a maintainer publishes the draft release.
 
-## Manual release assets only
+## Tagged release only
 
-`workflows/release.yml` has **only `workflow_dispatch`**. Do not dispatch it until
-release is explicitly authorized. It is intentionally not an automatic tag/push/PR
-publishing flow and has never been run as part of this implementation.
+`workflows/release.yml` runs **only** on a pushed `v*` tag. Branch pushes and pull
+requests never publish; `ci.yml` ignores tag pushes so a release runs the
+acceptance matrix exactly once. The workflow never creates a tag, a commit or a
+version bump.
 
 Prerequisites for a maintainer, not actions performed by this change:
 
 1. Choose and commit the intended semantic package version and matching CLI
    version on `main`; integrate all new build entries/exports/files and lockfile
-   changes before release.
-2. Separately authorize/create an existing `v<version>` tag pointing to that exact
-   main commit. The workflow never creates a tag and refuses mismatched tags.
+   changes before tagging.
+2. Tag that exact `main` commit as `v<version>` and push the tag. Pushing the tag
+   is the release action; the ref is the only source of `version` and `tag`, so no
+   user input reaches a shell command.
 3. In repository Settings → Environments, configure environment **`release`** with
-   **required reviewers**, **prevent self-review**, and **administrator bypass
-   disabled**. Restrict its deployment branch policy to `main`. This requires
-   an eligible repository/plan and an independent reviewer. No environment or
-   protection setting is created/changed by the scripts.
-4. Manually dispatch **Approved release assets** on `main` with exact `version`
-   and `tag`. User inputs are validated in Node and passed as process arguments,
-   never interpolated into shell commands.
-5. Read-only preflight checks real environment protection, exact package version
-   and peeled existing tag commit. The reusable CI runs the full nine-Node,
-   three-browser, minimum-runtime and native Electron acceptance matrix and produces the prebuilt
-   download artifact.
+   **required reviewers** and **administrator bypass disabled**, and a deployment
+   branch policy that allows the `v*` **tag** rule (a branch-only policy blocks
+   every tag deployment). This repository is maintained by a single account, so
+   **prevent self-review is off** and the owner approves their own deployment;
+   there is no independent review, which is the accepted tradeoff here.
+4. Read-only preflight checks real environment protection, exact package version,
+   the peeled tag commit and that `main` already contains it.
+5. The reusable CI runs the full nine-Node, three-browser, minimum-runtime and
+   native Electron acceptance matrix and produces the prebuilt download artifact.
 6. GitHub pauses the release job for environment review. After approval, a separate
    no-dependency-install job downloads only this run's artifact, rechecks policy,
    tag and source identity, validates all asset hashes/inventory, and creates a
@@ -253,11 +253,11 @@ Prerequisites for a maintainer, not actions performed by this change:
 
 Normal CI and builds have only `contents: read`. The approved GitHub release job
 has `contents: write`; environment preflight also needs `actions: read`. The `npm`
-job in the same dispatch workflow is the only npm publishing path: it is granted
+job in the same tag workflow is the only npm publishing path: it is granted
 `id-token: write` and nothing else, exchanges that short-lived OIDC token with npm
 **trusted publishing**, and publishes with `--provenance` under `latest` (`next`
 for prereleases). No npm token or secret exists in this repository. Never add npm
-publishing to push/PR CI, and never fall back to a static token.
+publishing to branch push or pull-request CI, and never fall back to a static token.
 
 One-time prerequisite on npmjs.com, not performed by any script here: the
 `chmkit` package must exist and list a **Trusted Publisher** with repository

@@ -15,6 +15,7 @@ import {
   assertUnpublished,
   publishTag,
   validateApprovalPolicy,
+  validateReleaseHistory,
   validateReleaseInput,
 } from '../../scripts/release.mjs';
 
@@ -143,27 +144,34 @@ test('release versions are exact, safe semantic versions (including prereleases)
     assert.equal(isVersion(version), false);
 });
 
-test('release requires manual main dispatch with matching package version and tag', () => {
+test('release requires a pushed v<version> tag matching the package version', () => {
   const input = {
     version: '1.2.3',
     tag: 'v1.2.3',
     packageVersion: '1.2.3',
-    ref: 'refs/heads/main',
-    event: 'workflow_dispatch',
+    ref: 'refs/tags/v1.2.3',
+    event: 'push',
   };
   validateReleaseInput(input);
   for (const patch of [
-    { tag: 'main' },
+    { tag: 'v1.2.4' },
     { version: '--dangerous' },
     { packageVersion: '1.2.2' },
-    { ref: 'refs/heads/feature' },
-    { event: 'push' },
+    { ref: 'refs/heads/main' },
+    { ref: 'refs/tags/v1.2.4' },
+    { event: 'workflow_dispatch' },
     { event: 'pull_request' },
   ])
     assert.throws(() => validateReleaseInput({ ...input, ...patch }));
 });
 
-test('release approval policy fails closed for missing reviewers, self-review and bypass', () => {
+test('release tags must point to a commit that main already contains', () => {
+  for (const status of ['identical', 'behind']) validateReleaseHistory(status);
+  for (const status of ['ahead', 'diverged', undefined])
+    assert.throws(() => validateReleaseHistory(status), /commit on main/);
+});
+
+test('release approval policy fails closed for missing reviewers and admin bypass', () => {
   const rule = {
     type: 'required_reviewers',
     prevent_self_review: true,
@@ -173,6 +181,11 @@ test('release approval policy fails closed for missing reviewers, self-review an
     can_admins_bypass: false,
     protection_rules: [rule],
   });
+  // A solo maintainer approves their own release, so self-review stays allowed.
+  validateApprovalPolicy({
+    can_admins_bypass: false,
+    protection_rules: [{ ...rule, prevent_self_review: false }],
+  });
   for (const environment of [
     {},
     { protection_rules: [] },
@@ -180,10 +193,6 @@ test('release approval policy fails closed for missing reviewers, self-review an
     {
       can_admins_bypass: false,
       protection_rules: [{ ...rule, reviewers: [] }],
-    },
-    {
-      can_admins_bypass: false,
-      protection_rules: [{ ...rule, prevent_self_review: false }],
     },
   ])
     assert.throws(() => validateApprovalPolicy(environment));

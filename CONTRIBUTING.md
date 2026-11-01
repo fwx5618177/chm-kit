@@ -2,8 +2,8 @@
 
 Thank you for helping improve CHM support. For ordinary use, choose a
 [prebuilt download](docs/guide/downloads.md); **source builds are for contributors**.
-The public `chmkit` npm package is released only by the approved, manually
-dispatched release workflow; nothing publishes it automatically.
+The public `chmkit` npm package is released only by the tagged release workflow;
+nothing publishes it automatically.
 
 ## Discuss and report
 
@@ -189,16 +189,15 @@ it does not rewrite the root package. Local dirty assets are labeled as such.
 
 Keep changes focused; add regression tests for changed behavior and document
 migration impacts. Prefer existing dependencies and native runners. Conventional
-commit style is welcome, but do not commit, create a branch, tag, publish, dispatch
-a release or change repository/environment permissions on another person's behalf
-without explicit authorization.
+commit style is welcome, but do not commit, create a branch, tag, publish or
+change repository/environment permissions on another person's behalf without
+explicit authorization.
 
-The [release procedure](.github/PIPELINES.md#manual-release-assets-only) requires a
-matching existing tag, coherent package/CLI version, full CI and an independently
-reviewed protected environment. Do not assume the matching tag or protected
-`release` environment is configured: those prerequisites and explicit human
-authorization must exist before dispatch. The workflow can then create a
-**draft GitHub release**; a maintainer separately decides whether to publish it.
-Ordinary push/PR CI never publishes. npm publishing exists only as the
-gated `npm` job of that same dispatch workflow: npm OIDC trusted publishing of the
-already verified tarball, with no token and no implicit authorization.
+The [release procedure](.github/PIPELINES.md#tagged-release-only) runs only when a
+`v<version>` tag is pushed. It requires a coherent package/CLI version, the tag on
+`main`, full CI and the protected `release` environment. Do not assume the tag or
+that environment is configured. The workflow then creates a **draft GitHub
+release**; a maintainer separately decides whether to publish it. Branch push and
+pull-request CI never publishes. npm publishing exists only as the gated `npm` job
+of that same tag workflow: npm OIDC trusted publishing of the already verified
+tarball, with no token and no implicit authorization.

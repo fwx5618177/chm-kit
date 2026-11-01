@@ -173,15 +173,14 @@ Local builds may have `dirty: true`; those are not approved release assets.
 ## Release approval, not automatic publication
 
 Normal CI does not create tags, publish npm packages, deploy a documentation site
-or create releases. The manual release workflow requires an existing matching
-tag, version checks, complete CI and a separately protected `release` environment
-with independent review. Creating the matching tag and configuring that protected
-environment are **uncompleted prerequisites**, not actions performed by this
-work. When explicitly authorized and configured, the workflow creates a **draft**
-release; publishing that draft is a separate maintainer decision. Running CI or
-writing docs is not release authorization.
+or create releases. The release workflow runs only when a `v<version>` tag is
+pushed, and then requires version checks, complete CI and the protected `release`
+environment. Creating that tag and configuring the environment are **maintainer
+prerequisites**. When authorized and configured, the workflow creates a **draft**
+release; publishing that draft is a separate maintainer decision. The npm job runs
+last and needs npm's trusted publisher configuration; running CI or writing docs
+is not release authorization.
 
-See [the maintainer release procedure](../../.github/PIPELINES.md#manual-release-assets-only).
-Do not dispatch it, create a release with `gh`, or publish npm without explicit
-permission. npm publication needs separate authorization and an approved
-publishing flow; it is not enabled by these downloads.
+See [the maintainer release procedure](../../.github/PIPELINES.md#tagged-release-only).
+Do not push a release tag, create a release with `gh`, or publish npm without
+explicit permission.

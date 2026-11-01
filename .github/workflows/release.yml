@@ -1,27 +1,19 @@
-name: Approved release assets
+name: Approved release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Exact package.json version, for example 1.1.0 or 1.1.0-rc.1
-        required: true
-        type: string
-      tag:
-        description: Existing v<version> tag pointing to the dispatched main commit
-        required: true
-        type: string
+  push:
+    tags: ['v*']
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.tag }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   validate:
-    name: Validate version, existing tag and approval policy
+    name: Validate tag, version and approval policy
 
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -40,8 +32,6 @@ jobs:
       - name: Fail closed unless release prerequisites exist
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/release.mjs validate
 
   checks:
@@ -77,8 +67,6 @@ jobs:
       - name: Recheck policy, tag and asset hashes; create a draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/release.mjs publish
 
   npm:
@@ -108,6 +96,4 @@ jobs:
       - name: Recheck hashes, refuse a republish and publish without a token
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/release.mjs npm

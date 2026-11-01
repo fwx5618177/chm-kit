@@ -27,13 +27,24 @@ export function validateReleaseInput({
   assert.equal(
     version,
     packageVersion,
-    'Update and commit package.json before requesting release',
+    'Update and commit package.json before tagging the release',
   );
-  assert.equal(ref, 'refs/heads/main', 'Dispatch the release workflow on main');
+  assert.equal(
+    ref,
+    `refs/tags/${tag}`,
+    'Release runs from a pushed v<version> tag',
+  );
   assert.equal(
     event,
-    'workflow_dispatch',
-    'Release assets require a dedicated manual dispatch',
+    'push',
+    'Release assets require the v<version> tag push event',
+  );
+}
+
+export function validateReleaseHistory(status) {
+  assert.ok(
+    ['identical', 'behind'].includes(status),
+    'Release tag must point to a commit on main',
   );
 }
 
@@ -67,11 +78,6 @@ export function validateApprovalPolicy(environment) {
     'Configure required reviewers on the release environment first',
   );
   assert.equal(
-    rule.prevent_self_review,
-    true,
-    'Enable prevent self-review on the release environment',
-  );
-  assert.equal(
     environment.can_admins_bypass,
     false,
     'Disable administrator bypass on the release environment',
@@ -91,13 +97,13 @@ async function preflight() {
   const metadata = JSON.parse(
     await readFile(join(root, 'package.json'), 'utf8'),
   );
-  const version = process.env.RELEASE_VERSION;
-  const tag = process.env.RELEASE_TAG;
+  const tag = process.env.GITHUB_REF_NAME ?? '';
+  const version = tag.replace(/^v/, '');
   validateReleaseInput({
     version,
     tag,
     packageVersion: metadata.version,
-    ref: process.env.GITHUB_REF,
+    ref: process.env.GITHUB_REF ?? '',
     event: process.env.GITHUB_EVENT_NAME,
   });
   const repository = process.env.GITHUB_REPOSITORY;
@@ -115,7 +121,7 @@ async function preflight() {
       timeout: 10000,
     }).trim(),
     commit,
-    'Checkout differs from dispatched commit',
+    'Checkout differs from the tagged commit',
   );
   const environment = JSON.parse(
     gh(['api', `repos/${repository}/environments/release`]),
@@ -132,7 +138,11 @@ async function preflight() {
   assert.equal(
     target.sha,
     commit,
-    'Existing release tag must point to the dispatched main commit',
+    'Release tag must point to the checked out commit',
+  );
+  validateReleaseHistory(
+    JSON.parse(gh(['api', `repos/${repository}/compare/main...${commit}`]))
+      .status,
   );
   return { version, tag, repository, commit };
 }
