@@ -11,10 +11,10 @@
     "render:promo:nobgm": "remotion render src/index.ts Promo out/chmkit-promo-nobgm.mp4 --props=props/nobgm.json"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.484",
+    "@remotion/cli": "4.0.539",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "remotion": "4.0.484"
+    "remotion": "4.0.539"
   },
   "devDependencies": {
     "@types/react": "19.2.17",
