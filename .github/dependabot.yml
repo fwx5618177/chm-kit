@@ -25,3 +25,16 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
+  # Remotion renders are not covered by CI; re-render the promo after a Remotion bump.
+  - package-ecosystem: npm
+    directory: /media/source
+    schedule:
+      interval: weekly
+    groups:
+      remotion:
+        patterns:
+          - 'remotion'
+          - '@remotion/*'
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
