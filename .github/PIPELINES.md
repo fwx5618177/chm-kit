@@ -263,7 +263,10 @@ One-time prerequisite on npmjs.com, not performed by any script here: the
 `chmkit` package must exist and list a **Trusted Publisher** with repository
 `fwx5618177/chm-kit`, workflow `release.yml` and environment `release`. The very
 first version has to be published once by a maintainer with their own 2FA-enabled
-account; every later version uses the OIDC job above.
+account; every later version uses the OIDC job above. `publishConfig` pins the
+publish target to `registry.npmjs.org`, so a machine-wide mirror registry
+(npmmirror) cannot silently receive a release; `npm login` still needs an
+explicit `--registry https://registry.npmjs.org/` on such machines.
 
 ## Local verification
 
