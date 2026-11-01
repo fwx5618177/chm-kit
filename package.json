@@ -1,6 +1,6 @@
 {
   "name": "chmkit",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A TypeScript library for reading, parsing, and compressing .chm files with command-line tools",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.mjs",
