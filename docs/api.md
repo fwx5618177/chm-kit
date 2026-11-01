@@ -5,28 +5,23 @@
 
 The API reference is generated **from TypeScript source using TypeDoc**. This
 page is the source-controlled entry map; generated HTML is build output and must
-not be committed. A generated reference is not evidence that a public website
-has been deployed or an npm package has been published.
+not be committed. The published npm package ships declarations under
+`dist/types/`, not the HTML reference.
 
 ## Open the generated reference
 
-Download the [verified 1.1.0 TypeDoc HTML](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972316614)
-for exact source **`962ee71d52b0d1198a36c6c5d69c82a53e62caf9`** from the successful
-15-job run. The artifact was actually downloaded and its API `index.html` checked.
-Extract it in full, keep the asset directories beside `index.html` and open that
-file. GitHub sign-in is normally required; retention is 30 days. This is prebuilt
-HTML: **readers do not need to build the source**. Use the matching source revision's
-entry map/guides; later working-tree edits are not part of this fixed snapshot.
-See [downloads](guide/downloads.md#api-reference) for details.
+```sh
+pnpm install --frozen-lockfile
+pnpm docs:build
+```
 
-For contributors, `pnpm docs:build` uses TypeDoc 0.28.20 and
-[`typedoc.json`](../typedoc.json) to generate `dist/api/`, treating warnings as
-errors. After generation, open `dist/api/index.html` locally. That generated
-file is absent in a source-only checkout; no GitHub Pages/public-site URL is
-claimed. Contributors may
-serve the generated directory through a trusted static host, but public hosting
-is a separate approval/deployment action. Do not generate HTML into `docs/` or
-commit it. See [contributor setup](../CONTRIBUTING.md).
+That uses TypeDoc 0.28.20 and [`typedoc.json`](../typedoc.json) to write
+`dist/api/`, treating warnings as errors. Open `dist/api/index.html` locally. The
+generated file is absent in a source-only checkout and no GitHub Pages/public-site
+URL is claimed. Contributors may serve the generated directory through a trusted
+static host, but public hosting is a separate approval/deployment action. Do not
+generate HTML into `docs/` or commit it. See
+[contributor setup](../CONTRIBUTING.md) and [install](guide/downloads.md).
 
 ## Public entry map
 

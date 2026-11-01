@@ -2,7 +2,8 @@
 
 [Documentation](../index.md) · [API](../api.md) · [Configuration](configuration.md)
 
-Install the [prebuilt tarball](downloads.md); no library build is needed.
+Install with `npm install chmkit`; no library build is needed. Setup details are
+in [install](downloads.md).
 Use named ESM imports from `chmkit`, or CommonJS `require('chmkit')`.
 `chmkit/reader` is the focused Node reader entry.
 

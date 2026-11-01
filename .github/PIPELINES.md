@@ -144,7 +144,7 @@ The actual runtime/API artifacts were downloaded; exact source, version 1.1.0,
 browser viewer passed direct `file:` sample preview with zero HTTP requests/errors
 in all three engines; ordinary npm installation of the downloaded tgz outside
 the checkout, pack/read roundtrip, copied standalone CLI and API entry passed.
-See [`VALIDATION.md`](../VALIDATION.md) and [downloads](../docs/guide/downloads.md#verified-prebuilt-snapshot).
+See [`VALIDATION.md`](../VALIDATION.md) and [install](../docs/guide/downloads.md).
 
 Run 41003535243 at `45a5b5f` remains the historical 14-job baseline only. Later
 working-tree changes require their own hosted run; local YAML validation does

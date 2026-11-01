@@ -42,50 +42,26 @@ Without background music: https://github.com/user-attachments/assets/adc5fd48-17
 
 The interface and terminal output in the videos come from this repository's real build output. Captions are in Chinese. The video source and notes are in [media/](media/README.md).
 
-## Get CHMKit
-
-The npm package is **not published yet**. Choose one of the following.
-
-### Option A: download the CI prebuilt bundle (no build)
-
-1. Open [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions) and pick the latest successful **CI** run on `main`.
-2. Download the `chmkit-<commit>` artifact (requires GitHub sign-in; artifacts expire).
-   `chmkit-api-<commit>` contains the generated TypeDoc API HTML.
-3. The bundle contains:
-
-| File                                                     | Purpose                                                            |
-| -------------------------------------------------------- | ------------------------------------------------------------------ |
-| `chmkit-<version>-browser.tar.gz`                        | Browser viewer (`dist/viewer/`) plus browser ESM modules and types |
-| `chmkit-<version>-cli.cjs`                               | Standalone command-line tool; no `npm install` needed              |
-| `chmkit-<version>.tgz`                                   | npm package with the library, installed CLI and type declarations  |
-| `SHA256SUMS`, `manifest.json`, `THIRD_PARTY_NOTICES.txt` | Checksums, source metadata and third-party licenses                |
-
-Verify the files before use:
+## Install
 
 ```sh
-shasum -a 256 -c SHA256SUMS      # on Linux: sha256sum -c SHA256SUMS
+npm install chmkit          # library, command line tool and browser modules
+npm install -g chmkit       # optional: the `chmkit` / `chm` command on your PATH
 ```
 
-### Option B: build from source (contributors)
+Requires Node.js 20.10.0 or newer (22/24 recommended). The package is already
+compiled; no TypeScript, pnpm or build step is needed. Versions and provenance are
+listed on [npmjs.com/package/chmkit](https://www.npmjs.com/package/chmkit); see
+[install and verify](docs/guide/downloads.md) for details.
 
-You need Node.js 22.13+ or 24 and pnpm 10.34.9 (as pinned in `package.json`).
-
-```sh
-git clone https://github.com/fwx5618177/chm-kit.git
-cd chm-kit
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm build                       # writes dist/cjs, dist/esm, dist/browser and dist/viewer
-node dist/cjs/cli/index.js --help
-```
-
-To produce the npm tarball and standalone CLI, run `pnpm package:artifacts`; the outputs are in `dist/package/`.
+Contributors who want a source build should read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick start
 
 ### 1. Open a CHM in the browser
 
-Extract the browser bundle and double-click **`dist/viewer/index.html`**. No Node.js,
-npm, build step or local server is needed.
+After installing, open `node_modules/chmkit/dist/viewer/index.html` in a browser.
+It works from `file:` with no Node.js, build step or local server.
 
 1. Click **「打开 .chm 文件」** (Open .chm file) to choose a local file, or **「加载演示文档」** (Load demo) for a built-in sample.
 2. The left column lists archive files; click one to preview it. **「查看目录」** (View contents) shows the table of contents.
@@ -102,11 +78,10 @@ Loading the sample preview made no external network requests (verified in Chromi
 
 ### 2. Use the command line
 
-The examples use the standalone `chmkit-<version>-cli.cjs`. After installing the npm
-package, you can run `chmkit` (or its alias `chm`) directly.
+After installing, run `chmkit` (alias `chm`) directly.
 
 ```sh
-node chmkit-1.1.0-cli.cjs --help
+chmkit --help
 ```
 
 ![chmkit command overview](docs/images/cli-help.png)
@@ -126,16 +101,16 @@ node chmkit-1.1.0-cli.cjs --help
 Using the sample downloaded above:
 
 ```sh
-node chmkit-1.1.0-cli.cjs tree chmkit-demo.chm --depth 2
-node chmkit-1.1.0-cli.cjs search chmkit-demo.chm "边界条件"
+chmkit tree chmkit-demo.chm --depth 2
+chmkit search chmkit-demo.chm "边界条件"
 ```
 
 ![File tree and search](docs/images/cli-tree-search.png)
 
 ```sh
-node chmkit-1.1.0-cli.cjs read chmkit-demo.chm /index.html --range 0:12 --format raw
-node chmkit-1.1.0-cli.cjs read chmkit-demo.chm --toc --format json
-node chmkit-1.1.0-cli.cjs extract chmkit-demo.chm -o ./extracted -p --json
+chmkit read chmkit-demo.chm /index.html --range 0:12 --format raw
+chmkit read chmkit-demo.chm --toc --format json
+chmkit extract chmkit-demo.chm -o ./extracted -p --json
 ```
 
 ![Read, table of contents and extract](docs/images/cli-read-extract.png)

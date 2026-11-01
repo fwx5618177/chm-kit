@@ -1,9 +1,9 @@
 # Contributing to CHMKit
 
-Thank you for helping improve CHM support. For ordinary use, choose a
-[prebuilt download](docs/guide/downloads.md); **source builds are for contributors**.
-The public `chmkit` npm package is released only by the tagged release workflow;
-nothing publishes it automatically.
+Thank you for helping improve CHM support. For ordinary use, install the npm
+package as described in [install](docs/guide/downloads.md); **source builds are for
+contributors**. The public `chmkit` npm package is released only by the tagged
+release workflow; nothing publishes it automatically.
 
 ## Discuss and report
 

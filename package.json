@@ -118,6 +118,7 @@
     "dist/cjs",
     "dist/esm",
     "dist/browser",
+    "dist/viewer",
     "dist/types",
     "README.md",
     "README.en.md",

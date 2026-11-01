@@ -1,9 +1,8 @@
 # Changelog
 
 User-facing changes are recorded here. Exact package version comes from
-`package.json`; artifact version/source identity comes from its manifest. This
-file is not evidence that a release was published. The public `chmkit` npm
-package is not published; publication requires separate authorization. See [downloads](docs/guide/downloads.md)
+`package.json`; artifact version/source identity comes from its manifest. The
+public `chmkit` npm package is published from tagged releases; see [install](docs/guide/downloads.md)
 and [migration](docs/guide/migration.md).
 
 ## Unreleased
@@ -114,8 +113,8 @@ and [migration](docs/guide/migration.md).
   not a dev-tool installation environment. Delivery tests are native Vitest under
   `test/delivery/`, included by `pnpm test` and focused by `pnpm test:delivery`;
   `pnpm test:bench` runs native benchmarks once.
-- Documentation leads with prebuilt downloads, not consumer builds or a nonexistent
-  registry install. Source build instructions live in the contribution guide.
+- Documentation leads with `npm install chmkit`; the standalone viewer ships
+  inside the package. Source build instructions live in the contribution guide.
 
 ### Compatibility and safety notes
 

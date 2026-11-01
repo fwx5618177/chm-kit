@@ -6,22 +6,20 @@ one archive selection, and a sandboxed renderer can request only the approved
 searches for `manual`, reads the first HTML file's bytes and closes the archive.
 The result is text/metadata and a hex preview, **not rendered CHM HTML**.
 
-## Run with a prebuilt tarball
+## Run with the published package
 
-Obtain the prebuilt npm tarball identified by the artifact's `manifest.json`
-(current package version: `chmkit-1.1.0.tgz`). The public npm registry is not an
-installation source for this project. Copy this example into an application
-outside the CHMKit checkout; you do not need to build CHMKit or run `pnpm demo`.
-You supply an existing `.chm` file that you trust main to open.
+Install `chmkit` from npm. Copy this example into an application outside the
+CHMKit checkout; you do not need to build CHMKit or run `pnpm demo`. You supply an
+existing `.chm` file that you trust main to open.
 
-For example, replace the absolute paths below with your downloaded tarball,
-checkout/example location and manual:
+For example, replace the absolute paths below with your checkout/example location
+and manual:
 
 ```sh
 mkdir chmkit-electron-app
 cd chmkit-electron-app
 npm init -y
-npm install /absolute/path/to/chmkit-1.1.0.tgz
+npm install chmkit
 npm install --save-dev electron@45.1.0 esbuild
 cp -R /absolute/path/to/chm-kit/examples/electron ./app
 npx esbuild app/preload.cjs --bundle --platform=node --format=cjs --external:electron --outfile=app/preload.bundle.cjs

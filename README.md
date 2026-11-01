@@ -40,48 +40,24 @@ https://github.com/user-attachments/assets/b95edd3e-160f-45f4-8e01-30c9ff321dc3
 
 视频中的界面与终端输出都来自本仓库的真实构建产物，字幕为中文。视频源码与说明见 [media/](media/README.md)。
 
-## 获取 CHMKit
-
-目前 npm 包**尚未发布**，请选择下面一种方式。
-
-### 方式 A：下载 CI 预构建产物（无需构建）
-
-1. 打开 [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions)，选择 `main` 上最近一次成功的 **CI** 运行。
-2. 在 Artifacts 中下载 `chmkit-<commit>`（需要 GitHub 登录，产物会过期）。`chmkit-api-<commit>` 是 TypeDoc 生成的 API 文档。
-3. 解压后包含：
-
-| 文件                                                     | 用途                                                    |
-| -------------------------------------------------------- | ------------------------------------------------------- |
-| `chmkit-<版本>-browser.tar.gz`                           | 浏览器查看器（`dist/viewer/`）以及浏览器 ESM 模块与类型 |
-| `chmkit-<版本>-cli.cjs`                                  | 独立命令行工具，无需 `npm install`                      |
-| `chmkit-<版本>.tgz`                                      | npm 安装包，包含库、命令行工具和类型声明                |
-| `SHA256SUMS`、`manifest.json`、`THIRD_PARTY_NOTICES.txt` | 校验文件、来源信息和第三方许可                          |
-
-使用前先校验文件完整性：
+## 安装
 
 ```sh
-shasum -a 256 -c SHA256SUMS      # Linux 可用 sha256sum -c SHA256SUMS
+npm install chmkit          # 库、命令行工具和浏览器模块
+npm install -g chmkit       # 可选：全局提供 `chmkit` / `chm` 命令
 ```
 
-### 方式 B：从源码构建（贡献者）
+需要 Node.js 20.10.0 及以上（推荐 22/24）。包已编译好，不需要 TypeScript、pnpm 或任何构建步骤。
+版本与来源可在 [npmjs.com/package/chmkit](https://www.npmjs.com/package/chmkit) 查看；
+安装与校验细节见 [安装与验证](docs/guide/downloads.md)。
 
-需要 Node.js 22.13+ 或 24，以及 pnpm 10.34.9（与 `package.json` 一致）。
-
-```sh
-git clone https://github.com/fwx5618177/chm-kit.git
-cd chm-kit
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm build                       # 生成 dist/cjs、dist/esm、dist/browser、dist/viewer
-node dist/cjs/cli/index.js --help
-```
-
-需要 npm 安装包或独立 CLI 时，运行 `pnpm package:artifacts`，产物位于 `dist/package/`。
+参与开发、需要从源码构建时，见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 快速上手
 
 ### 1. 在浏览器中打开 CHM
 
-解压浏览器包后，直接双击 **`dist/viewer/index.html`**。不需要 Node.js、npm、构建步骤或本地服务器。
+安装后可直接用浏览器打开 `node_modules/chmkit/dist/viewer/index.html`（`file:` 即可，不需要 Node.js、构建步骤或本地服务器）。
 
 1. 点击 **「打开 .chm 文件」**，选择本地文件；没有文件时，点击 **「加载演示文档」**。
 2. 左侧列出归档中的文件，点击即可预览；顶部的 **「查看目录」** 显示 CHM 目录。
@@ -98,10 +74,10 @@ node dist/cjs/cli/index.js --help
 
 ### 2. 在终端中使用 `chmkit`
 
-示例使用独立 CLI `chmkit-<版本>-cli.cjs`；安装了 npm 包后，可以直接运行 `chmkit`（别名 `chm`）。
+安装后直接运行 `chmkit`（别名 `chm`）。
 
 ```sh
-node chmkit-1.1.0-cli.cjs --help
+chmkit --help
 ```
 
 ![chmkit 命令一览](docs/images/cli-help.png)
@@ -118,19 +94,19 @@ node chmkit-1.1.0-cli.cjs --help
 | `browse`  | 在交互式终端中浏览（需要 TTY）                                                    | `chmkit browse manual.chm`                              |
 | `pack`    | 把目录打包为新的 CHM 文件                                                         | `chmkit pack ./site -o new.chm -t "手册" -d index.html` |
 
-以下示例都使用上面下载的 `chmkit-demo.chm`：
+以下示例都使用 `chmkit-demo.chm`（在查看器中点「下载示例 CHM」即可保存）：
 
 ```sh
-node chmkit-1.1.0-cli.cjs tree chmkit-demo.chm --depth 2
-node chmkit-1.1.0-cli.cjs search chmkit-demo.chm "边界条件"
+chmkit tree chmkit-demo.chm --depth 2
+chmkit search chmkit-demo.chm "边界条件"
 ```
 
 ![文件树与搜索](docs/images/cli-tree-search.png)
 
 ```sh
-node chmkit-1.1.0-cli.cjs read chmkit-demo.chm /index.html --range 0:12 --format raw
-node chmkit-1.1.0-cli.cjs read chmkit-demo.chm --toc --format json
-node chmkit-1.1.0-cli.cjs extract chmkit-demo.chm -o ./extracted -p --json
+chmkit read chmkit-demo.chm /index.html --range 0:12 --format raw
+chmkit read chmkit-demo.chm --toc --format json
+chmkit extract chmkit-demo.chm -o ./extracted -p --json
 ```
 
 ![读取、目录与提取](docs/images/cli-read-extract.png)
@@ -232,6 +208,7 @@ await writeFile('new.chm', bytes, { flag: 'wx' }); // wx：文件已存在时失
 | 主题              | 链接                                                                                            |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
 | 文档首页与导航    | [docs/index.md](docs/index.md)                                                                  |
+| 安装与验证        | [docs/guide/downloads.md](docs/guide/downloads.md)                                              |
 | 命令行            | [docs/guide/cli.md](docs/guide/cli.md)                                                          |
 | 浏览器            | [docs/guide/browser.md](docs/guide/browser.md)                                                  |
 | Node.js           | [docs/guide/node.md](docs/guide/node.md)                                                        |

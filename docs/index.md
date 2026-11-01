@@ -8,7 +8,7 @@
 
 | 我想要…                                     | 阅读                                             |
 | ------------------------------------------- | ------------------------------------------------ |
-| 打开浏览器查看器，或下载、安装、校验发布包  | [下载与安装](guide/downloads.md)（英文）         |
+| 打开浏览器查看器，或安装、校验发布包        | [安装与验证](guide/downloads.md)（英文）         |
 | 在终端中查看、搜索、读取、提取、打包        | [命令行使用指南](guide/cli.md)（中文）           |
 | 在网页中读取本地文件，并安全地预览 CHM 页面 | [浏览器使用指南](guide/browser.md)（中文）       |
 | 在 Node.js 服务或脚本中复用读取器、流式读取 | [Node.js 指南](guide/node.md)（英文）            |
@@ -29,9 +29,9 @@
 
 ## 与发布包的关系
 
-示例中的 `dist/viewer/index.html` 包含在发布包中，可直接以 `file:` 方式打开，
-无需 Node.js、npm 或本地服务器。库的 ESM 与 module Worker 集成需要通过 HTTP(S) 提供文件。
-安装包、独立命令行工具与 API HTML 的获取方式见 [下载与安装](guide/downloads.md)。
+示例中的 `dist/viewer/index.html` 包含在 npm 发布包中，可直接以 `file:` 方式打开，
+无需 Node.js、构建步骤或本地服务器。库的 ESM 与 module Worker 集成需要通过 HTTP(S) 提供文件。
+安装与校验方式见 [安装与验证](guide/downloads.md)。
 
 ## 安全、许可与维护
 
