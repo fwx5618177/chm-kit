@@ -24,7 +24,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const output = join(root, 'dist/package');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const publicFile =
-  /^(?:dist\/(?!package\/|demo\/|declarations\/)[\w./-]+|README(?:_zh)?\.md|LICENSE|THIRD_PARTY_NOTICES\.txt)$/;
+  /^(?:dist\/(?!package\/|demo\/|declarations\/)[\w./-]+|README(?:\.en)?\.md|LICENSE|THIRD_PARTY_NOTICES\.txt)$/;
 const dangerousSegment =
   /(?:^|\/)(?:\.\.?|node_modules|test|tests|fixtures|src|scripts|\.github)(?:\/|$)/;
 
@@ -296,7 +296,7 @@ async function packageAssets() {
     for (const path of new Set([
       ...source.files,
       'README.md',
-      'README_zh.md',
+      'README.en.md',
       'LICENSE',
     ]))
       await copyPublic(path, stage);
@@ -438,7 +438,7 @@ async function packageAssets() {
         'dist/types',
         'LICENSE',
         'README.md',
-        'README_zh.md',
+        'README.en.md',
         'THIRD_PARTY_NOTICES.txt',
         '-C',
         viewer,

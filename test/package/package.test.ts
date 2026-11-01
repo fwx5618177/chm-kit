@@ -218,7 +218,7 @@ describe('installed npm tarball', () => {
     expect(
       files.filter(
         name =>
-          !/^(?:dist\/(?:browser|viewer|types)(?:\/|$)|LICENSE$|README(?:_zh)?\.md$|THIRD_PARTY_NOTICES\.txt$)/.test(
+          !/^(?:dist\/(?:browser|viewer|types)(?:\/|$)|LICENSE$|README(?:\.en)?\.md$|THIRD_PARTY_NOTICES\.txt$)/.test(
             name,
           ),
       ),

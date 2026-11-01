@@ -1,77 +1,141 @@
 # CHMKit
 
-Open local Microsoft HTML Help (`.chm`) files in a browser, explore them from a
-terminal, or integrate a TypeScript reader/writer into your application.
-Read, search, preview, extract and create archives without uploading your files.
+在浏览器、终端或 TypeScript 应用中读取、搜索、预览、提取和创建 Microsoft HTML Help（`.chm`）文件。
+所有处理都在本地完成，**文件不会上传**。
 
-**English** | [中文](README_zh.md) · [Documentation](docs/index.md) ·
-[API reference](docs/api.md) · [Migration](docs/guide/migration.md)
+**中文** | [English](README.en.md) · [使用文档](docs/index.md) · [API 参考](docs/api.md) · [更新日志](CHANGELOG.md)
 
-## Get started — choose your channel
+## 它是什么
 
-| Download                      | Use it for                                                       | Requirements                                          |
-| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
-| `chmkit-1.1.0-browser.tar.gz` | Ready-to-open local viewer, plus browser modules/types           | Modern browser; no Node, npm or server for the viewer |
-| `chmkit-1.1.0-cli.cjs`        | Inspect, search, extract and pack from a terminal                | Node.js 20.10+; no npm install                        |
-| `chmkit-1.1.0.tgz`            | Node library, installed CLI, browser/Worker/Electron integration | Node.js and npm for installation                      |
+CHMKit 提供四种入口，共用同一套解析与解压实现：
 
-Download and unzip the [verified 1.1.0 bundle](https://github.com/fwx5618177/chm-kit/actions/runs/41044610433/artifacts/12972336497)
-from source **`962ee71`**: local viewer, standalone CLI and library tgz are all
-included. These examples use version **1.1.0**; check `manifest.json` for your
-download's version/source, keep its notices and
-[verify checksums](docs/guide/downloads.md#verify-the-download).
+| 入口                       | 适合做什么                                                  | 需要的环境                                |
+| -------------------------- | ----------------------------------------------------------- | ----------------------------------------- |
+| **浏览器查看器**           | 双击打开，选择 `.chm`，浏览目录、全文搜索、预览页面         | 现代浏览器（Chromium / Firefox / WebKit） |
+| **命令行 `chmkit`**        | 查看信息、列文件树、搜索、读取、提取、批量提取、打包        | Node.js 20.10+                            |
+| **TypeScript 库**          | 在 Node.js 服务或网页应用中读取、搜索、提取，或生成新的 CHM | Node.js 20.10+ 或现代浏览器               |
+| **Worker / Electron 集成** | 把解析放到 Worker 线程，或在 Electron 中受控地开放归档能力  | 对应运行时                                |
 
-Actions downloads require GitHub sign-in and expire. The npm package is **not
-published**; npm publication or a public release requires separate authorization.
-[Download details and API HTML](docs/guide/downloads.md#verified-prebuilt-snapshot).
+需要注意的边界：
 
-### Open the local viewer
+- CHMKit 是读取与生成 CHM 的库和工具，**不是** HTML Help Workshop 的替代品。
+- 已用 PuTTY、7-Zip、Inno Setup、PyCHM 与官方 FPC 文档等独立来源的 CHM 做兼容性测试；
+  但不保证兼容所有生成器。尚缺普通 ITSF v2、GBK/UTF-16 等真实样本，详见 [TODO.md](TODO.md)。
+- 全文搜索是对可读文本资源的字面量扫描，不读取编译后的搜索数据库。
+- 查看器的 HTML 预览是禁脚本、受限的静态预览，不是完整浏览器。
 
-Extract `chmkit-1.1.0-browser.tar.gz`, then double-click **`dist/viewer/index.html`**.
-Select your `.chm` file or try the built-in sample to browse, search and preview it.
-Keep the extracted directory intact. No Node, npm, source checkout, build or local
-server is needed. The actual downloaded archive was extracted and opened as
-`file:` in Chromium, Firefox and WebKit; sample preview passed with **zero HTTP
-requests or errors**.
+## 获取 CHMKit
 
-The viewer uses a restricted, script-free preview; some CHM page features may be
-omitted. Library ESM and module Worker integrations still use HTTP(S).
-[Browser guide](docs/guide/browser.md).
+目前 npm 包**尚未发布**，请选择下面一种方式。
 
-### Run the standalone CLI
+### 方式 A：下载 CI 预构建产物（无需构建）
+
+1. 打开 [GitHub Actions](https://github.com/fwx5618177/chm-kit/actions)，选择 `main` 上最近一次成功的 **CI** 运行。
+2. 在 Artifacts 中下载 `chmkit-<commit>`（需要 GitHub 登录，产物会过期）。`chmkit-api-<commit>` 是 TypeDoc 生成的 API 文档。
+3. 解压后包含：
+
+| 文件                                                     | 用途                                                    |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| `chmkit-<版本>-browser.tar.gz`                           | 浏览器查看器（`dist/viewer/`）以及浏览器 ESM 模块与类型 |
+| `chmkit-<版本>-cli.cjs`                                  | 独立命令行工具，无需 `npm install`                      |
+| `chmkit-<版本>.tgz`                                      | npm 安装包，包含库、命令行工具和类型声明                |
+| `SHA256SUMS`、`manifest.json`、`THIRD_PARTY_NOTICES.txt` | 校验文件、来源信息和第三方许可                          |
+
+使用前先校验文件完整性：
+
+```sh
+shasum -a 256 -c SHA256SUMS      # Linux 可用 sha256sum -c SHA256SUMS
+```
+
+### 方式 B：从源码构建（贡献者）
+
+需要 Node.js 22.13+ 或 24，以及 pnpm 10.34.9（与 `package.json` 一致）。
+
+```sh
+git clone https://github.com/fwx5618177/chm-kit.git
+cd chm-kit
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm build                       # 生成 dist/cjs、dist/esm、dist/browser、dist/viewer
+node dist/cjs/cli/index.js --help
+```
+
+需要 npm 安装包或独立 CLI 时，运行 `pnpm package:artifacts`，产物位于 `dist/package/`。
+
+## 快速上手
+
+### 1. 在浏览器中打开 CHM
+
+解压浏览器包后，直接双击 **`dist/viewer/index.html`**。不需要 Node.js、npm、构建步骤或本地服务器。
+
+1. 点击 **「打开 .chm 文件」**，选择本地文件；没有文件时，点击 **「加载演示文档」**。
+2. 左侧列出归档中的文件，点击即可预览；顶部的 **「查看目录」** 显示 CHM 目录。
+3. 在搜索框输入关键词，点击 **「全文搜索」**，结果会按文件列出匹配数量。
+4. 点击 **「下载示例 CHM」** 可保存演示文件 `chmkit-demo.chm`，下面的命令行示例使用它。
+
+![查看器初始界面](docs/images/viewer-start.png)
+
+![加载演示文档后的预览](docs/images/viewer-sample.png)
+
+![全文搜索结果](docs/images/viewer-search.png)
+
+查看器加载示例预览时没有任何外部网络请求（已在 Chromium、Firefox、WebKit 中验证）。
+
+### 2. 在终端中使用 `chmkit`
+
+示例使用独立 CLI `chmkit-<版本>-cli.cjs`；安装了 npm 包后，可以直接运行 `chmkit`（别名 `chm`）。
 
 ```sh
 node chmkit-1.1.0-cli.cjs --help
-node chmkit-1.1.0-cli.cjs info manual.chm --json
-node chmkit-1.1.0-cli.cjs tree manual.chm --depth 2
-node chmkit-1.1.0-cli.cjs search manual.chm "installation" --type html --json
-node chmkit-1.1.0-cli.cjs extract manual.chm --output ./manual-new --preserve-structure
 ```
 
-Supply your own `manual.chm`. For internal paths, first list the archive instead
-of assuming that it contains `/index.html`.
+![chmkit 命令一览](docs/images/cli-help.png)
 
-### Install the prebuilt library
+| 命令      | 作用                                                                              | 示例                                                    |
+| --------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `info`    | 显示头部信息和统计（`--json` 输出 JSON）                                          | `chmkit info manual.chm`                                |
+| `tree`    | 显示文件树，支持 `--depth`、`--filter`、`--type`、`--json`                        | `chmkit tree manual.chm --depth 2`                      |
+| `search`  | 全文搜索或 `--names` 文件名搜索，默认跳过二进制文件                               | `chmkit search manual.chm "安装" --json`                |
+| `read`    | 读取文件、`--list` 列表、`--toc` 目录、`--index` 索引，支持 `--range`、`--stream` | `chmkit read manual.chm /index.html`                    |
+| `extract` | 提取到新目录，`-p` 保留目录结构                                                   | `chmkit extract manual.chm -o ./out -p`                 |
+| `batch`   | 批量提取多个 CHM 到编号子目录                                                     | `chmkit batch a.chm b.chm -o ./out -p`                  |
+| `preview` | 生成无脚本、无外部资源的静态 HTML 预览                                            | `chmkit preview manual.chm /index.html -o preview.html` |
+| `browse`  | 在交互式终端中浏览（需要 TTY）                                                    | `chmkit browse manual.chm`                              |
+| `pack`    | 把目录打包为新的 CHM 文件                                                         | `chmkit pack ./site -o new.chm -t "手册" -d index.html` |
+
+以下示例都使用上面下载的 `chmkit-demo.chm`：
 
 ```sh
-npm install ./chmkit-1.1.0.tgz
-npx --no-install chmkit --help
+node chmkit-1.1.0-cli.cjs tree chmkit-demo.chm --depth 2
+node chmkit-1.1.0-cli.cjs search chmkit-demo.chm "边界条件"
 ```
 
-The tarball already includes CJS, ESM, browser modules, CLI and TypeScript
-declarations. Installation does not build the package or run repository hooks.
-It can access npm to fetch runtime dependencies. Both `chmkit` and `chm` name the
-same installed CLI. For offline CLI use, choose the standalone file instead.
+![文件树与搜索](docs/images/cli-tree-search.png)
 
-Keep `SHA256SUMS`, `manifest.json` and `THIRD_PARTY_NOTICES.txt` with your download.
-[Verify checksums](docs/guide/downloads.md#verify-the-download) before running it.
+```sh
+node chmkit-1.1.0-cli.cjs read chmkit-demo.chm /index.html --range 0:12 --format raw
+node chmkit-1.1.0-cli.cjs read chmkit-demo.chm --toc --format json
+node chmkit-1.1.0-cli.cjs extract chmkit-demo.chm -o ./extracted -p --json
+```
 
-## Node.js: open once, read many times
+![读取、目录与提取](docs/images/cli-read-extract.png)
+
+使用约定：
+
+- 机器可读结果输出到 stdout（`--json`、`--format raw`），诊断与进度输出到 stderr。
+- 退出码：成功为 `0`，失败为 `1`，`extract` 被 Ctrl-C 取消为 `130`。
+- `extract` 与 `batch` 拒绝覆盖已有文件，并拒绝符号链接输出目录。请使用新目录。
+- `read --output` 写入你指定的普通文件，**会覆盖已有文件**。
+- 路径需要先用 `read <file> --list` 或 `tree` 确认，不要假设归档中一定有 `/index.html`。
+- 当前目录下的 `chmkit.config.json` 会被自动读取；命令行参数优先。字段说明见 [配置与资源预算](docs/guide/configuration.md)。
+
+完整命令说明见 [命令行使用指南](docs/guide/cli.md)。
+
+### 3. 在 Node.js 中读取
 
 ```ts
 import { CHMReader } from 'chmkit';
 
-const reader = await CHMReader.open('manual.chm', {
+const reader = await CHMReader.open('chmkit-demo.chm', {
   maxCacheBytes: 8 * 1024 * 1024,
   maxFileSize: 16 * 1024 * 1024,
 });
@@ -80,105 +144,99 @@ try {
   const page = reader.listFiles('**/*.html')[0];
   if (page) {
     console.log(reader.readHTML(page));
-    const end = Math.min(128, reader.getFileSize(page));
-    console.log(reader.readRange(page, 0, end)); // Buffer, [0, end)
+    console.log(reader.readRange(page, 0, 12)); // Buffer，对应字节 [0, 12)
   }
-  console.log(reader.search('installation', { maxResults: 10 }));
+  console.log(reader.search('边界条件', { maxResults: 10 }));
 } finally {
-  reader.close(); // releases caches AND the open file descriptor
+  reader.close(); // 释放缓存和文件描述符
 }
 ```
 
-`open(path)` is asynchronous; parsing, positioned file reads and decompression
-are **synchronous** once opened and can block the event loop. The file must stay
-immutable until `close()`. This is file-backed reading, not an automatic async
-filesystem/CPU worker. Extraction also uses file-backed input with bounded async
-output, not a whole-archive read or multicore decoder. Default-off `adaptivePreload`
-uses same-thread timers, separately from synchronous `readAhead`; see the
-[Node guide](docs/guide/node.md) and [budgets](docs/guide/configuration.md).
+- `CHMReader.open()` 是异步的；打开后，解析和解压是同步操作，会阻塞事件循环。
+- 归档在 `close()` 之前必须保持不变。
+- 只需要读取一次时，可以使用 `CHMKit.readFile()`、`CHMKit.listFiles()`、`CHMKit.searchContent()`，它们会自动关闭内部读取器。
+- 如果已在内存中有字节，使用 `CHMKit.from(bytes)` 或 `new CHMArchive(bytes)`。
 
-For owned memory, use `CHMKit.from(bytes)` or `new CHMArchive(bytes)`. For one-shot
-operations, `CHMKit.readFile()`, `listFiles()` and `searchContent()` close their
-internal reader automatically. Reuse an explicit reader for repeated operations.
-
-## Browser and application integrations
+### 4. 在浏览器应用中读取
 
 ```ts
 import { CHMReader } from 'chmkit/browser';
 
-// A File selected by <input type="file"> is a Blob; no upload is needed.
-const reader = await CHMReader.open(file, {
-  maxFileSize: 16 * 1024 * 1024,
-});
+// <input type="file"> 选中的 File 就是 Blob，不需要上传。
+const reader = await CHMReader.open(file, { maxFileSize: 16 * 1024 * 1024 });
 try {
   console.log(reader.listFiles(), reader.getTOC());
+  console.log(reader.readHTML('/index.html')); // 返回的是文本，不要直接插入页面 DOM
 } finally {
   reader.close();
 }
 ```
 
-Browser input is `Uint8Array`, `ArrayBuffer` or `Blob`, **not** a path/URL string.
-Binary results are plain `Uint8Array`; streams are WHATWG `ReadableStream` in
-both runtimes. Browser memory input is retained separately from the cache budget.
+- 浏览器中的输入是 `Uint8Array`、`ArrayBuffer` 或 `Blob`，不是文件路径。
+- 直接以 ESM 模块方式使用时，需要通过 HTTP(S) 提供 `dist/browser/` 下的全部文件。
+- 不要把 CHM 中的 HTML 直接插入应用 DOM。查看器使用沙箱 iframe、CSP 和资源限制；集成方法见 [浏览器指南](docs/guide/browser.md) 与 [examples/browser](examples/browser/README.md)。
 
-- **Local viewer:** open `dist/viewer/index.html` directly from the extracted
-  browser archive. For **library integration without a bundler**, retain all
-  chunks and import `./dist/browser/index.mjs` over HTTP(S).
-- **Worker:** `chmkit/worker` provides a client/host pair, bounded RPC, optional
-  transfers and cleanup. See [Worker guide](docs/guide/worker.md) and
-  [complete example](examples/worker/).
-- **Electron:** `chmkit/electron/main` and `chmkit/electron/preload` expose approved
-  archive capabilities, not renderer-controlled filesystem access. See the
-  [Electron guide](docs/guide/electron.md) and [example](examples/electron/).
-- **Preview resources:** see [browser rendering and resources](docs/guide/browser.md).
-  Reading HTML is not sanitizing or rendering it safely.
-
-Never insert archive HTML into the host DOM. Use a script-free sandbox,
-restrictive CSP and validated resource/navigation handling. Sandbox alone is
-not a network firewall. [Security policy and integration limits](SECURITY.md).
-
-## Create and update archives
+### 5. 创建新的 CHM
 
 ```ts
 import { packFiles } from 'chmkit';
 import { writeFile } from 'node:fs/promises';
 
 const bytes = packFiles(
-  new Map([['index.html', Buffer.from('<title>Manual</title><h1>Hello</h1>')]]),
-  { title: 'Manual', defaultTopic: 'index.html', compressionLevel: 6 },
+  new Map([['index.html', Buffer.from('<title>手册</title><h1>你好</h1>')]]),
+  { title: '手册', defaultTopic: 'index.html', compressionLevel: 6 },
 );
-await writeFile('generated-new.chm', bytes, { flag: 'wx' });
+await writeFile('new.chm', bytes, { flag: 'wx' }); // wx：文件已存在时失败，不覆盖
 ```
 
-Packing supports stored/fixed/adaptive/ALIGNED cost selection, window/reset/block
-options, HTML Help metadata and custom TOC hierarchies/templates. Authored
-`.hhc`/`.hhk` navigation is preserved. `packTemplate()` overlays whole-file Maps;
-it does not interpolate strings. `updateArchive()` rebuilds supported
-archives into new bytes; it is **not in-place editing** and refuses structures
-it cannot safely preserve. [Packing and update guide](docs/guide/packing.md).
+`packFiles()` 返回新的字节；`updateArchive()` 会基于已有归档生成新的 CHM，**不是原地修改**。
+详见 [打包与更新指南](docs/guide/packing.md)。
 
-## Compatibility and next steps
+### 6. Worker 与 Electron
 
-CHMKit supports ITSF v2/v3 structures and LZX VERBATIM, ALIGNED and stored blocks,
-including frame/reset history and Intel E8 decoding. The official Free Pascal
-3.2.2 `fpdoc` archive now reads unchanged against independently extracted bytes.
-Real-input gaps remain for normal v2, GBK/UTF-16 and additional E8/window/reset
-variants; support is not a guarantee for every producer. Search scans supported
-text resources rather than every producer's compiled search database.
+- **Worker**：`chmkit/worker` 提供客户端与宿主端，支持超时、取消和资源清理。见 [Worker 指南](docs/guide/worker.md) 与 [examples/worker](examples/worker/README.md)。
+- **Electron**：`chmkit/electron/main` 与 `chmkit/electron/preload` 只开放经批准的归档能力，渲染进程不能任意访问文件系统。见 [Electron 指南](docs/guide/electron.md) 与 [examples/electron](examples/electron/README.md)。
 
-See [format and compatibility](docs/guide/format-lzx.md),
-[resource budgets](docs/guide/configuration.md), [security](SECURITY.md) and
-[current validation evidence](VALIDATION.md) for integration limits. Prebuilt
-[TypeDoc HTML](docs/api.md) is a separate `chmkit-api-<commit-sha>` CI artifact.
+## 安全与隐私
 
-- [CLI reference](docs/guide/cli.md): tree, search, read, preview, browse, batch, pack
-- [Configuration and budgets](docs/guide/configuration.md)
-- [Migration guide](docs/guide/migration.md) · [Changelog](CHANGELOG.md)
-- [Contributing and source builds](CONTRIBUTING.md) · [Agent instructions](CLAUDE.md)
+- 所有解析都在本地完成；查看器和命令行不会上传文件。
+- 解压与预览会拒绝路径穿越、符号链接、不安全的输出路径和超出预算的输入。
+- 预览保持无脚本、严格 CSP 与沙箱；**沙箱不是网络防火墙**。
+- 不要在处理未知来源的 CHM 时直接放开资源预算：请设置 `maxFileSize` 等限制，并在需要时把解析放入独立进程或 Worker 中运行。安全报告请遵循 [SECURITY.md](SECURITY.md)。
 
-## License
+## 兼容性与验证
 
-CHMKit code is [MIT](LICENSE). Third-party test corpora retain their own licenses
-(including GPL/LGPL) and **must not enter npm or browser/CLI downloads**.
-Downloaded bundles include runtime dependency notices; see
-[licensing and corpus policy](docs/guide/licensing.md).
+- 支持 ITSF v2/v3 结构，以及 LZX 的 VERBATIM、ALIGNED 和 stored 块（含 E8 变换与重置表）。
+- 已用 6 个独立来源的普通 CHM 归档（共 859 个资源期望）、官方 FPC `fpdoc` 等语料验证读取结果。
+- 当前测试：`pnpm test`（Vitest）、`pnpm exec playwright test`（Chromium / Firefox / WebKit / Electron）、`pnpm test:package`（已安装的 tgz 消费者测试）。
+- 已记录的 CI 结果与缺口见 [VALIDATION.md](VALIDATION.md)。
+
+## 文档
+
+| 主题              | 链接                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| 文档首页与导航    | [docs/index.md](docs/index.md)                                                                  |
+| 命令行            | [docs/guide/cli.md](docs/guide/cli.md)                                                          |
+| 浏览器            | [docs/guide/browser.md](docs/guide/browser.md)                                                  |
+| Node.js           | [docs/guide/node.md](docs/guide/node.md)                                                        |
+| Worker / Electron | [docs/guide/worker.md](docs/guide/worker.md) · [docs/guide/electron.md](docs/guide/electron.md) |
+| 打包与更新        | [docs/guide/packing.md](docs/guide/packing.md)                                                  |
+| 配置与资源预算    | [docs/guide/configuration.md](docs/guide/configuration.md)                                      |
+| 从旧版本迁移      | [docs/guide/migration.md](docs/guide/migration.md)                                              |
+| API 参考          | [docs/api.md](docs/api.md)                                                                      |
+
+## 参与贡献
+
+请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。常用命令：
+
+```sh
+pnpm typecheck && pnpm lint && pnpm format:check
+pnpm test                     # Vitest（Node 与原生用例）
+pnpm exec playwright test     # 浏览器与 Electron
+pnpm test:package             # 安装 tgz 后的消费者测试（先执行 pnpm package:artifacts）
+```
+
+## 许可证
+
+CHMKit 代码使用 [MIT 许可证](LICENSE)。测试语料保留各自的许可证（包括 GPL/LGPL），**不会**进入 npm 包或预构建下载。
+详见 [许可与语料政策](docs/guide/licensing.md)。

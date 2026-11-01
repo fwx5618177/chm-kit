@@ -79,7 +79,7 @@ test('public package paths cannot escape or include tests, source, demos or gene
     'dist/esm/index.mjs',
     './dist/types/worker.d.mts',
     'dist/browser/chunks/part-ABC.mjs',
-    'README_zh.md',
+    'README.en.md',
     'THIRD_PARTY_NOTICES.txt',
   ])
     assert.ok(validatePublicPath(path));

@@ -68,7 +68,15 @@ and [migration](docs/guide/migration.md).
   Content length, exposing only real nonempty frames. Preserve count, monotonic
   start, bounds and actual Content-length checks, including final partial frames.
 
+- `chmkit info` without `--json` prints the readable statistics report instead of
+  the JSON document. The inert `-v, --verbose` option was removed.
+- The browser viewer's status bar no longer extends past the viewport height.
+
 ### Changed
+
+- The default README is Chinese (`README.md`); the English version is
+  `README.en.md`, and `README_zh.md` was removed. Usage guides for the CLI and the
+  browser are in Chinese, with screenshots under `docs/images/`.
 
 - One Playwright configuration now has explicit browser and native Electron
   projects with reports under `test-results/playwright/{results.json,html,artifacts}`.

@@ -1,46 +1,47 @@
-# Command-line guide
+# 命令行使用指南
 
-[Documentation](../index.md) · [Downloads](downloads.md) · [Configuration](configuration.md)
+[文档首页](../index.md) · [下载与安装](downloads.md) · [配置与资源预算](configuration.md)
 
-Examples use `chmkit` after installing the prebuilt tarball. For a local install,
-use `npx --no-install chmkit`; for the standalone download, use
-`node chmkit-1.1.0-cli.cjs` (check the download's manifest for its version). `chm` is an alias of the installed command.
-Use your own `manual.chm` and paths returned by its file list.
+本页示例使用 `chmkit` 命令（安装 npm 包后可用，别名 `chm`）。如果使用独立下载的 CLI，请把命令替换为
+`node chmkit-<版本>-cli.cjs`，版本号以发布包的 `manifest.json` 为准。下面的 `manual.chm` 请替换为你自己的文件。
 
 ```sh
 chmkit --help
 chmkit read --help
+chmkit info manual.chm
 chmkit info manual.chm --json
 chmkit read manual.chm --list --format json
 chmkit tree manual.chm --depth 2 --json
 ```
 
-## Search and filter
+`info` 默认输出可读的统计报告；加 `--json` 时输出 JSON。
+
+## 搜索与过滤
 
 ```sh
-chmkit search manual.chm "installation" --type html,txt --limit 10 --json
+chmkit search manual.chm "安装" --type html,txt --limit 10 --json
 chmkit search manual.chm "index" --names --case-sensitive
 chmkit tree manual.chm --filter "**/*.html" --max-size 2MiB
 chmkit read manual.chm --list --type "image/*" --min-size 1KiB --format json
 ```
 
-`--filter` (glob), `--type` (comma-separated extension or MIME), `--min-size` and
-`--max-size` intersect. Size limits are inclusive uncompressed sizes. Sizes accept
-bytes, decimal KB/MB/GB and binary KiB/MiB/GiB; quote globs so your shell does not
-expand them. MIME is inferred from filenames, not a content-security verdict.
-For `read`, these filters only apply to `--list`; `-f` there means `--format`.
+- `--filter`（glob）、`--type`（逗号分隔的扩展名或 MIME）、`--min-size` 和 `--max-size` 取交集。
+- 大小限制针对**解压后的**大小，且包含边界值。大小可写为字节数、十进制单位（KB、MB、GB）或二进制单位（KiB、MiB、GiB）。
+- glob 请加引号，避免被 shell 提前展开。
+- MIME 类型根据文件名推断，不代表内容安全检查结果。
+- 对 `read` 而言，这些过滤条件**只作用于 `--list`**；在这里 `-f` 表示 `--format`。
 
-Content search is literal, skips binary MIME types and returns matching files,
-not a persistent search index. `--limit` bounds matching files (`0` returns none);
-`--max-matches` bounds matches per file. `--whole-word` uses Unicode word boundaries;
-`--encoding` selects decoding. `--names` is a filename substring search and cannot
-combine with `--whole-word` or `--encoding`. `--max-read-size 16MiB` bounds a
-materialized source file, not archive size or CPU time.
+内容搜索是字面量匹配，会跳过二进制 MIME 类型，返回包含匹配项的文件，而不是持久化的搜索索引。
 
-## Read bytes, text or navigation
+- `--limit` 限制匹配文件数（`0` 表示不返回任何结果），`--max-matches` 限制每个文件的匹配数。
+- `--whole-word` 使用 Unicode 单词边界；`--encoding` 指定解码方式。
+- `--names` 只搜索文件名子串，不能与 `--whole-word` 或 `--encoding` 同时使用。
+- `--max-read-size 16MiB` 限制一次物化读取的源文件大小，它**不是**归档大小或 CPU 时间的限制。
+
+## 读取字节、文本或导航
 
 ```sh
-# First verify that this archive has /index.html.
+# 先确认归档中存在 /index.html
 chmkit read manual.chm /index.html
 chmkit read manual.chm /index.html --encoding GBK --format json
 chmkit read manual.chm /index.html --range 0:16 --format raw --output first.bin
@@ -49,19 +50,15 @@ chmkit read manual.chm --toc --format json
 chmkit read manual.chm --index --format json
 ```
 
-Choose exactly one file path, `--list`, `--toc` or `--index`.
-`--range start:end` is a strict half-open **byte** interval `[start, end)`; it must
-fit the file and can split multibyte characters. `--format raw` preserves bytes;
-text/JSON defaults to UTF-8 unless `--encoding` is set. File JSON wraps decoded
-content and metadata. TOC/index JSON contains structured navigation; text/raw
-returns authored `.hhc`/`.hhk` source.
+- 文件路径、`--list`、`--toc` 和 `--index` 必须且只能选择一个。
+- `--range start:end` 是严格的左闭右开**字节**区间 `[start, end)`；必须在文件范围内，并且可能切开多字节字符。
+- `--format raw` 保留原始字节；文本与 JSON 默认按 UTF-8 解码，除非指定 `--encoding`。
+- 单个文件的 JSON 输出包含解码后的内容和元数据。目录与索引的 JSON 输出为结构化导航数据；text 与 raw 输出则返回原始 `.hhc` / `.hhk` 源内容。
+- `--stream` 始终输出原始字节，不受默认文本格式影响。它支持 `--range` 和 `--output`，**不支持** JSON。
+- `--list` 不接受 raw、range 或 stream。
+- `read --output` 会写入你指定的普通文件，**可能覆盖已有文件**。它不继承 `extract` 的"只允许新建文件、禁止符号链接"策略。
 
-`--stream` always emits original bytes, regardless of the default text format.
-It supports range/output, not JSON. `--list` does not accept raw/range/stream.
-`read --output` writes ordinary caller-selected files and **can overwrite them**;
-it does not inherit extraction's exclusive-create/no-symlink policy.
-
-## Extract one or many archives
+## 提取一个或多个归档
 
 ```sh
 chmkit extract manual.chm --output ./manual-new --preserve-structure --json
@@ -69,74 +66,53 @@ chmkit extract manual.chm --output ./html-new --preserve-structure --type html -
 chmkit batch first.chm second.chm --output ./batch-new --preserve-structure --json
 ```
 
-- Prefer a fresh private output directory. Without `--preserve-structure`, names
-  are flattened; collisions fail. Existing destinations are never overwritten.
-- Unsafe portable names, traversal, conflicting destinations and symlinks are
-  rejected, including output-root ancestors. On macOS, use real paths rather
-  than symlink aliases such as `/tmp`. Do not extract into directories a hostile
-  local process can concurrently mutate; see [TOCTOU limits](../../SECURITY.md).
-- Input is file-backed, with synchronous positioned reads and decompression;
-  the whole archive is not first copied into memory. Keep the underlying file
-  immutable throughout extraction, not just its pathname stable. The descriptor
-  is closed on success, error or cancellation.
-- `--concurrency` limits asynchronous output I/O, **not parallel decoder CPU**.
-  `--chunk-size` is an integer byte count for each worker's write chunks.
-  Directory metadata and per-generator decoder/chunk workspace still consume
-  memory; concurrency is not a total RAM limit.
-- Batch processes archives sequentially, with per-archive I/O concurrency.
-  Outputs use numbered sanitized subdirectories such as `1-first/`. It consumes
-  explicit input arguments; it does not implement its own filesystem globbing.
-- Ctrl-C stops scheduling, drains work and attempts to remove incomplete files.
-  Successfully completed files remain. Extraction is not an all-or-nothing transaction.
-- JSON results include success lists and errors (batch returns one result per
-  processed archive). Partial errors must not be interpreted as complete success.
+- 建议使用全新的私有输出目录。不加 `--preserve-structure` 时文件名会被扁平化，重名会失败。已存在的目标不会被覆盖。
+- 不安全的可移植文件名、路径穿越、冲突的目标和符号链接都会被拒绝，包括输出根目录的各级祖先。在 macOS 上请使用真实路径，而不是 `/tmp` 这样的符号链接别名。
+  不要提取到可能被恶意本地进程并发修改的目录中，参见 [SECURITY.md](../../SECURITY.md) 的 TOCTOU 限制。
+- 输入是基于文件的：通过同步的定位读取和解压完成，不会先把整个归档复制到内存。提取期间必须保证底层文件内容不变，而不仅是路径稳定。文件描述符在成功、出错或取消时都会关闭。
+- `--concurrency` 限制的是异步输出 I/O，**不是**解码器的并行 CPU 计算。`--chunk-size` 为每个 worker 的写入块字节数（整数）。
+  目录元数据以及每个生成器的解码器和块工作区仍会占用内存；并发数不是总内存上限。
+- `batch` 逐个处理归档，每个归档内部使用异步 I/O 并发。输出为编号的规范化子目录，例如 `1-first/`。
+  它接收显式的输入参数，不会自行展开文件系统通配符。
+- Ctrl-C 会停止调度、等待正在进行的工作收尾，并尝试删除未完成的文件；已完成的文件保留。提取不是全有或全无的事务。
+- JSON 结果包含成功列表与错误列表（`batch` 为每个已处理的归档返回一条结果）。存在部分错误时，不能视为完全成功。
 
-## Preview or browse
+## 预览与浏览
 
 ```sh
 chmkit preview manual.chm /index.html --output ./preview-new.html
 chmkit browse manual.chm
 ```
 
-`preview` writes a **static, noninteractive snapshot**, not a web server. It does
-not launch a browser or bundle archive assets. HTML/text appears inside an inert,
-script-free sandbox with restrictive CSP; external resources and interaction are
-disabled, so styling/images/links may not work. Output creation is exclusive and
-rejects symlink ancestors; its parent directory must already exist. Without
-`--output`, generated HTML goes to stdout. Still treat archive content as untrusted.
+- `preview` 生成**静态、非交互的快照**，不是 Web 服务器。它不会启动浏览器，也不会打包归档中的资源。
+  HTML 或文本内容会显示在无脚本、受 CSP 限制的沙箱中；外部资源和交互被禁用，因此样式、图片和链接可能无法正常显示。
+  输出文件采用独占创建，拒绝符号链接祖先目录，且父目录必须已存在。省略 `--output` 时，生成的 HTML 输出到 stdout。归档内容仍应视为不可信内容。
+- `browse` 要求 stdin 和 stderr 都是 TTY。支持的命令包括 `list [glob]`、`read <path>`、`info <path>`、`search <text>`、`help` 和 `quit`。
+  界面输出到 stderr，而不是 stdout。文本显示会转义终端控制字符，并将读取内容截断为 64 KiB；它不是二进制文件查看器。自动化脚本应使用 `tree`、`search` 和 `read`。
 
-`browse` requires stdin and stderr TTYs. Commands are `list [glob]`, `read <path>`,
-`info <path>`, `search <text>`, `help`, `quit`. Its interface goes to stderr, not
-stdout. Text display escapes terminal controls and truncates reads to 64 KiB;
-it is not a binary terminal viewer. Automation should use tree/search/read.
+## 创建归档
 
-## Create an archive
-
-Prepare an `html-manual/` directory containing `index.html` first:
+先准备一个包含 `index.html` 的 `html-manual/` 目录：
 
 ```sh
-chmkit pack ./html-manual --output manual.chm --title "Manual" --default-topic index.html
+chmkit pack ./html-manual --output manual.chm --title "手册" --default-topic index.html
 chmkit pack ./html-manual --output tuned.chm --compression-level 6 --window-bits 16 --reset-interval 131072 --block-size 8192
 chmkit pack ./html-manual --output stored.chm --no-compression
 ```
 
-See [packing](packing.md) for what the compression knobs mean. TOC templates and
-advanced metadata are API options, not additional CLI flags. Pack output is an
-ordinary file-writing operation; choose a fresh name and do not assume extraction's
-no-overwrite protections apply.
+压缩相关选项的含义见 [打包与更新指南](packing.md)。目录模板和高级元数据是 API 选项，不是额外的命令行参数。
+`pack` 写入的是普通文件：请选择新的文件名，不要假设 `extract` 的禁止覆盖保护同样适用于它。
 
-## Configuration and automation contract
+## 配置与自动化约定
 
 ```sh
-chmkit --config ./chmkit.config.json search manual.chm "installation" --json
+chmkit --config ./chmkit.config.json search manual.chm "安装" --json
 ```
 
-An explicit configuration is strict; otherwise the CLI looks in the current
-working directory. CLI flags override connected defaults. The exact
-[field-to-operation mapping](configuration.md) matters: accepted legacy fields
-are not all implemented controls, and the CLI warns for unconnected ones.
+显式指定的配置文件必须有效，否则命令失败；未指定时，CLI 会读取当前工作目录下的 `chmkit.config.json`。
+命令行参数优先于配置项。具体的[字段与操作的对应关系](configuration.md)很重要：历史上被接受但未真正生效的字段，
+CLI 会给出警告并忽略。
 
-Machine-readable stdout remains separate from stderr diagnostics/progress.
-Ordinary errors and partial extraction failures exit nonzero (normally `1`);
-extraction cancellation uses `130`. A JSON result alone is not proof of success:
-check the exit status and `errors`/`cancelled`. Usage errors are also nonzero.
+机器可读的结果输出到 stdout，诊断信息和进度输出到 stderr，二者分开。
+普通错误和部分提取失败会以非零退出码结束（通常为 `1`）；提取被取消时退出码为 `130`。参数错误同样返回非零退出码。
+仅凭 JSON 结果不能证明操作成功，还应检查退出码以及 `errors`、`cancelled` 字段。

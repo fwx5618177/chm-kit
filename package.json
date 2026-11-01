@@ -120,7 +120,7 @@
     "dist/browser",
     "dist/types",
     "README.md",
-    "README_zh.md",
+    "README.en.md",
     "LICENSE"
   ],
   "scripts": {
