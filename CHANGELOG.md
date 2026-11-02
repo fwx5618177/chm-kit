@@ -9,6 +9,8 @@ instructions are in [install](docs/guide/downloads.md), breaking changes in
 
 ## Unreleased
 
+## 1.3.0 - 2026-11-02
+
 ### Changed
 
 - Releases are automatic: a qualifying push to `main` derives the next version from
