@@ -9,6 +9,8 @@ instructions are in [install](docs/guide/downloads.md), breaking changes in
 
 ## Unreleased
 
+## 1.3.1 - 2026-11-02
+
 ### Fixed
 
 - The GitHub release now uses the promoted `Unreleased` changelog section as its
