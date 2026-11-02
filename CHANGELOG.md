@@ -9,6 +9,11 @@ instructions are in [install](docs/guide/downloads.md), breaking changes in
 
 ## Unreleased
 
+### Fixed
+
+- The GitHub release now uses the promoted `Unreleased` changelog section as its
+  notes instead of the generated commit list.
+
 ## 1.3.0 - 2026-11-02
 
 ### Changed

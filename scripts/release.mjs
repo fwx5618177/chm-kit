@@ -325,14 +325,16 @@ async function commandPublish() {
   });
   assert.equal(git(['tag', '--list', tag]).trim(), '', `Tag ${tag} exists`);
   const previous = lastReleaseTag();
+  const prepared = process.env.CHMKIT_RELEASE_NOTES;
+  const content = prepared
+    ? (await readFile(prepared, 'utf8')).trim()
+    : releaseNotes(version, commitsSince(previous), previous);
+  assert.ok(content.length > 0, 'Release notes are empty');
   const notes = join(
     await mkdtemp(join(tmpdir(), 'chmkit-notes-')),
     'NOTES.md',
   );
-  await writeFile(
-    notes,
-    releaseNotes(version, commitsSince(previous), previous),
-  );
+  await writeFile(notes, `${content}\n`);
   git([
     '-c',
     'user.name=github-actions[bot]',
