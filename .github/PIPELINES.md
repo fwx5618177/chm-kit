@@ -231,12 +231,15 @@ branches still use `ci.yml` and never publish.
 2. The reusable CI runs the full nine-Node, three-browser, minimum-runtime and
    native Electron acceptance matrix.
 3. After CI passes, the publish job writes the new version into `package.json`
-   and `src/constants.ts`, commits `chore(release): <version> [skip ci]`, and pushes
-   it to `main` with the workflow token (such pushes do not start new runs).
+   and `src/constants.ts`, promotes the `CHANGELOG.md` `Unreleased` section into a
+   versioned section (its entries become the release notes; internal
+   `docs`/`chore` work is skipped when that section is empty), commits
+   `chore(release): <version> [skip ci]`, and pushes it to `main` with the workflow
+   token (such pushes do not start new runs).
 4. It builds, packages and verifies the consumer artifacts, then creates and
-   pushes the `v<version>` tag, creates a published GitHub release with the
-   generated notes and asset inventory, and finally publishes the same tarball
-   to npm with OIDC trusted publishing and provenance.
+   pushes the `v<version>` tag, creates a published GitHub release from those
+   notes with the asset inventory, and finally publishes the same tarball to npm
+   with OIDC trusted publishing and provenance.
 
 Because nothing asks for confirmation, **`main` is a release branch**: any merged
 `feat:`/`fix:` ships to npm within the run, and an npm version cannot be replaced.

@@ -1,11 +1,22 @@
 # Changelog
 
-User-facing changes are recorded here. Exact package version comes from
-`package.json`; artifact version/source identity comes from its manifest. The
-public `chmkit` npm package is published from tagged releases; see [install](docs/guide/downloads.md)
-and [migration](docs/guide/migration.md).
+User-facing changes are recorded here. The release workflow promotes the
+`Unreleased` section to the published version, so entries added there become the
+GitHub release notes; write them for consumers, not for maintainers. Exact package
+version comes from `package.json`, artifact identity from its manifest. Install
+instructions are in [install](docs/guide/downloads.md), breaking changes in
+[migration](docs/guide/migration.md).
 
 ## Unreleased
+
+### Changed
+
+- Releases are automatic: a qualifying push to `main` derives the next version from
+  conventional commits, updates `package.json`, `src/constants.ts` and this
+  changelog, creates the tag and GitHub release, and publishes the verified tarball
+  to npm with provenance. No approval step and no npm token are involved.
+
+## 1.2.0 - 2026-11-01
 
 ### Added
 

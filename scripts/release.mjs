@@ -41,6 +41,27 @@ export function nextVersion(version, commits) {
   }[bump];
 }
 
+const changelogFile = join(root, 'CHANGELOG.md');
+const unreleasedHeading = '## Unreleased';
+
+export function promoteUnreleased(source, version, date) {
+  const start = source.indexOf(unreleasedHeading);
+  if (start === -1) return null;
+  const rest = source.slice(start + unreleasedHeading.length);
+  const next = rest.search(/\n## /);
+  const body = (next === -1 ? rest : rest.slice(0, next)).trim();
+  const hasEntries = body.split('\n').some(line => {
+    const text = line.trim();
+    return text.length > 0 && !text.startsWith('#');
+  });
+  if (!hasEntries) return null;
+  const tail = next === -1 ? '' : rest.slice(next);
+  return {
+    markdown: `${source.slice(0, start + unreleasedHeading.length)}\n\n## ${version} - ${date}\n\n${body}\n${tail}`,
+    notes: body,
+  };
+}
+
 export function bumpedManifest(source, version) {
   const next = source.replace(
     /"version":\s*"[^"]+"/,
@@ -253,11 +274,29 @@ async function commandPrepare() {
   const packageFile = join(root, 'package.json');
   const manifest = await readFile(packageFile, 'utf8');
   const constants = await readFile(constantsFile, 'utf8');
+  const changelog = await readFile(changelogFile, 'utf8');
+  const previous = lastReleaseTag();
+  const promoted = promoteUnreleased(
+    changelog,
+    version,
+    new Date().toISOString().slice(0, 10),
+  );
   const nextManifest = bumpedManifest(manifest, version);
   const nextConstants = bumpedConstants(constants, version);
+  if (promoted) await writeFile(changelogFile, promoted.markdown);
+  const notesFile = join(
+    await mkdtemp(join(tmpdir(), 'chmkit-notes-')),
+    'NOTES.md',
+  );
+  await writeFile(
+    notesFile,
+    promoted
+      ? `# CHMKit ${version}\n\n${promoted.notes}\n\nThe GitHub assets and the npm tarball are the same verified build.\n`
+      : releaseNotes(version, commitsSince(previous), previous),
+  );
   await writeFile(packageFile, nextManifest);
   await writeFile(constantsFile, nextConstants);
-  git(['add', 'package.json', 'src/constants.ts']);
+  git(['add', 'package.json', 'src/constants.ts', 'CHANGELOG.md']);
   git([
     '-c',
     'user.name=github-actions[bot]',
@@ -271,6 +310,7 @@ async function commandPrepare() {
   const commit = git(['rev-parse', 'HEAD']).trim();
   console.log(`Release commit ${commit} for ${version}`);
   await record('GITHUB_ENV', `CHMKIT_EXPECTED_COMMIT=${commit}`);
+  await record('GITHUB_ENV', `CHMKIT_RELEASE_NOTES=${notesFile}`);
 }
 
 async function commandPublish() {

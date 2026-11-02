@@ -17,6 +17,7 @@ import {
   bumpedConstants,
   bumpedManifest,
   nextVersion,
+  promoteUnreleased,
   publishTag,
   releaseNotes,
   releaseType,
@@ -222,6 +223,58 @@ test('the highest commit type decides the next version', () => {
   );
   assert.equal(nextVersion('1.2.3', []), null);
   assert.equal(nextVersion('0.9.9', commits(['feat: a'])), '0.10.0');
+});
+
+test('a release promotes the unreleased changelog section into its own version', () => {
+  const source = [
+    '# Changelog',
+    '',
+    'Intro.',
+    '',
+    '## Unreleased',
+    '',
+    '### Added',
+    '',
+    '- item A',
+    '',
+    '## 1.1.0 - 2026-10-01',
+    '',
+    '- old',
+    '',
+  ].join('\n');
+  const promoted = promoteUnreleased(source, '1.2.0', '2026-11-01');
+  assert.equal(promoted.notes, '### Added\n\n- item A');
+  assert.equal(
+    promoted.markdown,
+    [
+      '# Changelog',
+      '',
+      'Intro.',
+      '',
+      '## Unreleased',
+      '',
+      '## 1.2.0 - 2026-11-01',
+      '',
+      '### Added',
+      '',
+      '- item A',
+      '',
+      '## 1.1.0 - 2026-10-01',
+      '',
+      '- old',
+      '',
+    ].join('\n'),
+  );
+  // Promoting twice must not duplicate a section.
+  assert.equal(
+    promoteUnreleased(promoted.markdown, '1.2.1', '2026-11-02'),
+    null,
+  );
+  assert.equal(
+    promoteUnreleased('## Unreleased\n\n### Added\n\n## Old\n', '1.2.0', 'd'),
+    null,
+  );
+  assert.equal(promoteUnreleased('# Changelog\n', '1.2.0', 'd'), null);
 });
 
 test('release notes group conventional commits and skip internal ones', () => {
