@@ -1,12 +1,31 @@
 # Changelog
 
-User-facing changes are recorded here. Exact package version comes from
-`package.json`; artifact version/source identity comes from its manifest. This
-file is not evidence that a release was published. The public `chmkit` npm
-package is not published; publication requires separate authorization. See [downloads](docs/guide/downloads.md)
-and [migration](docs/guide/migration.md).
+User-facing changes are recorded here. The release workflow promotes the
+`Unreleased` section to the published version, so entries added there become the
+GitHub release notes; write them for consumers, not for maintainers. Exact package
+version comes from `package.json`, artifact identity from its manifest. Install
+instructions are in [install](docs/guide/downloads.md), breaking changes in
+[migration](docs/guide/migration.md).
 
 ## Unreleased
+
+## 1.3.1 - 2026-11-02
+
+### Fixed
+
+- The GitHub release now uses the promoted `Unreleased` changelog section as its
+  notes instead of the generated commit list.
+
+## 1.3.0 - 2026-11-02
+
+### Changed
+
+- Releases are automatic: a qualifying push to `main` derives the next version from
+  conventional commits, updates `package.json`, `src/constants.ts` and this
+  changelog, creates the tag and GitHub release, and publishes the verified tarball
+  to npm with provenance. No approval step and no npm token are involved.
+
+## 1.2.0 - 2026-11-01
 
 ### Added
 
@@ -78,6 +97,13 @@ and [migration](docs/guide/migration.md).
 
 ### Changed
 
+- Publishing is automatic. A push to `main` whose conventional commits include a
+  `feat`, `fix`, `perf` or breaking change derives the next version from the last
+  `v*` tag, commits the bump, tags it, creates the GitHub release and publishes the
+  verified tarball to npm with OIDC trusted publishing and provenance. No approval
+  step and no npm token exist. `prepack` calls `node scripts/build.mjs`, so a
+  manual publish no longer requires pnpm.
+
 - The default README is Chinese (`README.md`); the English version is
   `README.en.md`, and `README_zh.md` was removed. Usage guides for the CLI and the
   browser are in Chinese, with screenshots under `docs/images/`.
@@ -108,8 +134,8 @@ and [migration](docs/guide/migration.md).
   not a dev-tool installation environment. Delivery tests are native Vitest under
   `test/delivery/`, included by `pnpm test` and focused by `pnpm test:delivery`;
   `pnpm test:bench` runs native benchmarks once.
-- Documentation leads with prebuilt downloads, not consumer builds or a nonexistent
-  registry install. Source build instructions live in the contribution guide.
+- Documentation leads with `npm install chmkit`; the standalone viewer ships
+  inside the package. Source build instructions live in the contribution guide.
 
 ### Compatibility and safety notes
 

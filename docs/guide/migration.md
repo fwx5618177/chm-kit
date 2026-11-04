@@ -2,22 +2,19 @@
 
 [Documentation](../index.md) · [Changelog](../../CHANGELOG.md) · [API](../api.md)
 
-This guide describes behavior changes in the expanded working-tree API. It does
-not imply an npm release: the public `chmkit` registry endpoint currently returns
-404; publication requires separate authorization. Use a matching [prebuilt tarball/artifact](downloads.md), and check its actual
-version/exports rather than assuming an older download contains new subpaths.
-The current source package version is 1.1.0; this is not a claim that a 1.1.0
-GitHub Release exists. Library/CLI versions must match the downloaded manifest.
+This guide describes behavior changes in the expanded API. The package is
+published on npm as `chmkit`; install or upgrade it and check the version you
+actually have with `npm ls chmkit` rather than assuming an older install contains
+new subpaths. Library and CLI versions always match.
 
 ## Current viewer and parser compatibility
 
-The current browser archive adds `dist/viewer/index.html` and a bundled classic
-IIFE. Extract `chmkit-1.1.0-browser.tar.gz` and open that entry directly as `file:`;
-no Node/npm/server/build is needed for ordinary viewing. Library ESM and module
-Worker integrations still need HTTP(S). The [verified `962ee71` snapshot](downloads.md#verified-prebuilt-snapshot)
-includes this viewer; the actual downloaded archive was tested in all three
-browsers as `file:` with zero HTTP requests/errors. Check source identity and
-inventory as well as version when replacing an older download.
+The current package adds `dist/viewer/index.html` and a bundled classic IIFE.
+After `npm install chmkit`, open `node_modules/chmkit/dist/viewer/index.html`
+directly as `file:`; no Node server, build step or HTTP server is needed for
+ordinary viewing. Library ESM and module Worker integrations still need HTTP(S).
+The same viewer and its sample preview are exercised in all three browsers as
+`file:` with zero HTTP requests/errors; see [install](downloads.md).
 
 The unchanged official FPC 3.2.2 `fpdoc` archive now reads with narrowly validated
 v3 GUID, directory quickref/leaf-hint and terminal ResetTable compatibility.
@@ -177,12 +174,12 @@ Do not replace a private preview with raw archive HTML in your application DOM.
 Worker cancellation is not CPU preemption; Electron requires main-owned capability
 factories and exact sender/frame validation. See [SECURITY.md](../../SECURITY.md).
 
-Download compiled assets rather than building as part of consumer installation.
-Actions downloads require sign-in and expire; a draft release is not a public
-release. API HTML is separately downloadable as `chmkit-api-<source-sha>` from
-CI; extract it and open `index.html` without building source. It is generated
-output, not proof of a deployed docs site. Tag creation, protected-environment
-configuration and explicit human authorization remain release prerequisites.
+Install compiled assets from the registry rather than building as part of
+consumer installation. Releases are published from a `v<version>` tag with npm
+provenance; a draft GitHub release is not public until a maintainer publishes it.
+API HTML is generated locally with `pnpm docs:build` and is not part of the
+published package. Tag creation, protected-environment configuration and explicit
+human authorization remain release prerequisites.
 Current validation lives in [VALIDATION.md](../../VALIDATION.md), without copied
 historical test counts or assumptions that every feature combination is covered.
 

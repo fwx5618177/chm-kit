@@ -12,9 +12,22 @@ import {
   verifyArtifacts,
 } from '../../scripts/package.mjs';
 import {
-  validateApprovalPolicy,
-  validateReleaseInput,
+  assertTrustedPublisher,
+  assertUnpublished,
+  bumpedConstants,
+  bumpedManifest,
+  nextVersion,
+  promoteUnreleased,
+  publishTag,
+  releaseNotes,
+  releaseType,
 } from '../../scripts/release.mjs';
+import { readFileSync } from 'node:fs';
+import { VERSION } from '../../src/constants';
+
+const packageVersion = JSON.parse(
+  await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+).version;
 
 const temporaryDirectories = [];
 afterEach(async () => {
@@ -123,6 +136,10 @@ test('nested conditional exports include future public entries without API enume
   assert.throws(() => publicTargets(42));
 });
 
+test('the exported library version matches package.json', () => {
+  assert.equal(VERSION, packageVersion);
+});
+
 test('release versions are exact, safe semantic versions (including prereleases)', () => {
   for (const version of ['0.0.0', '1.2.3', '2.0.0-rc.1', '2.0.0-alpha-beta.0'])
     assert.ok(isVersion(version));
@@ -141,50 +158,232 @@ test('release versions are exact, safe semantic versions (including prereleases)
     assert.equal(isVersion(version), false);
 });
 
-test('release requires manual main dispatch with matching package version and tag', () => {
-  const input = {
-    version: '1.2.3',
-    tag: 'v1.2.3',
-    packageVersion: '1.2.3',
-    ref: 'refs/heads/main',
-    event: 'workflow_dispatch',
-  };
-  validateReleaseInput(input);
-  for (const patch of [
-    { tag: 'main' },
-    { version: '--dangerous' },
-    { packageVersion: '1.2.2' },
-    { ref: 'refs/heads/feature' },
-    { event: 'push' },
-    { event: 'pull_request' },
-  ])
-    assert.throws(() => validateReleaseInput({ ...input, ...patch }));
+test('the version bump rewrites the real manifest and source constant', () => {
+  const manifest = readFileSync(
+    new URL('../../package.json', import.meta.url),
+    'utf8',
+  );
+  const constants = readFileSync(
+    new URL('../../src/constants.ts', import.meta.url),
+    'utf8',
+  );
+  const nextVersionValue = '9.9.9';
+  const bumped = bumpedManifest(manifest, nextVersionValue);
+  assert.equal(JSON.parse(bumped).version, nextVersionValue);
+  assert.equal(JSON.parse(bumped).name, JSON.parse(manifest).name);
+  assert.equal(
+    bumpedConstants(constants, nextVersionValue),
+    constants.replace(
+      /export const VERSION = '[^']+';/,
+      `export const VERSION = '${nextVersionValue}';`,
+    ),
+  );
+  assert.match(
+    bumpedConstants(constants, nextVersionValue),
+    /VERSION = '9\.9\.9'/,
+  );
+  assert.throws(() => bumpedManifest('{}', '9.9.9'), /version field/);
+  assert.throws(() => bumpedConstants('nothing', '9.9.9'), /exported VERSION/);
 });
 
-test('release approval policy fails closed for missing reviewers, self-review and bypass', () => {
-  const rule = {
-    type: 'required_reviewers',
-    prevent_self_review: true,
-    reviewers: [{ type: 'User', reviewer: { login: 'release-reviewer' } }],
-  };
-  validateApprovalPolicy({
-    can_admins_bypass: false,
-    protection_rules: [rule],
-  });
-  for (const environment of [
-    {},
-    { protection_rules: [] },
-    { can_admins_bypass: true, protection_rules: [rule] },
-    {
-      can_admins_bypass: false,
-      protection_rules: [{ ...rule, reviewers: [] }],
-    },
-    {
-      can_admins_bypass: false,
-      protection_rules: [{ ...rule, prevent_self_review: false }],
-    },
+test('conventional commits decide the release type', () => {
+  assert.equal(releaseType('feat: add tunnel reader'), 'minor');
+  assert.equal(releaseType('feat(cli): add flag'), 'minor');
+  assert.equal(releaseType('fix: handle empty index'), 'patch');
+  assert.equal(releaseType('perf: reuse buffer'), 'patch');
+  assert.equal(releaseType('revert: "feat: add tunnel reader"'), 'patch');
+  assert.equal(releaseType('feat!: drop Node 18'), 'major');
+  assert.equal(releaseType('fix(core)!: rename option'), 'major');
+  assert.equal(
+    releaseType('chore: tidy scripts', 'BREAKING CHANGE: new layout'),
+    'major',
+  );
+  for (const subject of [
+    'docs: refresh install guide',
+    'chore(release): 1.2.0 [skip ci]',
+    'test: cover empty archives',
+    'ci: pin actions',
+    'Merge pull request #12 from topic',
+    'not conventional',
   ])
-    assert.throws(() => validateApprovalPolicy(environment));
+    assert.equal(releaseType(subject), 'none', subject);
+});
+
+test('the highest commit type decides the next version', () => {
+  const commits = subjects => subjects.map(subject => ({ subject, body: '' }));
+  assert.equal(nextVersion('1.2.3', commits(['fix: a', 'fix: b'])), '1.2.4');
+  assert.equal(nextVersion('1.2.3', commits(['fix: a', 'feat: b'])), '1.3.0');
+  assert.equal(nextVersion('1.2.3', commits(['feat: a', 'fix!: b'])), '2.0.0');
+  assert.equal(
+    nextVersion(
+      '1.2.3',
+      commits(['docs: a', 'chore(release): 1.2.3 [skip ci]']),
+    ),
+    null,
+  );
+  assert.equal(nextVersion('1.2.3', []), null);
+  assert.equal(nextVersion('0.9.9', commits(['feat: a'])), '0.10.0');
+});
+
+test('a release promotes the unreleased changelog section into its own version', () => {
+  const source = [
+    '# Changelog',
+    '',
+    'Intro.',
+    '',
+    '## Unreleased',
+    '',
+    '### Added',
+    '',
+    '- item A',
+    '',
+    '## 1.1.0 - 2026-10-01',
+    '',
+    '- old',
+    '',
+  ].join('\n');
+  const promoted = promoteUnreleased(source, '1.2.0', '2026-11-01');
+  assert.equal(promoted.notes, '### Added\n\n- item A');
+  assert.equal(
+    promoted.markdown,
+    [
+      '# Changelog',
+      '',
+      'Intro.',
+      '',
+      '## Unreleased',
+      '',
+      '## 1.2.0 - 2026-11-01',
+      '',
+      '### Added',
+      '',
+      '- item A',
+      '',
+      '## 1.1.0 - 2026-10-01',
+      '',
+      '- old',
+      '',
+    ].join('\n'),
+  );
+  // Promoting twice must not duplicate a section.
+  assert.equal(
+    promoteUnreleased(promoted.markdown, '1.2.1', '2026-11-02'),
+    null,
+  );
+  assert.equal(
+    promoteUnreleased('## Unreleased\n\n### Added\n\n## Old\n', '1.2.0', 'd'),
+    null,
+  );
+  assert.equal(promoteUnreleased('# Changelog\n', '1.2.0', 'd'), null);
+});
+
+test('release notes group conventional commits and skip internal ones', () => {
+  const notes = releaseNotes(
+    '1.2.0',
+    [
+      { subject: 'feat: add tunnel reader', body: '' },
+      { subject: 'fix: handle empty index', body: '' },
+      { subject: 'docs: refresh install guide', body: '' },
+      { subject: 'chore(release): 1.2.0 [skip ci]', body: '' },
+    ],
+    'v1.1.1',
+  );
+  assert.match(notes, /^# CHMKit 1\.2\.0/m);
+  assert.match(notes, /Changes since v1\.1\.1/);
+  assert.match(notes, /## Features\n\n- feat: add tunnel reader/);
+  assert.match(notes, /## Fixes\n\n- fix: handle empty index/);
+  assert.doesNotMatch(notes, /refresh install guide/);
+  assert.match(releaseNotes('1.2.0', []), /Maintenance release/);
+});
+
+test('npm publishing uses the next tag for prereleases and latest otherwise', () => {
+  assert.equal(publishTag('1.2.3'), 'latest');
+  assert.equal(publishTag('2.0.0-rc.1'), 'next');
+  assert.equal(publishTag('2.0.0-alpha-beta.0'), 'next');
+});
+
+test('npm publishing refuses any version the registry already serves', async () => {
+  const respond = status => async url => {
+    assert.equal(url, 'https://registry.npmjs.org/chmkit/1.2.3');
+    return new Response('{}', { status });
+  };
+  await assertUnpublished({
+    name: 'chmkit',
+    version: '1.2.3',
+    fetchImpl: respond(404),
+  });
+  await assert.rejects(
+    assertUnpublished({
+      name: 'chmkit',
+      version: '1.2.3',
+      fetchImpl: respond(200),
+    }),
+    /already published/,
+  );
+  await assert.rejects(
+    assertUnpublished({
+      name: 'chmkit',
+      version: '1.2.3',
+      fetchImpl: respond(503),
+    }),
+    /registry lookup failed with HTTP 503/,
+  );
+});
+
+test('npm trusted publishing surfaces the registry rejection reason', async () => {
+  const calls = [];
+  const fetchImpl = (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).startsWith('https://oidc.example/'))
+      return new Response('{"value":"id-token"}', { status: 200 });
+    return new Response(
+      '{"message":"OIDC token exchange error - package not found"}',
+      { status: 404 },
+    );
+  };
+  await assert.rejects(
+    assertTrustedPublisher({
+      name: 'chmkit',
+      requestUrl: 'https://oidc.example/token?api-version=2.0',
+      requestToken: 'request-token',
+      fetchImpl,
+    }),
+    /package not found/,
+  );
+  assert.match(calls[0].url, /audience=npm%3Aregistry\.npmjs\.org/);
+  assert.equal(
+    calls[1].url,
+    'https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/chmkit',
+  );
+});
+
+test('npm trusted publishing needs OIDC permission and a publish token', async () => {
+  const tokenFetch = async url =>
+    String(url).startsWith('https://oidc.example/')
+      ? new Response('{"value":"id"}', { status: 200 })
+      : new Response('{"token":"publish-token"}', { status: 200 });
+  await assertTrustedPublisher({
+    name: 'chmkit',
+    requestUrl: 'https://oidc.example/token',
+    requestToken: 'request-token',
+    fetchImpl: tokenFetch,
+  });
+  await assert.rejects(
+    assertTrustedPublisher({ name: 'chmkit', fetchImpl: tokenFetch }),
+    /id-token: write/,
+  );
+  await assert.rejects(
+    assertTrustedPublisher({
+      name: 'chmkit',
+      requestUrl: 'https://oidc.example/token',
+      requestToken: 'request-token',
+      fetchImpl: async url =>
+        String(url).startsWith('https://oidc.example/')
+          ? new Response('{}', { status: 200 })
+          : new Response('{"token":"x"}', { status: 200 }),
+    }),
+    /no OIDC token/,
+  );
 });
 
 async function artifactFixture() {

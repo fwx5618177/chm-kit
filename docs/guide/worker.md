@@ -10,7 +10,7 @@ of the browser dependency graph.
 
 ## Application and worker entry
 
-With the prebuilt tarball installed in your existing browser application:
+With `chmkit` installed in your existing browser application:
 
 ```ts
 // reader.worker.ts — your application's module Worker entry

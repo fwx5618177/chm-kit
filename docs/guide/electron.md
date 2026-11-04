@@ -10,11 +10,8 @@ its runtime, preload packaging, window lifecycle and authorization policy.
 
 ## Start from the installed package
 
-Use the prebuilt npm tarball named in the artifact's `manifest.json` (currently
-`chmkit-1.1.0.tgz`), not a public-registry install. In your own application:
-
 ```sh
-npm install /absolute/path/to/chmkit-1.1.0.tgz
+npm install chmkit
 npm install --save-dev electron@45.1.0 esbuild
 ```
 

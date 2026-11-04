@@ -1,8 +1,9 @@
 # Contributing to CHMKit
 
-Thank you for helping improve CHM support. For ordinary use, choose a
-[prebuilt download](docs/guide/downloads.md); **source builds are for contributors**.
-The public `chmkit` npm package is not published; publication needs separate authorization.
+Thank you for helping improve CHM support. For ordinary use, install the npm
+package as described in [install](docs/guide/downloads.md); **source builds are for
+contributors**. The public `chmkit` npm package is published automatically by the
+release workflow on every qualifying push to `main`; pull requests never publish.
 
 ## Discuss and report
 
@@ -188,15 +189,14 @@ it does not rewrite the root package. Local dirty assets are labeled as such.
 
 Keep changes focused; add regression tests for changed behavior and document
 migration impacts. Prefer existing dependencies and native runners. Conventional
-commit style is welcome, but do not commit, create a branch, tag, publish, dispatch
-a release or change repository/environment permissions on another person's behalf
-without explicit authorization.
+commit style is welcome, but do not commit, create a branch, tag, publish or
+change repository/environment permissions on another person's behalf without
+explicit authorization.
 
-The [release procedure](.github/PIPELINES.md#manual-release-assets-only) requires a
-matching existing tag, coherent package/CLI version, full CI and an independently
-reviewed protected environment. Do not assume the matching tag or protected
-`release` environment is configured: those prerequisites and explicit human
-authorization must exist before dispatch. The workflow can then create a
-**draft GitHub release**; a maintainer separately decides whether to publish it.
-Ordinary push/PR CI never publishes. There is no npm publishing workflow and no
-implicit authorization to publish npm.
+The [release procedure](.github/PIPELINES.md#automatic-release-on-main) publishes
+automatically: a push to `main` whose conventional commits include a `feat`,
+`fix`, `perf` or breaking change bumps the version, tags it, creates the GitHub
+release and publishes the verified tarball to npm. There is no approval step, so
+**treat `main` as a release branch**: use `docs:`/`chore:`/`test:` for changes that
+must not publish, and keep unfinished work on a topic branch. Pull-request CI
+never publishes, and npm uses OIDC trusted publishing with no token at all.

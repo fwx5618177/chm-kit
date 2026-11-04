@@ -1,9 +1,8 @@
 # 命令行使用指南
 
-[文档首页](../index.md) · [下载与安装](downloads.md) · [配置与资源预算](configuration.md)
+[文档首页](../index.md) · [安装](downloads.md) · [配置与资源预算](configuration.md)
 
-本页示例使用 `chmkit` 命令（安装 npm 包后可用，别名 `chm`）。如果使用独立下载的 CLI，请把命令替换为
-`node chmkit-<版本>-cli.cjs`，版本号以发布包的 `manifest.json` 为准。下面的 `manual.chm` 请替换为你自己的文件。
+本页示例使用 `chmkit` 命令（安装 npm 包后可用，别名 `chm`）。下面的 `manual.chm` 请替换为你自己的文件。
 
 ```sh
 chmkit --help
